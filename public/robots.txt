@@ -1,0 +1,10 @@
+# robots.txt para NODO
+User-agent: *
+Allow: /
+
+# Bloquear páginas administrativas si existen
+Disallow: /admin/
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://nodo.edu.ar/sitemap.xml
