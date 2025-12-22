@@ -1,93 +1,57 @@
 "use client"
+import { use } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Download } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, Download, Loader2, ExternalLink, Shield, Calendar, Award } from "lucide-react"
+import { getDiplomaById } from "@/lib/graduados/api"
+import { useState, useEffect } from "react"
+import type { Graduado } from "@/lib/graduados/types"
 
-// This would come from a database in a real application
-const graduadosData: Record<number, any> = {
-  1: {
-    id: 1,
-    nombre: "Juan",
-    apellido: "Pérez",
-    dni: "12345678",
-    curso: "Desarrollo Web Full Stack",
-    fechaGraduacion: "2024-03-15",
-    promedio: 9.2,
-  },
-  2: {
-    id: 2,
-    nombre: "María",
-    apellido: "González",
-    dni: "23456789",
-    curso: "Data Science y Machine Learning",
-    fechaGraduacion: "2024-03-20",
-    promedio: 9.5,
-  },
-  3: {
-    id: 3,
-    nombre: "Carlos",
-    apellido: "Rodríguez",
-    dni: "34567890",
-    curso: "Diseño UX/UI",
-    fechaGraduacion: "2024-02-28",
-    promedio: 8.8,
-  },
-  4: {
-    id: 4,
-    nombre: "Ana",
-    apellido: "Martínez",
-    dni: "45678901",
-    curso: "Desarrollo Web Full Stack",
-    fechaGraduacion: "2024-03-15",
-    promedio: 9.0,
-  },
-  5: {
-    id: 5,
-    nombre: "Luis",
-    apellido: "Fernández",
-    dni: "56789012",
-    curso: "Marketing Digital",
-    fechaGraduacion: "2024-04-10",
-    promedio: 8.7,
-  },
-  6: {
-    id: 6,
-    nombre: "Laura",
-    apellido: "Sánchez",
-    dni: "67890123",
-    curso: "Introducción a Python",
-    fechaGraduacion: "2024-01-25",
-    promedio: 9.3,
-  },
-  7: {
-    id: 7,
-    nombre: "Diego",
-    apellido: "López",
-    dni: "78901234",
-    curso: "Ciberseguridad Básica",
-    fechaGraduacion: "2024-02-15",
-    promedio: 8.9,
-  },
-  8: {
-    id: 8,
-    nombre: "Sofía",
-    apellido: "Ramírez",
-    dni: "89012345",
-    curso: "Data Science y Machine Learning",
-    fechaGraduacion: "2024-03-20",
-    promedio: 9.4,
-  },
-}
+export default function DiplomaPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const [graduado, setGraduado] = useState<Graduado | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-export default async function DiplomaPage({ params }: { params: { id: string } }) {
-  const { id } = params
-  const graduado = graduadosData[Number.parseInt(id)]
+  useEffect(() => {
+    const fetchGraduado = async () => {
+      try {
+        setLoading(true)
+        const data = await getDiplomaById(Number(id))
 
-  if (!graduado) {
+        setGraduado(data)
+        if (!data) {
+          setError("Diploma no encontrado")
+        }
+      } catch (err) {
+        console.error("Error al cargar diploma:", err)
+        setError("Error al cargar el diploma")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchGraduado()
+  }, [id])
+
+  if (loading) {
+    return (
+      <main className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-cyan-600 mx-auto mb-4" />
+          <p className="text-lg text-muted-foreground">Cargando diploma...</p>
+        </div>
+      </main>
+    )
+  }
+
+  if (error || !graduado) {
     return (
       <main className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100 flex items-center justify-center">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl font-bold mb-4">Graduado no encontrado</h1>
+          <h1 className="text-4xl font-bold mb-4">Diploma no encontrado</h1>
+          <p className="text-muted-foreground mb-6">No se encontró ningún diploma con el identificador especificado</p>
           <Button asChild className="bg-cyan-500 hover:bg-cyan-600">
             <Link href="/graduados">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -135,6 +99,84 @@ export default async function DiplomaPage({ params }: { params: { id: string } }
       </section>
 
       <div className="container mx-auto px-4 pb-12">
+        {graduado.txHash && (
+          <div className="max-w-4xl mx-auto mb-8 no-print">
+            <div className="bg-white/70 backdrop-blur-sm rounded-lg p-6 shadow-lg border-2 border-cyan-500">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Diploma Verificado en Blockchain</h3>
+                  <p className="text-sm text-muted-foreground">Este diploma está certificado en Polygon</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 mt-6">
+                <div className="flex items-start gap-3">
+                  <Award className="h-5 w-5 text-cyan-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-700">ID del Diploma</p>
+                    <p className="text-sm text-gray-600 font-mono">{graduado.id}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Calendar className="h-5 w-5 text-cyan-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-700">Hash de Transacción</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-gray-600 font-mono truncate">{graduado.txHash}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigator.clipboard.writeText(graduado.txHash || "")}
+                        className="flex-shrink-0 h-7 w-7 p-0"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {graduado.explorerUrl && (
+                  <div className="pt-4">
+                    <Button asChild variant="outline" className="w-full bg-white hover:bg-cyan-50">
+                      <a href={graduado.explorerUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Ver en PolygonScan
+                      </a>
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <svg className="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>
+                    Este diploma está registrado permanentemente en la blockchain de Polygon y no puede ser alterado ni
+                    falsificado.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="max-w-4xl mx-auto diploma-container">
           {/* Diploma with decorative border */}
           <div className="bg-white shadow-2xl relative p-8 md:p-16">
@@ -152,7 +194,7 @@ export default async function DiplomaPage({ params }: { params: { id: string } }
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+                      d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138z"
                     />
                   </svg>
                 </div>
@@ -161,7 +203,7 @@ export default async function DiplomaPage({ params }: { params: { id: string } }
               {/* Institution name */}
               <div>
                 <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-2">
-                  Nodo Tecnológico Catamarca
+                  {graduado.institucion || "Nodo Tecnológico Catamarca"}
                 </h1>
                 <div className="flex items-center justify-center gap-2 text-cyan-600">
                   <div className="h-px w-12 bg-cyan-600"></div>
@@ -191,9 +233,20 @@ export default async function DiplomaPage({ params }: { params: { id: string } }
 
                 <div className="py-4">
                   <h3 className="text-2xl md:text-3xl font-semibold text-cyan-700">{graduado.curso}</h3>
+                  {graduado.duracion && <p className="text-sm text-gray-600 mt-2">Duración: {graduado.duracion}</p>}
+                  {graduado.nivel && <p className="text-sm text-gray-600">Nivel: {graduado.nivel}</p>}
                 </div>
 
                 <p className="text-base text-gray-600">Otorgado el {fechaFormateada}</p>
+
+                {graduado.txHash && (
+                  <div className="flex justify-center">
+                    <Badge className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-1">
+                      <Shield className="h-3 w-3 mr-1" />
+                      Verificado en Blockchain
+                    </Badge>
+                  </div>
+                )}
               </div>
 
               {/* Signatures */}
@@ -229,6 +282,11 @@ export default async function DiplomaPage({ params }: { params: { id: string } }
                 <div className="text-left">
                   <p className="font-medium">Certificado Oficial</p>
                   <p>Registro N° {String(graduado.id).padStart(6, "0")}</p>
+                  {graduado.txHash && (
+                    <p className="font-mono text-[10px] text-cyan-600">
+                      {graduado.txHash.substring(0, 10)}...{graduado.txHash.substring(graduado.txHash.length - 8)}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

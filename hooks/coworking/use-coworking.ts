@@ -2,14 +2,23 @@
 
 import { useState, useEffect } from "react"
 import type { Asiento } from "@/lib/coworking/types"
-import { generarAsientos } from "@/lib/coworking/data"
+import { getAreas, convertAreaToAsiento } from "@/lib/coworking/api"
 
 export const useCoworking = () => {
   const [asientos, setAsientos] = useState<Asiento[]>([])
   const [ultimaActualizacion, setUltimaActualizacion] = useState<string>("")
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setAsientos(generarAsientos())
+    const cargarAreas = async () => {
+      setLoading(true)
+      const areas = await getAreas()
+      const asientosFromAPI = areas.map(convertAreaToAsiento)
+      setAsientos(asientosFromAPI)
+      setLoading(false)
+    }
+
+    cargarAreas()
     actualizarHora()
 
     const interval = setInterval(() => {
@@ -33,5 +42,6 @@ export const useCoworking = () => {
   return {
     asientos,
     ultimaActualizacion,
+    loading,
   }
 }

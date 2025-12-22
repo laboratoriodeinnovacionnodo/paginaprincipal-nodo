@@ -2,17 +2,17 @@ import type { EstadoAsiento, Asiento } from "./types"
 
 export const obtenerColorBadge = (estado: EstadoAsiento): string => {
   switch (estado) {
-    case "libre":
+    case "LIBRE":
       return "bg-green-500 border-green-500"
-    case "ocupado":
+    case "OCUPADO":
       return "bg-red-600 border-red-600"
-    case "fuera-servicio":
+    case "FUERA_DE_SERVICIO":
       return "bg-gray-500 border-gray-500"
-    case "limpiando":
+    case "LIMPIANDO":
       return "bg-blue-500 border-blue-500"
-    case "compartir":
+    case "PARA_COMPARTIR":
       return "bg-orange-500 border-orange-500"
-    case "compartido":
+    case "COMPARTIDO":
       return "bg-orange-600 border-orange-600"
     default:
       return "bg-gray-400 border-gray-400"
@@ -21,17 +21,17 @@ export const obtenerColorBadge = (estado: EstadoAsiento): string => {
 
 export const obtenerTextoEstado = (estado: EstadoAsiento): string => {
   switch (estado) {
-    case "libre":
+    case "LIBRE":
       return "Libre"
-    case "ocupado":
+    case "OCUPADO":
       return "Ocupado"
-    case "fuera-servicio":
+    case "FUERA_DE_SERVICIO":
       return "Fuera de servicio"
-    case "limpiando":
+    case "LIMPIANDO":
       return "Limpiando"
-    case "compartir":
+    case "PARA_COMPARTIR":
       return "Para compartir"
-    case "compartido":
+    case "COMPARTIDO":
       return "Compartido"
     default:
       return "Desconocido"

@@ -1,4 +1,4 @@
-export type EstadoAsiento = "libre" | "ocupado" | "fuera-servicio" | "limpiando" | "compartir" | "compartido"
+export type EstadoAsiento = "LIBRE" | "OCUPADO" | "LIMPIANDO" | "FUERA_DE_SERVICIO" | "PARA_COMPARTIR" | "COMPARTIDO"
 
 export type Asiento = {
   id: string
@@ -7,4 +7,28 @@ export type Asiento = {
   notificaciones?: number
   imagen: string
   nombre: string
+}
+
+export type AreaCoworkingAPI = {
+  id: number
+  nombre: string
+  tipo: string
+  capacidad: number
+  equipamiento: string[]
+  estado: EstadoAsiento
+  imagen?: string
+  descripcion?: string
+  precio?: string
+  disponible: boolean
+  servicios?: string[]
+  imagenesAdicionales?: string[]
+  detalles?: {
+    area?: string
+    iluminacion?: string
+    mobiliario?: string[]
+    tecnologia?: string[]
+    accesoHorario?: string
+  }
+  usosPrincipales?: string[]
+  caracteristicas?: string[]
 }

@@ -44,6 +44,7 @@ export function FooterEducacion() {
               size="lg"
               className="bg-white text-[#0EA5E9] hover:bg-white/90 font-semibold text-lg px-12 py-6 rounded-full mb-10 inline-flex items-center gap-2"
             >
+              <MapPin className="w-5 h-5" />
               Ver ubicación
             </Button>
           </a>

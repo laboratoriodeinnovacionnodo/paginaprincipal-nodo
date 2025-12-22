@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, User, MapPin, Tag, BookOpen } from "lucide-react"
+import { Calendar, User, MapPin, Tag } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getNoticiaBySlug, getNoticias } from "@/lib/strapi/api"
@@ -54,17 +54,10 @@ export default async function NoticiaDetailPage({ params }: { params: Promise<{ 
                       />
                     </div>
                   )}
-                  <Card className="bg-white/70 backdrop-blur-sm">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <BookOpen className="h-5 w-5 text-cyan-500" />
-                        Contenido de la Noticia
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-base text-muted-foreground text-pretty leading-relaxed">{noticia.contenido}</p>
-                    </CardContent>
-                  </Card>
+
+                  <div className="prose prose-cyan max-w-none">
+                    <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-lg">{noticia.contenido}</div>
+                  </div>
                 </div>
               </div>
 
