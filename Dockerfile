@@ -14,12 +14,13 @@ RUN pnpm i --frozen-lockfile
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+# Añade estas líneas antes del RUN pnpm run build
+ARG NEXT_GROQ_API_KEY
+ARG NEXT_GROQ_MODEL
+ENV NEXT_GROQ_API_KEY=$NEXT_GROQ_API_KEY
+ENV NEXT_GROQ_MODEL=$NEXT_GROQ_MODEL
+
 RUN corepack enable && corepack prepare pnpm@latest --activate
-
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN pnpm run build
 

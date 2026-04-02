@@ -28,9 +28,9 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
-          # Sin build-args: NEXT_GROQ_API_KEY y NEXT_GROQ_MODEL son server-side runtime
+          build-args: |
+            NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
+            NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
 
       - name: Deploy en Droplet
         uses: appleboy/ssh-action@v1
