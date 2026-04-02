@@ -41,8 +41,8 @@ The content is organized as follows:
 
 <directory_structure>
 .gitignore
+app/api/chat/route.ts
 app/autoridades/page.tsx
-app/chatia-nodo/page.tsx
 app/contacto/page.tsx
 app/coworking/[id]/page.tsx
 app/coworking/loading.tsx
@@ -73,14 +73,6 @@ app/sobre-nosotros/loading.tsx
 app/sobre-nosotros/page.tsx
 components.json
 components/chatbot/chatbot-widget.tsx
-components/chatia-nodo/action-button.tsx
-components/chatia-nodo/chat-input.tsx
-components/chatia-nodo/chat-messages.tsx
-components/chatia-nodo/chat-module.tsx
-components/chatia-nodo/loading-indicator.tsx
-components/chatia-nodo/message-actions.tsx
-components/chatia-nodo/message-item.tsx
-components/chatia-nodo/tooltip.tsx
 components/color-separator.tsx
 components/contacto/contact-form.tsx
 components/contacto/contact-hero.tsx
@@ -251,6 +243,51 @@ tsconfig.json
 <files>
 This section contains the contents of the repository's files.
 
+<file path="app/api/chat/route.ts">
+import { NextRequest, NextResponse } from "next/server"
+import Groq from "groq-sdk"
+
+const groq = new Groq({
+  apiKey: process.env.NEXT_GROQ_API_KEY,
+})
+
+const SYSTEM_PROMPT = `Eres el asistente virtual del Nodo Tecnológico, un centro de innovación y educación digital en Argentina. 
+Tu rol es ayudar a los usuarios con información sobre cursos, talleres, capacitaciones en programación, inteligencia artificial y tecnologías emergentes.
+Respondé siempre en español argentino, de manera amigable, clara y concisa.
+Si no sabés algo específico sobre el Nodo, ofrecé orientar al usuario para que contacte directamente al centro.`
+
+export async function POST(req: NextRequest) {
+  try {
+    const { messages } = await req.json()
+
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: "Mensajes inválidos" }, { status: 400 })
+    }
+
+    const completion = await groq.chat.completions.create({
+      model: process.env.NEXT_GROQ_MODEL || "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...messages,
+      ],
+      max_tokens: 1024,
+      temperature: 0.7,
+    })
+
+    const response = completion.choices[0]?.message?.content
+
+    if (!response) {
+      return NextResponse.json({ error: "Sin respuesta del modelo" }, { status: 500 })
+    }
+
+    return NextResponse.json({ response })
+  } catch (error) {
+    console.error("Groq API error:", error)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+  }
+}
+</file>
+
 <file path="app/autoridades/page.tsx">
 import { Header } from '@/components/header'
 import { Card, CardContent } from '@/components/ui/card'
@@ -368,18 +405,6 @@ export default function AutoridadesPage() {
           </div>
         </section>
       </main>
-    </div>
-  )
-}
-</file>
-
-<file path="app/chatia-nodo/page.tsx">
-import { ChatModule } from "@/components/chatia-nodo/chat-module"
-
-export default function ChatPage() {
-  return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
-      <ChatModule />
     </div>
   )
 }
@@ -1105,129 +1130,6 @@ export default function InscripcionPage() {
 }
 </file>
 
-<file path="app/layout.tsx">
-import type React from "react"
-import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
-import "./globals.css"
-import { FooterEducacion } from "@/components/footer-educacion"
-import { Header } from "@/components/header"
-import { ColorSeparator } from "@/components/color-separator"
-import { ChatbotWidget } from "@/components/chatbot/chatbot-widget"
-import { StructuredData } from "@/components/seo/structured-data"
-
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
-
-export const metadata: Metadata = {
-  metadataBase: new URL("https://nodo.edu.ar"), // Cambiar a tu dominio real
-  title: {
-    default: "NODO - Centro de Innovación y Desarrollo Tecnológico",
-    template: "%s | NODO",
-  },
-  description:
-    "Centro de innovación tecnológica y educación digital en Argentina. Cursos, talleres y capacitaciones en programación, inteligencia artificial y tecnologías emergentes.",
-  keywords: [
-    "innovación tecnológica",
-    "educación digital",
-    "cursos de programación",
-    "inteligencia artificial",
-    "desarrollo de software",
-    "capacitación tecnológica",
-    "NODO Argentina",
-    "formación en tecnología",
-  ],
-  authors: [{ name: "NODO" }],
-  creator: "NODO",
-  publisher: "NODO",
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  openGraph: {
-    type: "website",
-    locale: "es_AR",
-    url: "https://nodo.edu.ar",
-    siteName: "NODO",
-    title: "NODO - Centro de Innovación y Desarrollo Tecnológico",
-    description:
-      "Centro de innovación tecnológica y educación digital. Cursos, talleres y capacitaciones en programación, IA y tecnologías emergentes.",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "NODO - Centro de Innovación Tecnológica",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "NODO - Centro de Innovación y Desarrollo Tecnológico",
-    description: "Centro de innovación tecnológica y educación digital en Argentina.",
-    images: ["/og-image.jpg"],
-    creator: "@nodo", // Cambiar a tu usuario de Twitter
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-  icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
-  },
-  verification: {
-    google: "google-site-verification-code", // Agregar código de Google Search Console
-    // yandex: 'yandex-verification-code',
-    // bing: 'bing-verification-code',
-  },
-    generator: 'v0.app'
-}
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  return (
-    <html lang="es">
-      <body className={`font-sans antialiased`}>
-        <StructuredData />
-        <Header />
-        {children}
-        <ColorSeparator colors="w-full h-20 sm:h-32 md:h-48 bg-gradient-to-b from-blue-100 via-sky-300 to-[#0EA5E9] shadow-[0_6px_15px_0_rgba(14,165,233,0.35)]" />
-
-        <FooterEducacion />
-        <ChatbotWidget />
-        <Analytics />
-      </body>
-    </html>
-  )
-}
-</file>
-
 <file path="app/manifest.ts">
 import type { MetadataRoute } from "next"
 
@@ -1801,327 +1703,6 @@ export default function SobreNosotrosPage() {
     "hooks": "@/hooks"
   },
   "iconLibrary": "lucide"
-}
-</file>
-
-<file path="components/chatia-nodo/action-button.tsx">
-"use client"
-
-import type React from "react"
-
-import { useTooltip } from "@/hooks/chatia-nodo/use-tooltip"
-import { Tooltip } from "./tooltip"
-
-interface ActionButtonProps {
-  icon: React.ReactNode
-  onClick: () => void
-  tooltip: string
-  id: string
-}
-
-export function ActionButton({ icon, onClick, tooltip, id }: ActionButtonProps) {
-  const { activeTooltip, showTooltip, hideTooltip } = useTooltip()
-
-  return (
-    <div className="relative">
-      <button
-        onClick={onClick}
-        onMouseEnter={() => showTooltip(id)}
-        onMouseLeave={hideTooltip}
-        className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-        aria-label={tooltip}
-      >
-        {icon}
-      </button>
-      <Tooltip content={tooltip} show={activeTooltip === id} />
-    </div>
-  )
-}
-</file>
-
-<file path="components/chatia-nodo/chat-input.tsx">
-"use client"
-
-import type React from "react"
-
-import { Send } from "lucide-react"
-import { useTooltip } from "@/hooks/chatia-nodo/use-tooltip"
-import { Tooltip } from "./tooltip"
-
-interface ChatInputProps {
-  value: string
-  onChange: (value: string) => void
-  onSend: () => void
-  disabled?: boolean
-  placeholder?: string
-}
-
-export function ChatInput({ value, onChange, onSend, disabled, placeholder }: ChatInputProps) {
-  const { activeTooltip, showTooltip, hideTooltip } = useTooltip()
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      onSend()
-    }
-  }
-
-  return (
-      <div className="flex items-center gap-3 max-w-4xl mx-auto">
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder={placeholder || "Ask Anything"}
-          disabled={disabled}
-          className="flex-1 px-4 py-3 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        />
-        <div className="relative">
-          <button
-            onClick={onSend}
-            onMouseEnter={() => showTooltip("send-btn")}
-            onMouseLeave={hideTooltip}
-            disabled={disabled || !value.trim()}
-            className="p-3 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            aria-label="Enviar mensaje"
-          >
-            <Send className="w-5 h-5" />
-          </button>
-          <Tooltip content="Enviar" show={activeTooltip === "send-btn"} />
-        </div>
-      </div>
-  )
-}
-</file>
-
-<file path="components/chatia-nodo/chat-messages.tsx">
-"use client"
-
-import type React from "react"
-
-import type { Message } from "@/lib/chatia-nodo/types"
-import { MessageItem } from "./message-item"
-import { LoadingIndicator } from "./loading-indicator"
-
-interface ChatMessagesProps {
-  messages: Message[]
-  isLoading: boolean
-  onCopyMessage: (content: string) => void
-  onShareMessage: (content: string) => void
-  onDeleteMessage: (messageId: string) => void
-  messagesEndRef: React.RefObject<HTMLDivElement>
-}
-
-export function ChatMessages({
-  messages,
-  isLoading,
-  onCopyMessage,
-  onShareMessage,
-  onDeleteMessage,
-  messagesEndRef,
-}: ChatMessagesProps) {
-  return (
-      <div className="max-w-4xl mx-auto">
-        {messages.map((message) => (
-          <MessageItem
-            key={message.id}
-            message={message}
-            onCopy={() => onCopyMessage(message.content)}
-            onShare={() => onShareMessage(message.content)}
-            onDelete={() => onDeleteMessage(message.id)}
-          />
-        ))}
-        {isLoading && <LoadingIndicator />}
-        <div ref={messagesEndRef} />
-    </div>
-  )
-}
-</file>
-
-<file path="components/chatia-nodo/chat-module.tsx">
-"use client"
-
-import { useChat } from "@/hooks/chatia-nodo/use-chat"
-import type { ChatModuleProps } from "@/lib/chatia-nodo/types"
-import { ChatMessages } from "./chat-messages"
-import { ChatInput } from "./chat-input"
-
-export function ChatModule({ onSendMessage, initialMessages, placeholder }: ChatModuleProps) {
-  const {
-    messages,
-    isLoading,
-    inputValue,
-    setInputValue,
-    sendMessage,
-    copyMessage,
-    shareMessage,
-    deleteMessage,
-    messagesEndRef,
-  } = useChat(initialMessages)
-
-  const handleSend = async () => {
-    if (onSendMessage) {
-      await onSendMessage(inputValue)
-    } else {
-      await sendMessage(inputValue)
-    }
-  }
-
-  return (
-      <div className="relative flex flex-col h-[calc(100vh)] mx-auto w-full">
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <ChatMessages
-            messages={messages}
-            isLoading={isLoading}
-            onCopyMessage={copyMessage}
-            onShareMessage={shareMessage}
-            onDeleteMessage={deleteMessage}
-            messagesEndRef={messagesEndRef}
-          />
-        </div>
-
-        <div className="flex-shrink-0 justify-center w-full absolute bottom-[10px]">
-          <ChatInput
-            value={inputValue}
-            onChange={setInputValue}
-            onSend={handleSend}
-            disabled={isLoading}
-            placeholder={placeholder}
-          />
-        </div>
-      </div>
-  )
-}
-</file>
-
-<file path="components/chatia-nodo/loading-indicator.tsx">
-export function LoadingIndicator() {
-  return (
-    <div className="flex justify-start mb-6">
-      <div className="max-w-[80%] items-start flex flex-col">
-        <div className="px-4 py-3 rounded-2xl bg-gray-100 text-gray-900 rounded-bl-sm">
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-</file>
-
-<file path="components/chatia-nodo/message-actions.tsx">
-"use client"
-
-import { Copy, Share2, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react"
-import { ActionButton } from "./action-button"
-
-interface MessageActionsProps {
-  messageId: string
-  content: string
-  onCopy: () => void
-  onShare: () => void
-  onDelete: () => void
-}
-
-export function MessageActions({ messageId, content, onCopy, onShare, onDelete }: MessageActionsProps) {
-  return (
-    <div className="flex items-center gap-1 mt-2">
-      <ActionButton
-        id={`copy-${messageId}`}
-        icon={<Copy className="w-4 h-4 text-blue-500" />}
-        onClick={onCopy}
-        tooltip="Copiar"
-      />
-      <ActionButton
-        id={`share-${messageId}`}
-        icon={<Share2 className="w-4 h-4 text-blue-500" />}
-        onClick={onShare}
-        tooltip="Compartir"
-      />
-      <ActionButton
-        id={`like-${messageId}`}
-        icon={<ThumbsUp className="w-4 h-4 text-blue-500" />}
-        onClick={() => {}}
-        tooltip="Me gusta"
-      />
-      <ActionButton
-        id={`dislike-${messageId}`}
-        icon={<ThumbsDown className="w-4 h-4 text-blue-500" />}
-        onClick={() => {}}
-        tooltip="No me gusta"
-      />
-      <ActionButton
-        id={`delete-${messageId}`}
-        icon={<Trash2 className="w-4 h-4 text-blue-500" />}
-        onClick={onDelete}
-        tooltip="Eliminar"
-      />
-    </div>
-  )
-}
-</file>
-
-<file path="components/chatia-nodo/message-item.tsx">
-"use client"
-
-import type { Message } from "@/lib/chatia-nodo/types"
-import { MessageActions } from "./message-actions"
-
-interface MessageItemProps {
-  message: Message
-  onCopy: () => void
-  onShare: () => void
-  onDelete: () => void
-}
-
-export function MessageItem({ message, onCopy, onShare, onDelete }: MessageItemProps) {
-  const isUser = message.role === "user"
-
-  return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-6`}>
-      <div className={`max-w-[80%] ${isUser ? "items-end" : "items-start"} flex flex-col`}>
-        <div
-          className={`px-4 py-3 rounded-2xl ${
-            isUser ? "bg-cyan-400 text-white rounded-br-sm" : "text-gray-700 rounded-bl-sm"
-          }`}
-        >
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
-        </div>
-        {!isUser && (
-          <MessageActions
-            messageId={message.id}
-            content={message.content}
-            onCopy={onCopy}
-            onShare={onShare}
-            onDelete={onDelete}
-          />
-        )}
-      </div>
-    </div>
-  )
-}
-</file>
-
-<file path="components/chatia-nodo/tooltip.tsx">
-"use client"
-
-interface TooltipProps {
-  content: string
-  show: boolean
-}
-
-export function Tooltip({ content, show }: TooltipProps) {
-  if (!show) return null
-
-  return (
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-blue-400 text-white text-xs rounded whitespace-nowrap pointer-events-none z-10">
-      {content}
-    </div>
-  )
 }
 </file>
 
@@ -14149,6 +13730,129 @@ export default function GraduadosPage() {
 }
 </file>
 
+<file path="app/layout.tsx">
+import type React from "react"
+import type { Metadata } from "next"
+import { Geist, Geist_Mono } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
+import "./globals.css"
+import { FooterEducacion } from "@/components/footer-educacion"
+import { Header } from "@/components/header"
+import { ColorSeparator } from "@/components/color-separator"
+import { ChatbotWidget } from "@/components/chatbot/chatbot-widget"
+import { StructuredData } from "@/components/seo/structured-data"
+
+const _geist = Geist({ subsets: ["latin"] })
+const _geistMono = Geist_Mono({ subsets: ["latin"] })
+
+export const metadata: Metadata = {
+  metadataBase: new URL("https://nodo.edu.ar"), // Cambiar a tu dominio real
+  title: {
+    default: "NODO - Centro de Innovación y Desarrollo Tecnológico",
+    template: "%s | NODO",
+  },
+  description:
+    "Centro de innovación tecnológica y educación digital en Argentina. Cursos, talleres y capacitaciones en programación, inteligencia artificial y tecnologías emergentes.",
+  keywords: [
+    "innovación tecnológica",
+    "educación digital",
+    "cursos de programación",
+    "inteligencia artificial",
+    "desarrollo de software",
+    "capacitación tecnológica",
+    "NODO Argentina",
+    "formación en tecnología",
+  ],
+  authors: [{ name: "NODO" }],
+  creator: "NODO",
+  publisher: "NODO",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    locale: "es_AR",
+    url: "https://nodo.edu.ar",
+    siteName: "NODO",
+    title: "NODO - Centro de Innovación y Desarrollo Tecnológico",
+    description:
+      "Centro de innovación tecnológica y educación digital. Cursos, talleres y capacitaciones en programación, IA y tecnologías emergentes.",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "NODO - Centro de Innovación Tecnológica",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NODO - Centro de Innovación y Desarrollo Tecnológico",
+    description: "Centro de innovación tecnológica y educación digital en Argentina.",
+    images: ["/og-image.jpg"],
+    creator: "@nodo", // Cambiar a tu usuario de Twitter
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  icons: {
+    icon: [
+      {
+        url: "",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "",
+        media: "(prefers-color-scheme: dark)",
+      },
+      {
+        url: "",
+        type: "image/svg+xml",
+      },
+    ],
+    apple: "",
+  },
+  verification: {
+    google: "google-site-verification-code", // Agregar código de Google Search Console
+    // yandex: 'yandex-verification-code',
+    // bing: 'bing-verification-code',
+  },
+    generator: 'v0.app'
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <html lang="es">
+      <body className={`font-sans antialiased`}>
+        <StructuredData />
+        <Header />
+        {children}
+        <ColorSeparator colors="w-full h-20 sm:h-32 md:h-48 bg-gradient-to-b from-blue-100 via-sky-300 to-[#0EA5E9] shadow-[0_6px_15px_0_rgba(14,165,233,0.35)]" />
+
+        <FooterEducacion />
+        <ChatbotWidget />
+        <Analytics />
+      </body>
+    </html>
+  )
+}
+</file>
+
 <file path="app/noticias/[id]/page.tsx">
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -14332,6 +14036,11 @@ interface Message {
   timestamp: Date
 }
 
+interface GroqMessage {
+  role: "user" | "assistant"
+  content: string
+}
+
 export function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
@@ -14342,21 +14051,16 @@ export function ChatbotWidget() {
       timestamp: new Date(),
     },
   ])
+  const [conversationHistory, setConversationHistory] = useState<GroqMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handleOpenChatbot = () => {
-      setIsOpen(true)
-    }
-
+    const handleOpenChatbot = () => setIsOpen(true)
     window.addEventListener("open-chatbot", handleOpenChatbot)
-
-    return () => {
-      window.removeEventListener("open-chatbot", handleOpenChatbot)
-    }
+    return () => window.removeEventListener("open-chatbot", handleOpenChatbot)
   }, [])
 
   useEffect(() => {
@@ -14364,55 +14068,58 @@ export function ChatbotWidget() {
   }, [messages])
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return
+    if (!inputValue.trim() || isLoading) return
 
-    // Add user message
+    const userText = inputValue.trim()
+
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputValue,
+      text: userText,
       sender: "user",
       timestamp: new Date(),
     }
 
+    const newHistory: GroqMessage[] = [
+      ...conversationHistory,
+      { role: "user", content: userText },
+    ]
+
     setMessages((prev) => [...prev, userMessage])
-    const currentInput = inputValue
     setInputValue("")
     setIsLoading(true)
 
-    // Call backend API
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/llm/query`, {
+      const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: currentInput,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newHistory }),
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-      const data = await response.json()
+      const data = await res.json()
 
-      if (data.success && data.response) {
+      if (data.response) {
         const botMessage: Message = {
           id: (Date.now() + 1).toString(),
           text: data.response,
           sender: "bot",
           timestamp: new Date(),
         }
+
         setMessages((prev) => [...prev, botMessage])
+        setConversationHistory([
+          ...newHistory,
+          { role: "assistant", content: data.response },
+        ])
       } else {
-        throw new Error("Invalid response format")
+        throw new Error("Respuesta inválida")
       }
     } catch (error) {
-      console.error("Error sending message:", error)
+      console.error("Error:", error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente.",
+        text: "Lo siento, hubo un error al procesar tu mensaje. Por favor, intentá nuevamente.",
         sender: "bot",
         timestamp: new Date(),
       }
@@ -14426,7 +14133,7 @@ export function ChatbotWidget() {
     <>
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-12 w-12 rounded-xl bg-cyan-500 shadow-lg hover:shadow-xl hover:bg-cyan-700 transition-all duration-300 z-50 md:h-12 md:w-12 cursor-pointer"
+        className="fixed bottom-6 right-6 h-12 w-12 rounded-xl bg-cyan-500 shadow-lg hover:shadow-xl hover:bg-cyan-700 transition-all duration-300 z-50 cursor-pointer"
         size="icon"
       >
         <Bot className="text-white" style={{ width: "75%", height: "75%" }} />
@@ -14458,11 +14165,19 @@ export function ChatbotWidget() {
                   >
                     <div
                       className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        message.sender === "user" ? "bg-cyan-400 text-white rounded-br-sm" : "text-gray-500"
+                        message.sender === "user"
+                          ? "bg-cyan-400 text-white rounded-br-sm"
+                          : "text-gray-500"
                       }`}
                     >
-                      <p className="text-sm leading-relaxed break-words">{message.text}</p>
-                      <p className={`text-xs mt-1 ${message.sender === "user" ? "text-white/70" : "text-gray-500"}`}>
+                      <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                        {message.text}
+                      </p>
+                      <p
+                        className={`text-xs mt-1 ${
+                          message.sender === "user" ? "text-white/70" : "text-gray-400"
+                        }`}
+                      >
                         {message.timestamp.toLocaleTimeString("es-AR", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -14471,22 +14186,18 @@ export function ChatbotWidget() {
                     </div>
                   </div>
                 ))}
+
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 rounded-bl-sm">
                       <div className="flex items-center gap-1">
-                        <span
-                          className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0ms" }}
-                        />
-                        <span
-                          className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "150ms" }}
-                        />
-                        <span
-                          className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "300ms" }}
-                        />
+                        {[0, 150, 300].map((delay) => (
+                          <span
+                            key={delay}
+                            className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
+                            style={{ animationDelay: `${delay}ms` }}
+                          />
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -14509,13 +14220,13 @@ export function ChatbotWidget() {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={isLoading ? "Esperando respuesta..." : "Escribe tu mensaje..."}
                 disabled={isLoading}
-                className="flex-1 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-all disabled:opacity-50"
               />
               <Button
                 type="submit"
                 size="icon"
                 disabled={!inputValue.trim() || isLoading}
-                className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed h-10 w-10"
+                className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl disabled:opacity-50 h-10 w-10"
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -14917,6 +14628,7 @@ export type DiplomaResponse = {
     "cmdk": "latest",
     "date-fns": "4.1.0",
     "embla-carousel-react": "latest",
+    "groq-sdk": "^0.37.0",
     "input-otp": "latest",
     "lucide-react": "^0.454.0",
     "next": "16.1.6",

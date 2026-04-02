@@ -14,6 +14,11 @@ interface Message {
   timestamp: Date
 }
 
+interface GroqMessage {
+  role: "user" | "assistant"
+  content: string
+}
+
 export function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
@@ -24,21 +29,16 @@ export function ChatbotWidget() {
       timestamp: new Date(),
     },
   ])
+  const [conversationHistory, setConversationHistory] = useState<GroqMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handleOpenChatbot = () => {
-      setIsOpen(true)
-    }
-
+    const handleOpenChatbot = () => setIsOpen(true)
     window.addEventListener("open-chatbot", handleOpenChatbot)
-
-    return () => {
-      window.removeEventListener("open-chatbot", handleOpenChatbot)
-    }
+    return () => window.removeEventListener("open-chatbot", handleOpenChatbot)
   }, [])
 
   useEffect(() => {
@@ -46,55 +46,58 @@ export function ChatbotWidget() {
   }, [messages])
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return
+    if (!inputValue.trim() || isLoading) return
 
-    // Add user message
+    const userText = inputValue.trim()
+
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputValue,
+      text: userText,
       sender: "user",
       timestamp: new Date(),
     }
 
+    const newHistory: GroqMessage[] = [
+      ...conversationHistory,
+      { role: "user", content: userText },
+    ]
+
     setMessages((prev) => [...prev, userMessage])
-    const currentInput = inputValue
     setInputValue("")
     setIsLoading(true)
 
-    // Call backend API
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/llm/query`, {
+      const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt: currentInput,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newHistory }),
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-      const data = await response.json()
+      const data = await res.json()
 
-      if (data.success && data.response) {
+      if (data.response) {
         const botMessage: Message = {
           id: (Date.now() + 1).toString(),
           text: data.response,
           sender: "bot",
           timestamp: new Date(),
         }
+
         setMessages((prev) => [...prev, botMessage])
+        setConversationHistory([
+          ...newHistory,
+          { role: "assistant", content: data.response },
+        ])
       } else {
-        throw new Error("Invalid response format")
+        throw new Error("Respuesta inválida")
       }
     } catch (error) {
-      console.error("Error sending message:", error)
+      console.error("Error:", error)
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente.",
+        text: "Lo siento, hubo un error al procesar tu mensaje. Por favor, intentá nuevamente.",
         sender: "bot",
         timestamp: new Date(),
       }
@@ -108,7 +111,7 @@ export function ChatbotWidget() {
     <>
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-12 w-12 rounded-xl bg-cyan-500 shadow-lg hover:shadow-xl hover:bg-cyan-700 transition-all duration-300 z-50 md:h-12 md:w-12 cursor-pointer"
+        className="fixed bottom-6 right-6 h-12 w-12 rounded-xl bg-cyan-500 shadow-lg hover:shadow-xl hover:bg-cyan-700 transition-all duration-300 z-50 cursor-pointer"
         size="icon"
       >
         <Bot className="text-white" style={{ width: "75%", height: "75%" }} />
@@ -140,11 +143,19 @@ export function ChatbotWidget() {
                   >
                     <div
                       className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        message.sender === "user" ? "bg-cyan-400 text-white rounded-br-sm" : "text-gray-500"
+                        message.sender === "user"
+                          ? "bg-cyan-400 text-white rounded-br-sm"
+                          : "text-gray-500"
                       }`}
                     >
-                      <p className="text-sm leading-relaxed break-words">{message.text}</p>
-                      <p className={`text-xs mt-1 ${message.sender === "user" ? "text-white/70" : "text-gray-500"}`}>
+                      <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                        {message.text}
+                      </p>
+                      <p
+                        className={`text-xs mt-1 ${
+                          message.sender === "user" ? "text-white/70" : "text-gray-400"
+                        }`}
+                      >
                         {message.timestamp.toLocaleTimeString("es-AR", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -153,22 +164,18 @@ export function ChatbotWidget() {
                     </div>
                   </div>
                 ))}
+
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 rounded-bl-sm">
                       <div className="flex items-center gap-1">
-                        <span
-                          className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0ms" }}
-                        />
-                        <span
-                          className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "150ms" }}
-                        />
-                        <span
-                          className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "300ms" }}
-                        />
+                        {[0, 150, 300].map((delay) => (
+                          <span
+                            key={delay}
+                            className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
+                            style={{ animationDelay: `${delay}ms` }}
+                          />
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -191,13 +198,13 @@ export function ChatbotWidget() {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={isLoading ? "Esperando respuesta..." : "Escribe tu mensaje..."}
                 disabled={isLoading}
-                className="flex-1 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-all disabled:opacity-50"
               />
               <Button
                 type="submit"
                 size="icon"
                 disabled={!inputValue.trim() || isLoading}
-                className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed h-10 w-10"
+                className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl disabled:opacity-50 h-10 w-10"
               >
                 <Send className="h-4 w-4" />
               </Button>
