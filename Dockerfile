@@ -1,21 +1,27 @@
 # ─── Stage 1: deps ───────────────────────────────────────────
 FROM node:22-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Instalar pnpm globalmente
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY package.json pnpm-lock.yaml* ./
+# Usamos --frozen-lockfile para asegurar instalaciones exactas (equivalente a npm ci)
+RUN pnpm i --frozen-lockfile
 
 # ─── Stage 2: build ──────────────────────────────────────────
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Habilita standalone output para imagen mínima
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm run build
+RUN pnpm run build
 
 # ─── Stage 3: runner ─────────────────────────────────────────
 FROM node:22-alpine AS runner
@@ -27,10 +33,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser  --system --uid 1001 nextjs
 
-# Copiamos el output standalone + assets estáticos
-COPY --from=builder /app/public           ./public
+COPY --from=builder /app/public ./public
+
+# Set permissions for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Copiamos el output standalone
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static     ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
