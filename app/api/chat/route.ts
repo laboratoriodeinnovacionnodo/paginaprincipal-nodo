@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import Groq from "groq-sdk"
 
 const groq = new Groq({
-  apiKey: process.env.NEXT_GROQ_API_KEY,
+  apiKey: process.env.NEXT_GROQ_API_KEY || "BUILD_TIME_PLACEHOLDER",
 })
 
 const SYSTEM_PROMPT = `Eres el asistente virtual del Nodo Tecnológico, un centro de innovación y educación digital en Argentina. 
