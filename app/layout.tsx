@@ -8,6 +8,7 @@ import { Header } from "@/components/header"
 import { ColorSeparator } from "@/components/color-separator"
 import { ChatbotWidget } from "@/components/chatbot/chatbot-widget"
 import { StructuredData } from "@/components/seo/structured-data"
+import { AuthProvider } from "@/contexts/auth-context"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -74,21 +75,8 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: [
-      {
-        url: "",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "",
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
   },
   verification: {
     google: "google-site-verification-code", // Agregar código de Google Search Console
@@ -107,12 +95,14 @@ export default function RootLayout({
     <html lang="es">
       <body className={`font-sans antialiased`}>
         <StructuredData />
+        <AuthProvider>
         <Header />
         {children}
         <ColorSeparator colors="w-full h-20 sm:h-32 md:h-48 bg-gradient-to-b from-blue-100 via-sky-300 to-[#0EA5E9] shadow-[0_6px_15px_0_rgba(14,165,233,0.35)]" />
 
         <FooterEducacion />
         <ChatbotWidget />
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

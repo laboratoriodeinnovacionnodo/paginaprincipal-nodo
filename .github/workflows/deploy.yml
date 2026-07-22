@@ -1,4 +1,4 @@
-name: CI/CD Frontend
+name: 🧑‍🤝‍🧑 Deploy — ciudadano-front
 
 on:
   push:
@@ -28,36 +28,56 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
+          cache-to:   type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
           secrets: |
             "NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}"
             "NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}"
+            "NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}"
+            "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}"
+            "NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}"
+            "NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}"
+              "NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}"
 
-      - name: Deploy en Droplet
+      - name: Deploy en servidor
         uses: appleboy/ssh-action@v1
+        env:
+          NEXT_GROQ_API_KEY: ${{ secrets.NEXT_GROQ_API_KEY }}
+          NEXT_GROQ_MODEL:   ${{ secrets.NEXT_GROQ_MODEL }}
         with:
-          host: ${{ secrets.DO_HOST }}
+          host:     ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
-          key: ${{ secrets.DO_SSH_PRIVATE_KEY }}
-          port: ${{ secrets.DO_PORT }}
+          key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          port:     ${{ secrets.DO_PORT }}
           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL
           script: |
+            set -e
             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
             docker pull ghcr.io/${{ github.repository }}:latest
 
-            mkdir -p /etc/admins-front
+            docker network inspect red_interna >/dev/null 2>&1 || \
+              docker network create --driver bridge red_interna
+
+            mkdir -p /etc/ciudadano-front
             printf '%s\n' \
               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
-              > /etc/admins-front/.env
-            chmod 600 /etc/admins-front/.env
+              > /etc/ciudadano-front/.env
+            chmod 600 /etc/ciudadano-front/.env
 
-            docker stop admins-front || true
-            docker rm   admins-front || true
+            docker stop ciudadano-front || true
+            docker rm   ciudadano-front || true
 
+            # Sin -p: se sirve solo en red_interna, igual que
+            # catamarcaopen-front / noticias-front / registro-front.
+            # Nginx Proxy Manager lo enruta por nombre de contenedor.
             docker run -d \
-              --name admins-front \
+              --name    ciudadano-front \
               --restart always \
               --network red_interna \
-              --env-file /etc/admins-front/.env \
-              -p 3011:3000 \
+              --env-file /etc/ciudadano-front/.env \
               ghcr.io/${{ github.repository }}:latest
+
+            sleep 3
+            docker logs ciudadano-front --tail 20
+            docker image prune -f

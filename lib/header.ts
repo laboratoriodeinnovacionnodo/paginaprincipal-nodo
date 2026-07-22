@@ -25,6 +25,14 @@ export const navLinks = [
     href: "/coworking",
   },
   {
+    label: "Laboratorio",
+    href: "/laboratorio",
+  },
+  {
+    label: "CatamarcaOpen",
+    href: "/catamarcaopen",
+  },
+  {
     label: "Inscripción",
     href: "/inscripcion",
   },

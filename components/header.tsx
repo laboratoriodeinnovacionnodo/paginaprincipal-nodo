@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
-import { Menu, Newspaper, Bot, GraduationCap, Award, Users, Calendar, Briefcase } from "lucide-react"
+import { Menu, Newspaper, Bot, GraduationCap, Award, Users, Calendar, Briefcase, Code2, FlaskConical } from "lucide-react"
 import Link from "next/link"
 import { logo, navLinks, ctaButton } from "@/lib/header"
+import { HeaderAuth, HeaderAuthMobileCard } from "@/components/auth/header-auth"
 import {
   Drawer,
   DrawerContent,
@@ -21,6 +22,8 @@ const navIcons: Record<string, any> = {
   "/inscripcion": Calendar,
   "/chatia-nodo": Bot,
   "/sobre-nosotros": Users,
+  "/catamarcaopen": Code2,
+  "/laboratorio": FlaskConical,
 }
 
 export function Header() {
@@ -53,6 +56,8 @@ export function Header() {
 
   const logoSubtitleColor = pathname === "/" ? (scrolled ? "text-gray-500" : "text-gray-200") : "text-gray-500"
 
+  const iconColor = pathname === "/" && !scrolled ? "text-white" : "text-gray-700"
+
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${headerBg}`}>
       <nav className="container mx-auto px-6 lg:px-8">
@@ -76,42 +81,44 @@ export function Header() {
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-1 transition-colors duration-500">
-            {navLinks.map((link) => (
+          {/* Derecha: nav desktop + avatar/ingresar + botón mobile */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex items-center gap-1 transition-colors duration-500">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`group relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${textColor}`}
+                >
+                  {link.label}
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#0EA5E9] rounded-full opacity-0 transition-all duration-300 group-hover:w-1/2 group-hover:opacity-100" />
+                </Link>
+              ))}
+
               <Link
-                key={link.href}
-                href={link.href}
-                className={`group relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${textColor}`}
+                href={ctaButton.href}
+                className="ml-3 px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-all duration-200 hover:scale-105"
+                style={{
+                  backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})`,
+                }}
               >
-                {link.label}
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#0EA5E9] rounded-full opacity-0 transition-all duration-300 group-hover:w-1/2 group-hover:opacity-100" />
+                {ctaButton.label}
               </Link>
-            ))}
+            </div>
 
-            <Link
-              href={ctaButton.href}
-              className="ml-3 px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-all duration-200 hover:scale-105"
-              style={{
-                backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})`,
-              }}
+            {/* Avatar del ciudadano / botón Ingresar — visible en TODAS las pantallas */}
+            <HeaderAuth textColor={textColor} />
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2.5 rounded-lg hover:bg-gray-100 transition-colors"
+              aria-label="Toggle menu"
             >
-              {ctaButton.label}
-            </Link>
+              <Menu className={`h-6 w-6 transition-colors duration-300 ${iconColor}`} />
+            </button>
           </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2.5 rounded-lg hover:bg-gray-100 transition-colors"
-            aria-label="Toggle menu"
-          >
-            <Menu
-              className={`h-6 w-6 transition-colors duration-300 ${
-                pathname === "/" && !scrolled ? "text-white" : "text-gray-700"
-              }`}
-            />
-          </button>
         </div>
       </nav>
 
@@ -127,6 +134,11 @@ export function Header() {
           </DrawerClose>
 
           <div className="px-6 pb-8">
+            {/* Tarjeta de perfil / login del ciudadano */}
+            <div className="mb-4">
+              <HeaderAuthMobileCard onNavigate={() => setMobileMenuOpen(false)} />
+            </div>
+
             <div className="flex flex-col gap-2">
               {navLinks.map((link) => {
                 const Icon = navIcons[link.href]
