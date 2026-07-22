@@ -3,7 +3,7 @@ FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
 COPY package.json pnpm-lock.yaml* ./
 RUN pnpm i --no-frozen-lockfile
