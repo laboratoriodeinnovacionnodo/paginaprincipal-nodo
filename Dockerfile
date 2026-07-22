@@ -26,6 +26,7 @@ RUN --mount=type=secret,id=NEXT_GROQ_API_KEY \
     --mount=type=secret,id=NEXT_PUBLIC_FIREBASE_PROJECT_ID \
     --mount=type=secret,id=NEXT_PUBLIC_FIREBASE_APP_ID \
     --mount=type=secret,id=NEXT_PUBLIC_CIUDADANO_API_URL \
+    CI=true \
     NEXT_GROQ_API_KEY=$(cat /run/secrets/NEXT_GROQ_API_KEY) \
     NEXT_GROQ_MODEL=$(cat /run/secrets/NEXT_GROQ_MODEL) \
     NEXT_PUBLIC_FIREBASE_API_KEY=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_API_KEY) \
