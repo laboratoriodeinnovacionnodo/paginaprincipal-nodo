@@ -17,10 +17,6 @@ export const navLinks = [
     href: "/noticias",
   },
   {
-    label: "Graduados",
-    href: "/graduados",
-  },
-  {
     label: "Coworking",
     href: "/coworking",
   },
@@ -31,14 +27,6 @@ export const navLinks = [
   {
     label: "CatamarcaOpen",
     href: "/catamarcaopen",
-  },
-  {
-    label: "Inscripción",
-    href: "/inscripcion",
-  },
-  {
-    label: "ChatIA",
-    href: "/chatia-nodo",
   },
   {
     label: "Sobre Nosotros",

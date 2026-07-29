@@ -192,8 +192,10 @@ lib/
     types.ts
     utils.ts
   cursos/
+    api.ts
     data.ts
     filters.ts
+    registro-url.ts
     types.ts
   equipo/
     data.ts
@@ -1105,190 +1107,6 @@ x.sh
 5: }
 ```
 
-## File: app/cursos/[id]/page.tsx
-```typescript
-  1: import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-  2: import { Badge } from "@/components/ui/badge"
-  3: import { Button } from "@/components/ui/button"
-  4: import { Clock, MapPin, Users, BookOpen, ExternalLink, Calendar, Sun, CheckCircle2 } from "lucide-react"
-  5: import Link from "next/link"
-  6: import { notFound } from "next/navigation"
-  7: import { getCursoBySlug } from "@/lib/strapi/api"
-  8: 
-  9: export default async function CursoDetailPage({ params }: { params: Promise<{ id: string }> }) {
- 10:   const { id: slug } = await params
- 11:   const curso = await getCursoBySlug(slug)
- 12: 
- 13:   if (!curso) {
- 14:     notFound()
- 15:   }
- 16: 
- 17:   return (
- 18:     <main className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
- 19:       <section className="pt-24 pb-12">
- 20:         <div className="container mx-auto px-4">
- 21:           <div className="grid gap-8 lg:grid-cols-3">
- 22:             {/* Main Content */}
- 23:             <div className="lg:col-span-2 space-y-6">
- 24:               {/* Course Header */}
- 25:               <div>
- 26:                 <h1 className="mb-4 text-4xl font-bold text-balance md:text-5xl">{curso.titulo}</h1>
- 27:                 <div className="mb-3 flex flex-wrap gap-2">
- 28:                   {curso.tags.map((tag) => (
- 29:                     <Badge key={tag} variant="secondary">
- 30:                       {tag}
- 31:                     </Badge>
- 32:                   ))}
- 33:                   <Badge
- 34:                     variant="outline"
- 35:                     className={
- 36:                       curso.modalidad === "presencial"
- 37:                         ? "border-cyan-500 text-cyan-600"
- 38:                         : "border-blue-500 text-blue-600"
- 39:                     }
- 40:                   >
- 41:                     {curso.modalidad === "presencial" ? "Presencial" : "Virtual"}
- 42:                   </Badge>
- 43:                 </div>
- 44:               </div>
- 45: 
- 46:               <Card className="bg-white/70 backdrop-blur-sm">
- 47:                 <CardHeader>
- 48:                   <CardTitle className="flex items-center gap-2">
- 49:                     <BookOpen className="h-5 w-5 text-cyan-500" />
- 50:                     Información del Curso
- 51:                   </CardTitle>
- 52:                 </CardHeader>
- 53:                 <CardContent>
- 54:                   <p className="text-base text-muted-foreground text-pretty leading-relaxed">{curso.descripcion}</p>
- 55:                 </CardContent>
- 56:               </Card>
- 57: 
- 58:               {curso.requisitos && curso.requisitos.length > 0 && (
- 59:                 <Card className="bg-white/70 backdrop-blur-sm">
- 60:                   <CardHeader>
- 61:                     <CardTitle className="flex items-center gap-2">
- 62:                       <CheckCircle2 className="h-5 w-5 text-cyan-500" />
- 63:                       Requisitos
- 64:                     </CardTitle>
- 65:                   </CardHeader>
- 66:                   <CardContent>
- 67:                     <ul className="space-y-2">
- 68:                       {curso.requisitos.map((requisito, index) => (
- 69:                         <li key={index} className="flex items-start gap-2 text-muted-foreground">
- 70:                           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" />
- 71:                           <span className="text-sm leading-relaxed">{requisito}</span>
- 72:                         </li>
- 73:                       ))}
- 74:                     </ul>
- 75:                   </CardContent>
- 76:                 </Card>
- 77:               )}
- 78:             </div>
- 79: 
- 80:             {/* Sidebar */}
- 81:             <div className="lg:col-span-1">
- 82:               <Card className="sticky top-4 bg-white/70 backdrop-blur-sm">
- 83:                 <CardHeader>
- 84:                   <CardTitle>Detalles</CardTitle>
- 85:                 </CardHeader>
- 86:                 <CardContent className="space-y-4">
- 87:                   {curso.duracion && (
- 88:                     <div className="flex items-start gap-3">
- 89:                       <Clock className="mt-1 h-5 w-5 shrink-0 text-cyan-500" />
- 90:                       <div>
- 91:                         <p className="font-semibold">Duración</p>
- 92:                         <p className="text-sm text-muted-foreground">{curso.duracion}</p>
- 93:                       </div>
- 94:                     </div>
- 95:                   )}
- 96: 
- 97:                   {curso.cupos && (
- 98:                     <div className="flex items-start gap-3">
- 99:                       <Users className="mt-1 h-5 w-5 shrink-0 text-cyan-500" />
-100:                       <div>
-101:                         <p className="font-semibold">Cupos disponibles</p>
-102:                         <p className="text-sm text-muted-foreground">{curso.cupos}</p>
-103:                       </div>
-104:                     </div>
-105:                   )}
-106: 
-107:                   {curso.edad && (
-108:                     <div className="flex items-start gap-3">
-109:                       <Users className="mt-1 h-5 w-5 shrink-0 text-cyan-500" />
-110:                       <div>
-111:                         <p className="font-semibold">Edad</p>
-112:                         <p className="text-sm text-muted-foreground">{curso.edad}</p>
-113:                       </div>
-114:                     </div>
-115:                   )}
-116: 
-117:                   {curso.turno && (
-118:                     <div className="flex items-start gap-3">
-119:                       <Sun className="mt-1 h-5 w-5 shrink-0 text-cyan-500" />
-120:                       <div>
-121:                         <p className="font-semibold">Turno</p>
-122:                         <p className="text-sm text-muted-foreground">{curso.turno}</p>
-123:                       </div>
-124:                     </div>
-125:                   )}
-126: 
-127:                   {curso.publicadoEnFecha && (
-128:                     <div className="flex items-start gap-3">
-129:                       <Calendar className="mt-1 h-5 w-5 shrink-0 text-cyan-500" />
-130:                       <div>
-131:                         <p className="font-semibold">Fecha de Publicación</p>
-132:                         <p className="text-sm text-muted-foreground">
-133:                           {new Date(curso.publicadoEnFecha).toLocaleDateString("es-AR", {
-134:                             year: "numeric",
-135:                             month: "long",
-136:                             day: "numeric",
-137:                           })}
-138:                         </p>
-139:                       </div>
-140:                     </div>
-141:                   )}
-142: 
-143:                   {curso.ubicacion && (
-144:                     <div className="flex items-start gap-3">
-145:                       <MapPin className="mt-1 h-5 w-5 shrink-0 text-cyan-500" />
-146:                       <div>
-147:                         <p className="font-semibold">Ubicación</p>
-148:                         <p className="text-sm text-muted-foreground">{curso.ubicacion}</p>
-149:                       </div>
-150:                     </div>
-151:                   )}
-152: 
-153:                   <div className="pt-4 border-t space-y-3">
-154:                     {curso.link && (
-155:                       <Button className="w-full bg-cyan-500 hover:bg-cyan-600" size="lg" asChild>
-156:                         <a
-157:                           href={curso.link}
-158:                           target="_blank"
-159:                           rel="noopener noreferrer"
-160:                           className="flex items-center gap-2"
-161:                         >
-162:                           <ExternalLink className="h-4 w-4" />
-163:                           Ir al curso
-164:                         </a>
-165:                       </Button>
-166:                     )}
-167: 
-168:                     <Button variant="outline" size="lg" className="w-full bg-transparent" asChild>
-169:                       <Link href="/cursos">Volver a cursos</Link>
-170:                     </Button>
-171:                   </div>
-172:                 </CardContent>
-173:               </Card>
-174:             </div>
-175:           </div>
-176:         </div>
-177:       </section>
-178:     </main>
-179:   )
-180: }
-```
-
 ## File: app/cursos/loading.tsx
 ```typescript
  1: import { SkeletonCard } from "@/components/ui/skeleton-card"
@@ -1327,39 +1145,6 @@ x.sh
 34:     </div>
 35:   )
 36: }
-```
-
-## File: app/cursos/page.tsx
-```typescript
- 1: import { getCursosPresenciales, getCursosVirtuales, getTodosCursos } from "@/lib/strapi/api"
- 2: import { CursosContent } from "@/components/cursos/cursos-content"
- 3: 
- 4: export default async function CursosPage() {
- 5:   const [todosCursos, cursosPresenciales, cursosVirtuales] = await Promise.all([
- 6:     getTodosCursos(),
- 7:     getCursosPresenciales(),
- 8:     getCursosVirtuales(),
- 9:   ])
-10: 
-11:   return (
-12:     <main className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
-13:       {/* Hero Section */}
-14:       <section className="relative overflow-hidden pt-24 pb-4">
-15:         <div className="container mx-auto px-4 text-center">
-16:           <h1 className="mb-6 text-4xl font-bold text-balance md:text-6xl">
-17:             Nuestros <span className="text-cyan-500">Cursos</span>
-18:           </h1>
-19:         </div>
-20:       </section>
-21: 
-22:       <CursosContent
-23:         todosCursos={todosCursos}
-24:         cursosPresenciales={cursosPresenciales}
-25:         cursosVirtuales={cursosVirtuales}
-26:       />
-27:     </main>
-28:   )
-29: }
 ```
 
 ## File: app/graduados/loading.tsx
@@ -6862,30 +6647,6 @@ x.sh
 42: }
 ```
 
-## File: lib/cursos/types.ts
-```typescript
- 1: export type Modalidad = "todos" | "presencial" | "virtual"
- 2: 
- 3: export type Curso = {
- 4:   id: string | number
- 5:   titulo: string
- 6:   descripcion: string
- 7:   modalidad: Modalidad
- 8:   tags: string[]
- 9:   duracion: string
-10:   cupo: number
-11:   ubicacion?: string
-12:   link?: string
-13:   edad?: string
-14:   turno?: string
-15:   publicadoEnFecha?: string
-16:   slug?: string
-17:   documentId?: string
-18:   requisitos?: string[]
-19:   cupos?: string
-20: }
-```
-
 ## File: lib/equipo/data.ts
 ```typescript
  1: import type { MiembroEquipo } from "./types"
@@ -8266,50 +8027,6 @@ x.sh
 39:     "node_modules"
 40:   ]
 41: }
-```
-
-## File: x.sh
-```bash
- 1: mkdir -p components/ui
- 2: cat > components/ui/user-photo.tsx << 'EOF'
- 3: import Image from "next/image"
- 4: 
- 5: interface UserPhotoProps {
- 6:   name: string
- 7:   photoURL?: string | null
- 8:   sizeClass?: string
- 9: }
-10: 
-11: export function UserPhoto({ name, photoURL, sizeClass = "h-10 w-10" }: UserPhotoProps) {
-12:   const initials = name
-13:     .split(" ")
-14:     .map((n) => n[0])
-15:     .slice(0, 2)
-16:     .join("")
-17:     .toUpperCase()
-18: 
-19:   if (photoURL) {
-20:     return (
-21:       <Image
-22:         src={photoURL}
-23:         alt={name}
-24:         width={40}
-25:         height={40}
-26:         className={`${sizeClass} rounded-full object-cover`}
-27:         referrerPolicy="no-referrer"
-28:       />
-29:     )
-30:   }
-31: 
-32:   return (
-33:     <div
-34:       className={`${sizeClass} rounded-full bg-cyan-500 flex items-center justify-center text-white font-semibold text-sm`}
-35:     >
-36:       {initials}
-37:     </div>
-38:   )
-39: }
-40: EOF
 ```
 
 ## File: app/api/chat/route.ts
@@ -10016,6 +9733,63 @@ x.sh
 43: }
 ```
 
+## File: lib/cursos/api.ts
+```typescript
+ 1: // lib/cursos/api.ts
+ 2: import type { CursosListResponse, CursoBack } from './types'
+ 3: 
+ 4: const BASE = (process.env.NEXT_PUBLIC_CURSOS_API_URL ?? '').replace(/\/$/, '')
+ 5: 
+ 6: function url(path: string) {
+ 7:   if (!BASE) throw new Error('[cursos-api] NEXT_PUBLIC_CURSOS_API_URL no configurada')
+ 8:   return `${BASE}/api/v1${path}`
+ 9: }
+10: 
+11: export async function getCursos(params?: {
+12:   page?: number; limit?: number; search?: string
+13: }): Promise<CursosListResponse> {
+14:   const qs = new URLSearchParams()
+15:   if (params?.page)   qs.set('page',   String(params.page))
+16:   if (params?.limit)  qs.set('limit',  String(params.limit))
+17:   if (params?.search) qs.set('search', params.search)
+18:   const res = await fetch(url(`/courses${qs.size ? `?${qs}` : ''}`), {
+19:     next: { revalidate: 60 },
+20:     headers: { 'Content-Type': 'application/json' },
+21:   })
+22:   if (!res.ok) throw new Error(`[cursos-api] GET /courses → ${res.status}`)
+23:   const json = await res.json()
+24:   return (json?.data ?? json) as CursosListResponse
+25: }
+26: 
+27: export async function getCursoBySlug(slug: string): Promise<CursoBack | null> {
+28:   try {
+29:     const res = await fetch(url(`/courses/by-slug/${slug}`), {
+30:       next: { revalidate: 60 },
+31:       headers: { 'Content-Type': 'application/json' },
+32:     })
+33:     if (res.status === 404) return null
+34:     if (!res.ok) throw new Error(`${res.status}`)
+35:     const json = await res.json()
+36:     return (json?.data ?? json) as CursoBack
+37:   } catch { return null }
+38: }
+```
+
+## File: lib/cursos/registro-url.ts
+```typescript
+ 1: // lib/cursos/registro-url.ts
+ 2: // URL de inscripción: /preinscripciones/{cursoSlug}
+ 3: // Ej: https://registro.nodo.cc.gob.ar/preinscripciones/robot-basico
+ 4: 
+ 5: const REGISTRO_BASE =
+ 6:   (process.env.NEXT_PUBLIC_REGISTRO_URL ?? 'https://registro.nodo.cc.gob.ar')
+ 7:     .replace(/\/$/, '')
+ 8: 
+ 9: export function buildInscripcionUrl(cursoSlug: string): string {
+10:   return `${REGISTRO_BASE}/preinscripciones/${cursoSlug}`
+11: }
+```
+
 ## File: lib/graduados/types.ts
 ```typescript
  1: export type Graduado = {
@@ -10154,6 +9928,281 @@ x.sh
 14: };
 15: 
 16: export default nextConfig;
+```
+
+## File: app/cursos/[id]/page.tsx
+```typescript
+  1: // app/cursos/[id]/page.tsx — Server Component
+  2: import type { Metadata } from 'next'
+  3: import Link from 'next/link'
+  4: import { notFound } from 'next/navigation'
+  5: import { Clock, MapPin, Users, BookOpen, ExternalLink, CalendarDays, ArrowLeft, GraduationCap, CheckCircle2 } from 'lucide-react'
+  6: import { Badge } from '@/components/ui/badge'
+  7: import { Button } from '@/components/ui/button'
+  8: import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+  9: import { getCursoBySlug } from '@/lib/cursos/api'
+ 10: import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
+ 11: import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
+ 12: 
+ 13: export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+ 14:   const { id: slug } = await params
+ 15:   const curso = await getCursoBySlug(slug)
+ 16:   if (!curso) return { title: 'Curso no encontrado | Nodo Tecnológico Catamarca' }
+ 17:   return { title: `${curso.emoji} ${curso.title} | Nodo Tecnológico Catamarca`, description: curso.description }
+ 18: }
+ 19: 
+ 20: export default async function CursoDetailPage({ params }: { params: Promise<{ id: string }> }) {
+ 21:   const { id: slug } = await params
+ 22:   const curso = await getCursoBySlug(slug)
+ 23:   if (!curso) notFound()
+ 24: 
+ 25:   const puedeInscribirse = tieneInscripcionActiva(curso) && curso.available
+ 26:   const aulaLabel        = curso.aula ? AULA_NOMBRE[curso.aula] : null
+ 27: 
+ 28:   return (
+ 29:     <main className="min-h-screen bg-gradient-to-b from-cyan-100 via-white to-blue-100">
+ 30:       <section className="pt-24 pb-16">
+ 31:         <div className="container mx-auto px-4">
+ 32:           <Link href="/cursos" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-cyan-600 transition-colors">
+ 33:             <ArrowLeft className="h-4 w-4" />Todos los cursos
+ 34:           </Link>
+ 35:           <div className="grid gap-8 lg:grid-cols-3">
+ 36:             <div className="lg:col-span-2 space-y-6">
+ 37:               <div>
+ 38:                 <div className="mb-4 flex items-center gap-3">
+ 39:                   <span className="text-5xl leading-none">{curso.emoji || '📚'}</span>
+ 40:                   <div>
+ 41:                     <h1 className="text-3xl font-bold text-balance md:text-4xl">{curso.title}</h1>
+ 42:                     {curso.profe && <p className="mt-1 text-sm text-muted-foreground">Docente: {curso.profe.nombre}</p>}
+ 43:                   </div>
+ 44:                 </div>
+ 45:                 <div className="flex flex-wrap gap-2">
+ 46:                   {curso.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+ 47:                   <Badge variant="outline" className="border-cyan-500 text-cyan-600">Presencial</Badge>
+ 48:                   <Badge variant="outline">{NIVEL_LABEL[curso.level] ?? curso.level}</Badge>
+ 49:                 </div>
+ 50:               </div>
+ 51:               <Card className="bg-white/70 backdrop-blur-sm">
+ 52:                 <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-cyan-500" />Sobre el curso</CardTitle></CardHeader>
+ 53:                 <CardContent><p className="text-base text-muted-foreground leading-relaxed text-pretty">{curso.description}</p></CardContent>
+ 54:               </Card>
+ 55:               {curso.modules > 0 && (
+ 56:                 <Card className="bg-white/70 backdrop-blur-sm">
+ 57:                   <CardHeader><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-cyan-500" />Contenido</CardTitle></CardHeader>
+ 58:                   <CardContent>
+ 59:                     <p className="text-sm text-muted-foreground">
+ 60:                       <span className="font-medium text-gray-700">{curso.modules} módulo{curso.modules !== 1 ? 's' : ''}</span>
+ 61:                       {curso.steps > 0 && ` · ${curso.steps} actividades`}
+ 62:                     </p>
+ 63:                   </CardContent>
+ 64:                 </Card>
+ 65:               )}
+ 66:               {curso.waitlistEnabled && (
+ 67:                 <Card className="border-amber-100 bg-amber-50/60">
+ 68:                   <CardContent className="pt-5 pb-5">
+ 69:                     <div className="flex items-start gap-3">
+ 70:                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+ 71:                       <p className="text-sm text-amber-800 leading-relaxed">Este curso tiene lista de espera. Si los cupos se cubren, quedás en espera y te avisamos.</p>
+ 72:                     </div>
+ 73:                   </CardContent>
+ 74:                 </Card>
+ 75:               )}
+ 76:             </div>
+ 77:             <div className="lg:col-span-1">
+ 78:               <Card className="sticky top-4 bg-white/80 backdrop-blur-sm border-cyan-100">
+ 79:                 <CardHeader><CardTitle className="text-base">Detalles</CardTitle></CardHeader>
+ 80:                 <CardContent className="space-y-4 pb-2">
+ 81:                   <div className="flex items-start gap-3 text-sm">
+ 82:                     <Clock className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+ 83:                     <div><p className="font-semibold text-gray-700">Duración</p><p className="text-muted-foreground">{curso.duration}</p></div>
+ 84:                   </div>
+ 85:                   {aulaLabel && (
+ 86:                     <div className="flex items-start gap-3 text-sm">
+ 87:                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+ 88:                       <div><p className="font-semibold text-gray-700">Ubicación</p><p className="text-muted-foreground">{aulaLabel}</p></div>
+ 89:                     </div>
+ 90:                   )}
+ 91:                   {(curso.horaInicio || curso.fechaInicio) && (
+ 92:                     <div className="flex items-start gap-3 text-sm">
+ 93:                       <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+ 94:                       <div>
+ 95:                         <p className="font-semibold text-gray-700">Horario</p>
+ 96:                         {curso.fechaInicio && <p className="text-muted-foreground">{new Date(curso.fechaInicio).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>}
+ 97:                         {curso.horaInicio && curso.horaFin && <p className="text-muted-foreground">{curso.horaInicio} – {curso.horaFin} hs</p>}
+ 98:                       </div>
+ 99:                     </div>
+100:                   )}
+101:                   {curso.maxParticipants && (
+102:                     <div className="flex items-start gap-3 text-sm">
+103:                       <Users className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+104:                       <div><p className="font-semibold text-gray-700">Cupos</p><p className="text-muted-foreground">{curso.maxParticipants} participantes{curso.waitlistEnabled && ' + lista de espera'}</p></div>
+105:                     </div>
+106:                   )}
+107:                   {curso.profe && (
+108:                     <div className="flex items-start gap-3 text-sm">
+109:                       <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+110:                       <div><p className="font-semibold text-gray-700">Docente</p><p className="text-muted-foreground">{curso.profe.nombre}</p></div>
+111:                     </div>
+112:                   )}
+113:                 </CardContent>
+114:                 <div className="p-6 pt-2 space-y-2">
+115:                   {puedeInscribirse ? (
+116:                     <Button asChild size="lg" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
+117:                       <a href={buildInscripcionUrl(curso.slug)} target="_blank" rel="noopener noreferrer">
+118:                         <ExternalLink className="h-4 w-4" />Inscribirme al curso
+119:                       </a>
+120:                     </Button>
+121:                   ) : (
+122:                     <Button size="lg" variant="outline" disabled className="w-full cursor-not-allowed opacity-60">Sin inscripción activa</Button>
+123:                   )}
+124:                   {curso.whatsappLink && (
+125:                     <Button asChild size="sm" variant="ghost" className="w-full text-green-700 hover:text-green-800 hover:bg-green-50">
+126:                       <a href={curso.whatsappLink} target="_blank" rel="noopener noreferrer">Grupo de WhatsApp</a>
+127:                     </Button>
+128:                   )}
+129:                 </div>
+130:               </Card>
+131:             </div>
+132:           </div>
+133:         </div>
+134:       </section>
+135:     </main>
+136:   )
+137: }
+```
+
+## File: app/cursos/page.tsx
+```typescript
+  1: // app/cursos/page.tsx — Server Component
+  2: import type { Metadata } from 'next'
+  3: import Link from 'next/link'
+  4: import { Badge } from '@/components/ui/badge'
+  5: import { Button } from '@/components/ui/button'
+  6: import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+  7: import { Clock, Users, MapPin, CalendarDays, ExternalLink, BookOpen } from 'lucide-react'
+  8: import { getCursos } from '@/lib/cursos/api'
+  9: import type { CursoBack } from '@/lib/cursos/types'
+ 10: import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
+ 11: import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
+ 12: 
+ 13: export const metadata: Metadata = {
+ 14:   title: 'Cursos | Nodo Tecnológico Catamarca',
+ 15:   description: 'Explorá la oferta de cursos gratuitos del Nodo Tecnológico de Catamarca.',
+ 16: }
+ 17: 
+ 18: const NIVEL_COLOR: Record<string, string> = {
+ 19:   PRINCIPIANTE: 'bg-green-100 text-green-800 border-green-200',
+ 20:   INTERMEDIO:   'bg-amber-100 text-amber-800 border-amber-200',
+ 21:   AVANZADO:     'bg-red-100   text-red-800   border-red-200',
+ 22: }
+ 23: 
+ 24: function CursoCard({ curso }: { curso: CursoBack }) {
+ 25:   const puedeInscribirse = tieneInscripcionActiva(curso) && curso.available
+ 26:   const aulaLabel        = curso.aula ? AULA_NOMBRE[curso.aula] : null
+ 27: 
+ 28:   return (
+ 29:     <Card className="flex flex-col overflow-hidden border border-cyan-100 bg-white/80 backdrop-blur-sm transition-shadow hover:shadow-md">
+ 30:       <CardHeader className="pb-3">
+ 31:         <div className="flex items-start justify-between gap-3">
+ 32:           <div className="flex items-center gap-3">
+ 33:             <span className="text-4xl leading-none">{curso.emoji || '📚'}</span>
+ 34:             <div>
+ 35:               <h2 className="text-lg font-bold leading-tight text-gray-900 text-balance">{curso.title}</h2>
+ 36:               {curso.profe && <p className="mt-0.5 text-xs text-muted-foreground">{curso.profe.nombre}</p>}
+ 37:             </div>
+ 38:           </div>
+ 39:           <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${NIVEL_COLOR[curso.level] ?? 'bg-gray-100 text-gray-800'}`}>
+ 40:             {NIVEL_LABEL[curso.level] ?? curso.level}
+ 41:           </span>
+ 42:         </div>
+ 43:       </CardHeader>
+ 44: 
+ 45:       <CardContent className="flex-1 space-y-4 pb-4">
+ 46:         <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 text-pretty">{curso.description}</p>
+ 47:         <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+ 48:           <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{curso.duration}</span></div>
+ 49:           {curso.maxParticipants && <div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{curso.maxParticipants} cupos</span></div>}
+ 50:           {aulaLabel && <div className="flex items-center gap-1.5 col-span-2"><MapPin className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{aulaLabel}</span></div>}
+ 51:           {(curso.horaInicio || curso.fechaInicio) && (
+ 52:             <div className="flex items-center gap-1.5 col-span-2">
+ 53:               <CalendarDays className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+ 54:               <span>
+ 55:                 {curso.fechaInicio && new Date(curso.fechaInicio).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
+ 56:                 {curso.horaInicio && curso.horaFin && ` · ${curso.horaInicio}–${curso.horaFin} hs`}
+ 57:               </span>
+ 58:             </div>
+ 59:           )}
+ 60:           {curso.modules > 0 && <div className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{curso.modules} módulos</span></div>}
+ 61:         </div>
+ 62:         {curso.tags.length > 0 && (
+ 63:           <div className="flex flex-wrap gap-1.5">
+ 64:             {curso.tags.map((tag) => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
+ 65:           </div>
+ 66:         )}
+ 67:       </CardContent>
+ 68: 
+ 69:       <CardFooter className="flex flex-col gap-2 border-t border-cyan-50 pt-4">
+ 70:         {puedeInscribirse ? (
+ 71:           <Button asChild size="sm" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
+ 72:             <a href={buildInscripcionUrl(curso.slug)} target="_blank" rel="noopener noreferrer">
+ 73:               <ExternalLink className="h-3.5 w-3.5" />Inscribirme
+ 74:             </a>
+ 75:           </Button>
+ 76:         ) : (
+ 77:           <Button size="sm" variant="outline" disabled className="w-full cursor-not-allowed opacity-60">
+ 78:             {curso.waitlistEnabled ? 'Lista de espera' : 'Sin inscripción activa'}
+ 79:           </Button>
+ 80:         )}
+ 81:         <Button asChild size="sm" variant="ghost" className="w-full text-cyan-700 hover:text-cyan-800">
+ 82:           <Link href={`/cursos/${curso.slug}`}>Ver detalle</Link>
+ 83:         </Button>
+ 84:       </CardFooter>
+ 85:     </Card>
+ 86:   )
+ 87: }
+ 88: 
+ 89: export default async function CursosPage() {
+ 90:   let cursos: CursoBack[] = []
+ 91:   let error = false
+ 92:   try {
+ 93:     const data = await getCursos({ limit: 100 })
+ 94:     cursos = data.items.filter((c) => c.available).sort((a, b) => a.order - b.order)
+ 95:   } catch { error = true }
+ 96: 
+ 97:   return (
+ 98:     <main className="min-h-screen bg-gradient-to-b from-cyan-50 via-white to-blue-50">
+ 99:       <section className="relative overflow-hidden pt-24 pb-10">
+100:         <div className="container mx-auto px-4 text-center">
+101:           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-cyan-600">Formación gratuita</p>
+102:           <h1 className="mb-4 text-4xl font-bold text-balance md:text-5xl">Nuestros <span className="text-cyan-500">Cursos</span></h1>
+103:           <p className="mx-auto max-w-2xl text-base text-muted-foreground text-pretty leading-relaxed">
+104:             Aprendé tecnología con el equipo del Nodo Tecnológico de Catamarca. Todos los cursos son gratuitos.
+105:           </p>
+106:         </div>
+107:       </section>
+108:       <section className="container mx-auto px-4 pb-24">
+109:         {error ? (
+110:           <div className="rounded-xl border border-red-100 bg-red-50 p-8 text-center">
+111:             <p className="text-sm text-red-600">No pudimos cargar los cursos. Intentá de nuevo más tarde.</p>
+112:           </div>
+113:         ) : cursos.length === 0 ? (
+114:           <div className="flex flex-col items-center justify-center py-24 text-center">
+115:             <span className="text-6xl mb-4">🎓</span>
+116:             <h2 className="text-xl font-semibold text-gray-800 mb-2">Pronto habrá nuevos cursos</h2>
+117:             <p className="text-sm text-muted-foreground max-w-xs">Estamos preparando la próxima oferta formativa.</p>
+118:           </div>
+119:         ) : (
+120:           <>
+121:             <p className="mb-6 text-sm text-muted-foreground">{cursos.length} curso{cursos.length !== 1 ? 's' : ''} disponible{cursos.length !== 1 ? 's' : ''}</p>
+122:             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+123:               {cursos.map((curso) => <CursoCard key={curso.id} curso={curso} />)}
+124:             </div>
+125:           </>
+126:         )}
+127:       </section>
+128:     </main>
+129:   )
+130: }
 ```
 
 ## File: app/layout.tsx
@@ -10491,91 +10540,449 @@ x.sh
 217: }
 ```
 
-## File: .github/workflows/deploy.yml
-```yaml
- 1: name: 🧑‍🤝‍🧑 Deploy — ciudadano-front
- 2: 
- 3: on:
- 4:   push:
- 5:     branches: [main]
+## File: lib/cursos/types.ts
+```typescript
+ 1: // lib/cursos/types.ts
+ 2: export type CursoLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO'
+ 3: export type AulaSlot =
+ 4:   | 'AULA_1' | 'AULA_2' | 'AULA_3'
+ 5:   | 'AULA_4' | 'AULA_5' | 'AULA_6'
  6: 
- 7: jobs:
- 8:   build-and-deploy:
- 9:     runs-on: ubuntu-latest
-10: 
-11:     steps:
-12:       - name: Checkout código
-13:         uses: actions/checkout@v4
-14: 
-15:       - name: Setup Docker Buildx
-16:         uses: docker/setup-buildx-action@v3
-17: 
-18:       - name: Login a GitHub Container Registry
-19:         uses: docker/login-action@v3
-20:         with:
-21:           registry: ghcr.io
-22:           username: ${{ github.actor }}
-23:           password: ${{ secrets.GITHUB_TOKEN }}
-24: 
-25:       - name: Build y push imagen
-26:         uses: docker/build-push-action@v5
-27:         with:
-28:           context: .
-29:           push: true
-30:           tags: ghcr.io/${{ github.repository }}:latest
-31:           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
-32:           cache-to:   type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
-33:           secrets: |
-34:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
-35:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
-36:             NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-37:             NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-38:             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-39:             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
-40:             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
-41: 
-42:       - name: Deploy en servidor
-43:         uses: appleboy/ssh-action@v1
-44:         env:
-45:           NEXT_GROQ_API_KEY: ${{ secrets.NEXT_GROQ_API_KEY }}
-46:           NEXT_GROQ_MODEL:   ${{ secrets.NEXT_GROQ_MODEL }}
-47:         with:
-48:           host:     ${{ secrets.DO_HOST }}
-49:           username: ${{ secrets.DO_USER }}
-50:           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
-51:           port:     ${{ secrets.DO_PORT }}
-52:           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL
-53:           script: |
-54:             set -e
-55:             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
-56:             docker pull ghcr.io/${{ github.repository }}:latest
-57: 
-58:             docker network inspect red_interna >/dev/null 2>&1 || \
-59:               docker network create --driver bridge red_interna
-60: 
-61:             mkdir -p /etc/ciudadano-front
-62:             printf '%s\n' \
-63:               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
-64:               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
-65:               > /etc/ciudadano-front/.env
-66:             chmod 600 /etc/ciudadano-front/.env
-67: 
-68:             docker stop ciudadano-front || true
-69:             docker rm   ciudadano-front || true
-70: 
-71:             # Sin -p: se sirve solo en red_interna, igual que
-72:             # catamarcaopen-front / noticias-front / registro-front.
-73:             # Nginx Proxy Manager lo enruta por nombre de contenedor.
-74:             docker run -d \
-75:               --name    ciudadano-front \
-76:               --restart always \
-77:               --network red_interna \
-78:               --env-file /etc/ciudadano-front/.env \
-79:               ghcr.io/${{ github.repository }}:latest
-80: 
-81:             sleep 3
-82:             docker logs ciudadano-front --tail 20
-83:             docker image prune -f
+ 7: export interface RegistroModuleResumen {
+ 8:   id: string; slug: string; name: string; active: boolean; type: string
+ 9: }
+10: export interface ProfeResumen { id: string; nombre: string; email: string }
+11: 
+12: export interface CursoBack {
+13:   id: string; slug: string; title: string; description: string
+14:   level: CursoLevel; duration: string; modules: number; steps: number
+15:   emoji: string; tags: string[]; available: boolean; current: boolean
+16:   order: number; whatsappLink: string | null; maxParticipants: number | null
+17:   waitlistEnabled: boolean; aula: AulaSlot | null
+18:   horaInicio: string | null; horaFin: string | null
+19:   fechaInicio: string | null; fechaFin: string | null
+20:   profeId: string | null; profe: ProfeResumen | null
+21:   createdAt: string; updatedAt: string
+22:   registroModules: RegistroModuleResumen[]
+23:   _count: { preinscripciones: number; registroModules: number }
+24: }
+25: 
+26: export interface CursosListResponse {
+27:   items: CursoBack[]; total: number; page: number; limit: number; pages: number
+28: }
+29: 
+30: /** True si el curso tiene un módulo PREINSCRIPCION activo en registro */
+31: export function tieneInscripcionActiva(curso: CursoBack): boolean {
+32:   return curso.registroModules.some(
+33:     (m) => m.active && m.type === 'PREINSCRIPCION',
+34:   )
+35: }
+36: 
+37: export const NIVEL_LABEL: Record<CursoLevel, string> = {
+38:   PRINCIPIANTE: 'Principiante',
+39:   INTERMEDIO:   'Intermedio',
+40:   AVANZADO:     'Avanzado',
+41: }
+42: 
+43: export const AULA_NOMBRE: Record<AulaSlot, string> = {
+44:   AULA_1: 'Aula 1 — Planta baja',  AULA_2: 'Aula 2 — Planta baja',
+45:   AULA_3: 'Aula 3 — Primer piso',  AULA_4: 'Aula 4 — Primer piso',
+46:   AULA_5: 'Aula 5 — Segundo piso', AULA_6: 'Aula 6 — Segundo piso',
+47: }
+```
+
+## File: x.sh
+```bash
+  1: #!/usr/bin/env bash
+  2: # =============================================================================
+  3: # x.sh — ciudadano-front · fix: URL inscripción → /preinscripciones/{cursoSlug}
+  4: # Ejecutar desde la raíz del repo ciudadano-front: bash x.sh
+  5: # =============================================================================
+  6: set -euo pipefail
+  7: 
+  8: mkdir -p lib/cursos
+  9: 
+ 10: cat > lib/cursos/registro-url.ts << 'EOF'
+ 11: // lib/cursos/registro-url.ts
+ 12: // URL de inscripción: /preinscripciones/{cursoSlug}
+ 13: // Ej: https://registro.nodo.cc.gob.ar/preinscripciones/robot-basico
+ 14: 
+ 15: const REGISTRO_BASE =
+ 16:   (process.env.NEXT_PUBLIC_REGISTRO_URL ?? 'https://registro.nodo.cc.gob.ar')
+ 17:     .replace(/\/$/, '')
+ 18: 
+ 19: export function buildInscripcionUrl(cursoSlug: string): string {
+ 20:   return `${REGISTRO_BASE}/preinscripciones/${cursoSlug}`
+ 21: }
+ 22: EOF
+ 23: 
+ 24: cat > lib/cursos/types.ts << 'EOF'
+ 25: // lib/cursos/types.ts
+ 26: export type CursoLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO'
+ 27: export type AulaSlot =
+ 28:   | 'AULA_1' | 'AULA_2' | 'AULA_3'
+ 29:   | 'AULA_4' | 'AULA_5' | 'AULA_6'
+ 30: 
+ 31: export interface RegistroModuleResumen {
+ 32:   id: string; slug: string; name: string; active: boolean; type: string
+ 33: }
+ 34: export interface ProfeResumen { id: string; nombre: string; email: string }
+ 35: 
+ 36: export interface CursoBack {
+ 37:   id: string; slug: string; title: string; description: string
+ 38:   level: CursoLevel; duration: string; modules: number; steps: number
+ 39:   emoji: string; tags: string[]; available: boolean; current: boolean
+ 40:   order: number; whatsappLink: string | null; maxParticipants: number | null
+ 41:   waitlistEnabled: boolean; aula: AulaSlot | null
+ 42:   horaInicio: string | null; horaFin: string | null
+ 43:   fechaInicio: string | null; fechaFin: string | null
+ 44:   profeId: string | null; profe: ProfeResumen | null
+ 45:   createdAt: string; updatedAt: string
+ 46:   registroModules: RegistroModuleResumen[]
+ 47:   _count: { preinscripciones: number; registroModules: number }
+ 48: }
+ 49: 
+ 50: export interface CursosListResponse {
+ 51:   items: CursoBack[]; total: number; page: number; limit: number; pages: number
+ 52: }
+ 53: 
+ 54: /** True si el curso tiene un módulo PREINSCRIPCION activo en registro */
+ 55: export function tieneInscripcionActiva(curso: CursoBack): boolean {
+ 56:   return curso.registroModules.some(
+ 57:     (m) => m.active && m.type === 'PREINSCRIPCION',
+ 58:   )
+ 59: }
+ 60: 
+ 61: export const NIVEL_LABEL: Record<CursoLevel, string> = {
+ 62:   PRINCIPIANTE: 'Principiante',
+ 63:   INTERMEDIO:   'Intermedio',
+ 64:   AVANZADO:     'Avanzado',
+ 65: }
+ 66: 
+ 67: export const AULA_NOMBRE: Record<AulaSlot, string> = {
+ 68:   AULA_1: 'Aula 1 — Planta baja',  AULA_2: 'Aula 2 — Planta baja',
+ 69:   AULA_3: 'Aula 3 — Primer piso',  AULA_4: 'Aula 4 — Primer piso',
+ 70:   AULA_5: 'Aula 5 — Segundo piso', AULA_6: 'Aula 6 — Segundo piso',
+ 71: }
+ 72: EOF
+ 73: 
+ 74: cat > lib/cursos/api.ts << 'EOF'
+ 75: // lib/cursos/api.ts
+ 76: import type { CursosListResponse, CursoBack } from './types'
+ 77: 
+ 78: const BASE = (process.env.NEXT_PUBLIC_CURSOS_API_URL ?? '').replace(/\/$/, '')
+ 79: 
+ 80: function url(path: string) {
+ 81:   if (!BASE) throw new Error('[cursos-api] NEXT_PUBLIC_CURSOS_API_URL no configurada')
+ 82:   return `${BASE}/api/v1${path}`
+ 83: }
+ 84: 
+ 85: export async function getCursos(params?: {
+ 86:   page?: number; limit?: number; search?: string
+ 87: }): Promise<CursosListResponse> {
+ 88:   const qs = new URLSearchParams()
+ 89:   if (params?.page)   qs.set('page',   String(params.page))
+ 90:   if (params?.limit)  qs.set('limit',  String(params.limit))
+ 91:   if (params?.search) qs.set('search', params.search)
+ 92:   const res = await fetch(url(`/courses${qs.size ? `?${qs}` : ''}`), {
+ 93:     next: { revalidate: 60 },
+ 94:     headers: { 'Content-Type': 'application/json' },
+ 95:   })
+ 96:   if (!res.ok) throw new Error(`[cursos-api] GET /courses → ${res.status}`)
+ 97:   const json = await res.json()
+ 98:   return (json?.data ?? json) as CursosListResponse
+ 99: }
+100: 
+101: export async function getCursoBySlug(slug: string): Promise<CursoBack | null> {
+102:   try {
+103:     const res = await fetch(url(`/courses/by-slug/${slug}`), {
+104:       next: { revalidate: 60 },
+105:       headers: { 'Content-Type': 'application/json' },
+106:     })
+107:     if (res.status === 404) return null
+108:     if (!res.ok) throw new Error(`${res.status}`)
+109:     const json = await res.json()
+110:     return (json?.data ?? json) as CursoBack
+111:   } catch { return null }
+112: }
+113: EOF
+114: 
+115: cat > app/cursos/page.tsx << 'EOF'
+116: // app/cursos/page.tsx — Server Component
+117: import type { Metadata } from 'next'
+118: import Link from 'next/link'
+119: import { Badge } from '@/components/ui/badge'
+120: import { Button } from '@/components/ui/button'
+121: import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+122: import { Clock, Users, MapPin, CalendarDays, ExternalLink, BookOpen } from 'lucide-react'
+123: import { getCursos } from '@/lib/cursos/api'
+124: import type { CursoBack } from '@/lib/cursos/types'
+125: import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
+126: import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
+127: 
+128: export const metadata: Metadata = {
+129:   title: 'Cursos | Nodo Tecnológico Catamarca',
+130:   description: 'Explorá la oferta de cursos gratuitos del Nodo Tecnológico de Catamarca.',
+131: }
+132: 
+133: const NIVEL_COLOR: Record<string, string> = {
+134:   PRINCIPIANTE: 'bg-green-100 text-green-800 border-green-200',
+135:   INTERMEDIO:   'bg-amber-100 text-amber-800 border-amber-200',
+136:   AVANZADO:     'bg-red-100   text-red-800   border-red-200',
+137: }
+138: 
+139: function CursoCard({ curso }: { curso: CursoBack }) {
+140:   const puedeInscribirse = tieneInscripcionActiva(curso) && curso.available
+141:   const aulaLabel        = curso.aula ? AULA_NOMBRE[curso.aula] : null
+142: 
+143:   return (
+144:     <Card className="flex flex-col overflow-hidden border border-cyan-100 bg-white/80 backdrop-blur-sm transition-shadow hover:shadow-md">
+145:       <CardHeader className="pb-3">
+146:         <div className="flex items-start justify-between gap-3">
+147:           <div className="flex items-center gap-3">
+148:             <span className="text-4xl leading-none">{curso.emoji || '📚'}</span>
+149:             <div>
+150:               <h2 className="text-lg font-bold leading-tight text-gray-900 text-balance">{curso.title}</h2>
+151:               {curso.profe && <p className="mt-0.5 text-xs text-muted-foreground">{curso.profe.nombre}</p>}
+152:             </div>
+153:           </div>
+154:           <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${NIVEL_COLOR[curso.level] ?? 'bg-gray-100 text-gray-800'}`}>
+155:             {NIVEL_LABEL[curso.level] ?? curso.level}
+156:           </span>
+157:         </div>
+158:       </CardHeader>
+159: 
+160:       <CardContent className="flex-1 space-y-4 pb-4">
+161:         <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 text-pretty">{curso.description}</p>
+162:         <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+163:           <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{curso.duration}</span></div>
+164:           {curso.maxParticipants && <div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{curso.maxParticipants} cupos</span></div>}
+165:           {aulaLabel && <div className="flex items-center gap-1.5 col-span-2"><MapPin className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{aulaLabel}</span></div>}
+166:           {(curso.horaInicio || curso.fechaInicio) && (
+167:             <div className="flex items-center gap-1.5 col-span-2">
+168:               <CalendarDays className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+169:               <span>
+170:                 {curso.fechaInicio && new Date(curso.fechaInicio).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
+171:                 {curso.horaInicio && curso.horaFin && ` · ${curso.horaInicio}–${curso.horaFin} hs`}
+172:               </span>
+173:             </div>
+174:           )}
+175:           {curso.modules > 0 && <div className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{curso.modules} módulos</span></div>}
+176:         </div>
+177:         {curso.tags.length > 0 && (
+178:           <div className="flex flex-wrap gap-1.5">
+179:             {curso.tags.map((tag) => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
+180:           </div>
+181:         )}
+182:       </CardContent>
+183: 
+184:       <CardFooter className="flex flex-col gap-2 border-t border-cyan-50 pt-4">
+185:         {puedeInscribirse ? (
+186:           <Button asChild size="sm" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
+187:             <a href={buildInscripcionUrl(curso.slug)} target="_blank" rel="noopener noreferrer">
+188:               <ExternalLink className="h-3.5 w-3.5" />Inscribirme
+189:             </a>
+190:           </Button>
+191:         ) : (
+192:           <Button size="sm" variant="outline" disabled className="w-full cursor-not-allowed opacity-60">
+193:             {curso.waitlistEnabled ? 'Lista de espera' : 'Sin inscripción activa'}
+194:           </Button>
+195:         )}
+196:         <Button asChild size="sm" variant="ghost" className="w-full text-cyan-700 hover:text-cyan-800">
+197:           <Link href={`/cursos/${curso.slug}`}>Ver detalle</Link>
+198:         </Button>
+199:       </CardFooter>
+200:     </Card>
+201:   )
+202: }
+203: 
+204: export default async function CursosPage() {
+205:   let cursos: CursoBack[] = []
+206:   let error = false
+207:   try {
+208:     const data = await getCursos({ limit: 100 })
+209:     cursos = data.items.filter((c) => c.available).sort((a, b) => a.order - b.order)
+210:   } catch { error = true }
+211: 
+212:   return (
+213:     <main className="min-h-screen bg-gradient-to-b from-cyan-50 via-white to-blue-50">
+214:       <section className="relative overflow-hidden pt-24 pb-10">
+215:         <div className="container mx-auto px-4 text-center">
+216:           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-cyan-600">Formación gratuita</p>
+217:           <h1 className="mb-4 text-4xl font-bold text-balance md:text-5xl">Nuestros <span className="text-cyan-500">Cursos</span></h1>
+218:           <p className="mx-auto max-w-2xl text-base text-muted-foreground text-pretty leading-relaxed">
+219:             Aprendé tecnología con el equipo del Nodo Tecnológico de Catamarca. Todos los cursos son gratuitos.
+220:           </p>
+221:         </div>
+222:       </section>
+223:       <section className="container mx-auto px-4 pb-24">
+224:         {error ? (
+225:           <div className="rounded-xl border border-red-100 bg-red-50 p-8 text-center">
+226:             <p className="text-sm text-red-600">No pudimos cargar los cursos. Intentá de nuevo más tarde.</p>
+227:           </div>
+228:         ) : cursos.length === 0 ? (
+229:           <div className="flex flex-col items-center justify-center py-24 text-center">
+230:             <span className="text-6xl mb-4">🎓</span>
+231:             <h2 className="text-xl font-semibold text-gray-800 mb-2">Pronto habrá nuevos cursos</h2>
+232:             <p className="text-sm text-muted-foreground max-w-xs">Estamos preparando la próxima oferta formativa.</p>
+233:           </div>
+234:         ) : (
+235:           <>
+236:             <p className="mb-6 text-sm text-muted-foreground">{cursos.length} curso{cursos.length !== 1 ? 's' : ''} disponible{cursos.length !== 1 ? 's' : ''}</p>
+237:             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+238:               {cursos.map((curso) => <CursoCard key={curso.id} curso={curso} />)}
+239:             </div>
+240:           </>
+241:         )}
+242:       </section>
+243:     </main>
+244:   )
+245: }
+246: EOF
+247: 
+248: cat > 'app/cursos/[id]/page.tsx' << 'EOF'
+249: // app/cursos/[id]/page.tsx — Server Component
+250: import type { Metadata } from 'next'
+251: import Link from 'next/link'
+252: import { notFound } from 'next/navigation'
+253: import { Clock, MapPin, Users, BookOpen, ExternalLink, CalendarDays, ArrowLeft, GraduationCap, CheckCircle2 } from 'lucide-react'
+254: import { Badge } from '@/components/ui/badge'
+255: import { Button } from '@/components/ui/button'
+256: import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+257: import { getCursoBySlug } from '@/lib/cursos/api'
+258: import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
+259: import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
+260: 
+261: export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+262:   const { id: slug } = await params
+263:   const curso = await getCursoBySlug(slug)
+264:   if (!curso) return { title: 'Curso no encontrado | Nodo Tecnológico Catamarca' }
+265:   return { title: `${curso.emoji} ${curso.title} | Nodo Tecnológico Catamarca`, description: curso.description }
+266: }
+267: 
+268: export default async function CursoDetailPage({ params }: { params: Promise<{ id: string }> }) {
+269:   const { id: slug } = await params
+270:   const curso = await getCursoBySlug(slug)
+271:   if (!curso) notFound()
+272: 
+273:   const puedeInscribirse = tieneInscripcionActiva(curso) && curso.available
+274:   const aulaLabel        = curso.aula ? AULA_NOMBRE[curso.aula] : null
+275: 
+276:   return (
+277:     <main className="min-h-screen bg-gradient-to-b from-cyan-100 via-white to-blue-100">
+278:       <section className="pt-24 pb-16">
+279:         <div className="container mx-auto px-4">
+280:           <Link href="/cursos" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-cyan-600 transition-colors">
+281:             <ArrowLeft className="h-4 w-4" />Todos los cursos
+282:           </Link>
+283:           <div className="grid gap-8 lg:grid-cols-3">
+284:             <div className="lg:col-span-2 space-y-6">
+285:               <div>
+286:                 <div className="mb-4 flex items-center gap-3">
+287:                   <span className="text-5xl leading-none">{curso.emoji || '📚'}</span>
+288:                   <div>
+289:                     <h1 className="text-3xl font-bold text-balance md:text-4xl">{curso.title}</h1>
+290:                     {curso.profe && <p className="mt-1 text-sm text-muted-foreground">Docente: {curso.profe.nombre}</p>}
+291:                   </div>
+292:                 </div>
+293:                 <div className="flex flex-wrap gap-2">
+294:                   {curso.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+295:                   <Badge variant="outline" className="border-cyan-500 text-cyan-600">Presencial</Badge>
+296:                   <Badge variant="outline">{NIVEL_LABEL[curso.level] ?? curso.level}</Badge>
+297:                 </div>
+298:               </div>
+299:               <Card className="bg-white/70 backdrop-blur-sm">
+300:                 <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-cyan-500" />Sobre el curso</CardTitle></CardHeader>
+301:                 <CardContent><p className="text-base text-muted-foreground leading-relaxed text-pretty">{curso.description}</p></CardContent>
+302:               </Card>
+303:               {curso.modules > 0 && (
+304:                 <Card className="bg-white/70 backdrop-blur-sm">
+305:                   <CardHeader><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-cyan-500" />Contenido</CardTitle></CardHeader>
+306:                   <CardContent>
+307:                     <p className="text-sm text-muted-foreground">
+308:                       <span className="font-medium text-gray-700">{curso.modules} módulo{curso.modules !== 1 ? 's' : ''}</span>
+309:                       {curso.steps > 0 && ` · ${curso.steps} actividades`}
+310:                     </p>
+311:                   </CardContent>
+312:                 </Card>
+313:               )}
+314:               {curso.waitlistEnabled && (
+315:                 <Card className="border-amber-100 bg-amber-50/60">
+316:                   <CardContent className="pt-5 pb-5">
+317:                     <div className="flex items-start gap-3">
+318:                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+319:                       <p className="text-sm text-amber-800 leading-relaxed">Este curso tiene lista de espera. Si los cupos se cubren, quedás en espera y te avisamos.</p>
+320:                     </div>
+321:                   </CardContent>
+322:                 </Card>
+323:               )}
+324:             </div>
+325:             <div className="lg:col-span-1">
+326:               <Card className="sticky top-4 bg-white/80 backdrop-blur-sm border-cyan-100">
+327:                 <CardHeader><CardTitle className="text-base">Detalles</CardTitle></CardHeader>
+328:                 <CardContent className="space-y-4 pb-2">
+329:                   <div className="flex items-start gap-3 text-sm">
+330:                     <Clock className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+331:                     <div><p className="font-semibold text-gray-700">Duración</p><p className="text-muted-foreground">{curso.duration}</p></div>
+332:                   </div>
+333:                   {aulaLabel && (
+334:                     <div className="flex items-start gap-3 text-sm">
+335:                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+336:                       <div><p className="font-semibold text-gray-700">Ubicación</p><p className="text-muted-foreground">{aulaLabel}</p></div>
+337:                     </div>
+338:                   )}
+339:                   {(curso.horaInicio || curso.fechaInicio) && (
+340:                     <div className="flex items-start gap-3 text-sm">
+341:                       <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+342:                       <div>
+343:                         <p className="font-semibold text-gray-700">Horario</p>
+344:                         {curso.fechaInicio && <p className="text-muted-foreground">{new Date(curso.fechaInicio).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>}
+345:                         {curso.horaInicio && curso.horaFin && <p className="text-muted-foreground">{curso.horaInicio} – {curso.horaFin} hs</p>}
+346:                       </div>
+347:                     </div>
+348:                   )}
+349:                   {curso.maxParticipants && (
+350:                     <div className="flex items-start gap-3 text-sm">
+351:                       <Users className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+352:                       <div><p className="font-semibold text-gray-700">Cupos</p><p className="text-muted-foreground">{curso.maxParticipants} participantes{curso.waitlistEnabled && ' + lista de espera'}</p></div>
+353:                     </div>
+354:                   )}
+355:                   {curso.profe && (
+356:                     <div className="flex items-start gap-3 text-sm">
+357:                       <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+358:                       <div><p className="font-semibold text-gray-700">Docente</p><p className="text-muted-foreground">{curso.profe.nombre}</p></div>
+359:                     </div>
+360:                   )}
+361:                 </CardContent>
+362:                 <div className="p-6 pt-2 space-y-2">
+363:                   {puedeInscribirse ? (
+364:                     <Button asChild size="lg" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
+365:                       <a href={buildInscripcionUrl(curso.slug)} target="_blank" rel="noopener noreferrer">
+366:                         <ExternalLink className="h-4 w-4" />Inscribirme al curso
+367:                       </a>
+368:                     </Button>
+369:                   ) : (
+370:                     <Button size="lg" variant="outline" disabled className="w-full cursor-not-allowed opacity-60">Sin inscripción activa</Button>
+371:                   )}
+372:                   {curso.whatsappLink && (
+373:                     <Button asChild size="sm" variant="ghost" className="w-full text-green-700 hover:text-green-800 hover:bg-green-50">
+374:                       <a href={curso.whatsappLink} target="_blank" rel="noopener noreferrer">Grupo de WhatsApp</a>
+375:                     </Button>
+376:                   )}
+377:                 </div>
+378:               </Card>
+379:             </div>
+380:           </div>
+381:         </div>
+382:       </section>
+383:     </main>
+384:   )
+385: }
+386: EOF
+387: 
+388: echo "✅ ciudadano-front listo."
+389: echo "   Botón apunta a: /preinscripciones/{curso.slug}"
+390: echo "   Ejemplo: https://registro.nodo.cc.gob.ar/preinscripciones/robot-basico"
 ```
 
 ## File: package.json
@@ -10667,6 +11074,95 @@ x.sh
 85: }
 ```
 
+## File: .github/workflows/deploy.yml
+```yaml
+ 1: name: 🧑‍🤝‍🧑 Deploy — ciudadano-front
+ 2: 
+ 3: on:
+ 4:   push:
+ 5:     branches: [main]
+ 6: 
+ 7: jobs:
+ 8:   build-and-deploy:
+ 9:     runs-on: ubuntu-latest
+10: 
+11:     steps:
+12:       - name: Checkout código
+13:         uses: actions/checkout@v4
+14: 
+15:       - name: Setup Docker Buildx
+16:         uses: docker/setup-buildx-action@v3
+17: 
+18:       - name: Login a GitHub Container Registry
+19:         uses: docker/login-action@v3
+20:         with:
+21:           registry: ghcr.io
+22:           username: ${{ github.actor }}
+23:           password: ${{ secrets.GITHUB_TOKEN }}
+24: 
+25:       - name: Build y push imagen
+26:         uses: docker/build-push-action@v5
+27:         with:
+28:           context: .
+29:           push: true
+30:           tags: ghcr.io/${{ github.repository }}:latest
+31:           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
+32:           cache-to:   type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
+33:           secrets: |
+34:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
+35:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
+36:             NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+37:             NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+38:             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+39:             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+40:             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
+41:             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
+42:             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
+43: 
+44:       - name: Deploy en servidor
+45:         uses: appleboy/ssh-action@v1
+46:         env:
+47:           NEXT_GROQ_API_KEY: ${{ secrets.NEXT_GROQ_API_KEY }}
+48:           NEXT_GROQ_MODEL:   ${{ secrets.NEXT_GROQ_MODEL }}
+49:         with:
+50:           host:     ${{ secrets.DO_HOST }}
+51:           username: ${{ secrets.DO_USER }}
+52:           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
+53:           port:     ${{ secrets.DO_PORT }}
+54:           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL
+55:           script: |
+56:             set -e
+57:             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
+58:             docker pull ghcr.io/${{ github.repository }}:latest
+59: 
+60:             docker network inspect red_interna >/dev/null 2>&1 || \
+61:               docker network create --driver bridge red_interna
+62: 
+63:             mkdir -p /etc/ciudadano-front
+64:             printf '%s\n' \
+65:               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
+66:               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
+67:               > /etc/ciudadano-front/.env
+68:             chmod 600 /etc/ciudadano-front/.env
+69: 
+70:             docker stop ciudadano-front || true
+71:             docker rm   ciudadano-front || true
+72: 
+73:             # Sin -p: se sirve solo en red_interna, igual que
+74:             # catamarcaopen-front / noticias-front / registro-front.
+75:             # Nginx Proxy Manager lo enruta por nombre de contenedor.
+76:             docker run -d \
+77:               --name    ciudadano-front \
+78:               --restart always \
+79:               --network red_interna \
+80:               --env-file /etc/ciudadano-front/.env \
+81:               ghcr.io/${{ github.repository }}:latest
+82: 
+83:             sleep 3
+84:             docker logs ciudadano-front --tail 20
+85:             docker image prune -f
+```
+
 ## File: Dockerfile
 ```dockerfile
  1: # ─── Stage 1: deps ───────────────────────────────────────────
@@ -10690,29 +11186,33 @@ x.sh
 19:     --mount=type=secret,id=NEXT_PUBLIC_FIREBASE_PROJECT_ID \
 20:     --mount=type=secret,id=NEXT_PUBLIC_FIREBASE_APP_ID \
 21:     --mount=type=secret,id=NEXT_PUBLIC_CIUDADANO_API_URL \
-22:     NEXT_GROQ_API_KEY=$(cat /run/secrets/NEXT_GROQ_API_KEY) \
-23:     NEXT_GROQ_MODEL=$(cat /run/secrets/NEXT_GROQ_MODEL) \
-24:     NEXT_PUBLIC_FIREBASE_API_KEY=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_API_KEY) \
-25:     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) \
-26:     NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_PROJECT_ID) \
-27:     NEXT_PUBLIC_FIREBASE_APP_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_APP_ID) \
-28:     NEXT_PUBLIC_CIUDADANO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CIUDADANO_API_URL) \
-29:     pnpm run build
-30: 
-31: # ─── Stage 3: runner ─────────────────────────────────────────
-32: FROM node:22-alpine AS runner
-33: WORKDIR /app
-34: ENV NODE_ENV=production
-35: ENV NEXT_TELEMETRY_DISABLED=1
-36: RUN addgroup --system --gid 1001 nodejs
-37: RUN adduser  --system --uid 1001 nextjs
-38: COPY --from=builder /app/public ./public
-39: RUN mkdir .next && chown nextjs:nodejs .next
-40: COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-41: COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-42: USER nextjs
-43: EXPOSE 3000
-44: ENV PORT=3000
-45: ENV HOSTNAME="0.0.0.0"
-46: CMD ["node", "server.js"]
+22:     --mount=type=secret,id=NEXT_PUBLIC_CURSOS_API_URL \
+23:     --mount=type=secret,id=NEXT_PUBLIC_REGISTRO_URL \
+24:     NEXT_GROQ_API_KEY=$(cat /run/secrets/NEXT_GROQ_API_KEY) \
+25:     NEXT_GROQ_MODEL=$(cat /run/secrets/NEXT_GROQ_MODEL) \
+26:     NEXT_PUBLIC_FIREBASE_API_KEY=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_API_KEY) \
+27:     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) \
+28:     NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_PROJECT_ID) \
+29:     NEXT_PUBLIC_FIREBASE_APP_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_APP_ID) \
+30:     NEXT_PUBLIC_CIUDADANO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CIUDADANO_API_URL) \
+31:     NEXT_PUBLIC_CURSOS_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CURSOS_API_URL) \
+32:     NEXT_PUBLIC_REGISTRO_URL=$(cat /run/secrets/NEXT_PUBLIC_REGISTRO_URL) \
+33:     pnpm run build
+34: 
+35: # ─── Stage 3: runner ─────────────────────────────────────────
+36: FROM node:22-alpine AS runner
+37: WORKDIR /app
+38: ENV NODE_ENV=production
+39: ENV NEXT_TELEMETRY_DISABLED=1
+40: RUN addgroup --system --gid 1001 nodejs
+41: RUN adduser  --system --uid 1001 nextjs
+42: COPY --from=builder /app/public ./public
+43: RUN mkdir .next && chown nextjs:nodejs .next
+44: COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+45: COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+46: USER nextjs
+47: EXPOSE 3000
+48: ENV PORT=3000
+49: ENV HOSTNAME="0.0.0.0"
+50: CMD ["node", "server.js"]
 ```

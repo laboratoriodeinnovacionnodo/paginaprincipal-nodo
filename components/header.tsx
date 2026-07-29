@@ -17,10 +17,7 @@ import {
 
 const navIcons: Record<string, any> = {
   "/noticias": Newspaper,
-  "/graduados": Award,
   "/coworking": Briefcase,
-  "/inscripcion": Calendar,
-  "/chatia-nodo": Bot,
   "/sobre-nosotros": Users,
   "/catamarcaopen": Code2,
   "/laboratorio": FlaskConical,

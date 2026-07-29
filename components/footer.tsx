@@ -46,11 +46,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/chatia-nodo" className="text-muted-foreground hover:text-primary transition-colors">
-                  ChatIA
-                </Link>
-              </li>
-              <li>
                 <a
                   href={googleMapsUrl}
                   target="_blank"
