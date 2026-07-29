@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
 import { getCursoBySlug } from '@/lib/cursos/api'
 import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
-import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id: slug } = await params
