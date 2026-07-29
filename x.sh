@@ -1,978 +1,471 @@
 #!/usr/bin/env bash
 # =============================================================================
-# ciudadano-nodo-front — v: connect ciudadano-back
-#
-# Conecta el frontend con ciudadano-back (NestJS/Prisma).
-#
-# CAMBIOS:
-#   1. lib/ciudadano-api.ts       → cliente tipado para ciudadano-back
-#   2. contexts/auth-context.tsx  → post-login llama POST /auth/login (upsert BD)
-#                                   expone `perfil` (CiudadanoDB) en el contexto
-#   3. app/perfil/page.tsx        → muestra datos del back (dni, phone, ciudad)
-#                                   + tab "Mis actividades" con lineas reales
-#   4. Dockerfile                 → agrega ARG/ENV NEXT_PUBLIC_CIUDADANO_API_URL
-#   5. .github/workflows/deploy.yml → agrega el secret al build
-#
-# REQUISITOS:
-#   - Correr desde la raíz de ciudadano-nodo-front
-#   - NEXT_PUBLIC_CIUDADANO_API_URL en .env.local (ej: https://api.ciudadano.nodo.cc.gob.ar)
+# x.sh — ciudadano-front · feat: cursos desde cursos-nodo-back
+# Ejecutar desde la raíz del repo: bash x.sh
 # =============================================================================
 set -euo pipefail
 
-CYAN='\033[0;36m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
-log()  { echo -e "${CYAN}▶${NC} $*"; }
-ok()   { echo -e "${GREEN}✔${NC} $*"; }
-warn() { echo -e "${YELLOW}⚠${NC} $*"; }
-err()  { echo -e "${RED}✖${NC} $*"; exit 1; }
-sep()  { echo -e "\n${CYAN}──────────────────────────────────────────────────────────────${NC}"; }
+# ── lib/cursos/types.ts ───────────────────────────────────────────────────────
+mkdir -p lib/cursos
+cat > lib/cursos/types.ts << 'EOF'
+// lib/cursos/types.ts
+// Tipos que devuelve cursos-nodo-back (GET /api/v1/courses)
 
-sep
-echo -e "${CYAN}ciudadano-nodo-front — connect ciudadano-back${NC}"
-sep
+export type CursoLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO'
 
-[[ -f "package.json" && -d "app" ]] || err "Ejecutá desde la raíz de ciudadano-nodo-front"
-[[ -f "contexts/auth-context.tsx" ]] || err "No se encontró contexts/auth-context.tsx"
-[[ -f "app/perfil/page.tsx" ]] || err "No se encontró app/perfil/page.tsx"
+export type AulaSlot =
+  | 'AULA_1' | 'AULA_2' | 'AULA_3'
+  | 'AULA_4' | 'AULA_5' | 'AULA_6'
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 1. lib/ciudadano-api.ts — cliente tipado para ciudadano-back
-# ══════════════════════════════════════════════════════════════════════════════
-log "Creando lib/ciudadano-api.ts..."
-mkdir -p lib
-
-cat > lib/ciudadano-api.ts << 'EOF'
-/**
- * lib/ciudadano-api.ts
- *
- * Cliente tipado para ciudadano-back (NestJS/Prisma).
- * Base URL: NEXT_PUBLIC_CIUDADANO_API_URL
- *
- * Endpoints usados desde el front:
- *   POST /auth/login         → upsert ciudadano tras login con Google
- *   GET  /ciudadanos/me      → perfil propio (requiere Bearer token)
- *   PATCH /ciudadanos/me     → actualizar perfil extendido
- *   GET  /lineas/me          → actividades del ciudadano en el ecosistema NODO
- */
-
-const BASE =
-  (process.env.NEXT_PUBLIC_CIUDADANO_API_URL ?? "").replace(/\/$/, "") + "/api"
-
-// ── Tipos que devuelve ciudadano-back ─────────────────────────────────────────
-
-export type LineaStatus = "ACTIVA" | "INACTIVA" | "PENDIENTE" | "CANCELADA"
-
-export interface CiudadanoLinea {
+export interface RegistroModuleResumen {
   id: string
-  ciudadanoId: string
-  systemSlug: string
-  entityType: string
-  entityId: string
-  status: LineaStatus
-  metadata: Record<string, unknown>
-  createdAt: string
-  updatedAt: string
-}
-
-export interface CiudadanoDB {
-  id: string
-  googleId: string
-  email: string
+  slug: string
   name: string
-  picture: string | null
-  phone: string | null
-  dni: string | null
-  birthDate: string | null
-  address: string | null
-  city: string | null
-  province: string | null
   active: boolean
-  systemSlugs: string[]
+  type: string
+}
+
+export interface ProfeResumen {
+  id: string
+  nombre: string
+  email: string
+}
+
+export interface CursoBack {
+  id: string
+  slug: string
+  title: string
+  description: string
+  level: CursoLevel
+  duration: string
+  modules: number
+  steps: number
+  emoji: string
+  tags: string[]
+  available: boolean
+  current: boolean
+  order: number
+  whatsappLink: string | null
+  maxParticipants: number | null
+  waitlistEnabled: boolean
+  aula: AulaSlot | null
+  horaInicio: string | null
+  horaFin: string | null
+  fechaInicio: string | null
+  fechaFin: string | null
+  profeId: string | null
+  profe: ProfeResumen | null
   createdAt: string
   updatedAt: string
-  lastSeenAt: string
-  lineas?: CiudadanoLinea[]
-  _count?: { lineas: number }
+  registroModules: RegistroModuleResumen[]
+  _count: { preinscripciones: number; registroModules: number }
 }
 
-export interface UpdatePerfilDto {
-  phone?: string
-  dni?: string
-  birthDate?: string
-  address?: string
-  city?: string
-  province?: string
+export interface CursosListResponse {
+  items: CursoBack[]
+  total: number
+  page: number
+  limit: number
+  pages: number
 }
 
-// ── Fetch helper ──────────────────────────────────────────────────────────────
-
-async function apiFetch<T>(
-  path: string,
-  idToken: string,
-  options: RequestInit = {},
-): Promise<T> {
-  if (!BASE || BASE === "/api") {
-    throw new Error(
-      "[ciudadano-api] NEXT_PUBLIC_CIUDADANO_API_URL no está configurada",
-    )
-  }
-
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${idToken}`,
-      ...(options.headers ?? {}),
-    },
-  })
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "")
-    throw new Error(`[ciudadano-api] ${res.status} ${path} — ${body}`)
-  }
-
-  const json = await res.json()
-  // El back envuelve en { data, statusCode, timestamp }
-  return (json?.data ?? json) as T
+/** Slug del RegistroModule PREINSCRIPCION activo, o null */
+export function getRegistroSlug(curso: CursoBack): string | null {
+  return curso.registroModules.find(
+    (m) => m.active && m.type === 'PREINSCRIPCION',
+  )?.slug ?? null
 }
 
-// ── Endpoints ─────────────────────────────────────────────────────────────────
-
-/**
- * POST /auth/login
- * Verifica el idToken de Firebase y hace upsert del ciudadano en la BD.
- * Llamar UNA VEZ después del signInWithPopup exitoso.
- * No requiere Bearer porque el endpoint es @Public() en el back.
- */
-export async function loginCiudadano(idToken: string): Promise<CiudadanoDB> {
-  if (!BASE || BASE === "/api") {
-    throw new Error(
-      "[ciudadano-api] NEXT_PUBLIC_CIUDADANO_API_URL no está configurada",
-    )
-  }
-
-  const res = await fetch(`${BASE}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken }),
-  })
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "")
-    throw new Error(`[ciudadano-api] login ${res.status} — ${body}`)
-  }
-
-  const json = await res.json()
-  // El back devuelve { ciudadano, firebaseUid }
-  const payload = json?.data ?? json
-  return payload.ciudadano as CiudadanoDB
+export const NIVEL_LABEL: Record<CursoLevel, string> = {
+  PRINCIPIANTE: 'Principiante',
+  INTERMEDIO:   'Intermedio',
+  AVANZADO:     'Avanzado',
 }
 
-/**
- * GET /ciudadanos/me
- * Devuelve el perfil completo del ciudadano logueado, incluyendo sus lineas.
- */
-export async function getMiPerfil(idToken: string): Promise<CiudadanoDB> {
-  return apiFetch<CiudadanoDB>("/ciudadanos/me", idToken)
-}
-
-/**
- * PATCH /ciudadanos/me
- * Actualiza campos opcionales del perfil (dni, phone, ciudad, etc.)
- */
-export async function updateMiPerfil(
-  idToken: string,
-  dto: UpdatePerfilDto,
-): Promise<CiudadanoDB> {
-  return apiFetch<CiudadanoDB>("/ciudadanos/me", idToken, {
-    method: "PATCH",
-    body: JSON.stringify(dto),
-  })
-}
-
-/**
- * GET /lineas/me?systemSlug=cursos
- * Devuelve las actividades/vinculaciones del ciudadano en el ecosistema NODO.
- */
-export async function getMisLineas(
-  idToken: string,
-  systemSlug?: string,
-): Promise<CiudadanoLinea[]> {
-  const qs = systemSlug ? `?systemSlug=${systemSlug}` : ""
-  return apiFetch<CiudadanoLinea[]>(`/lineas/me${qs}`, idToken)
+export const AULA_NOMBRE: Record<AulaSlot, string> = {
+  AULA_1: 'Aula 1 — Planta baja',
+  AULA_2: 'Aula 2 — Planta baja',
+  AULA_3: 'Aula 3 — Primer piso',
+  AULA_4: 'Aula 4 — Primer piso',
+  AULA_5: 'Aula 5 — Segundo piso',
+  AULA_6: 'Aula 6 — Segundo piso',
 }
 EOF
-ok "lib/ciudadano-api.ts"
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 2. contexts/auth-context.tsx — post-login upsert + expone `perfil`
-# ══════════════════════════════════════════════════════════════════════════════
-log "Actualizando contexts/auth-context.tsx..."
+# ── lib/cursos/api.ts ─────────────────────────────────────────────────────────
+cat > lib/cursos/api.ts << 'EOF'
+// lib/cursos/api.ts
+// Cliente público para cursos-nodo-back.
+// GET /courses y GET /courses/by-slug/:slug son @Public() — sin API key.
+// Variable: NEXT_PUBLIC_CURSOS_API_URL
 
-cat > contexts/auth-context.tsx << 'EOF'
-"use client"
+import type { CursosListResponse, CursoBack } from './types'
 
-/**
- * contexts/auth-context.tsx
- *
- * AuthProvider — gestiona la sesión Firebase + perfil en ciudadano-back.
- *
- * Flujo:
- *   1. signInWithPopup (Google) → Firebase autentica
- *   2. onAuthStateChanged dispara → obtenemos idToken
- *   3. POST /auth/login en ciudadano-back → upsert del ciudadano en BD
- *   4. GET /ciudadanos/me → perfil completo con lineas
- *
- * Contexto expone:
- *   user    — Firebase User (displayName, email, photoURL, etc.)
- *   perfil  — CiudadanoDB (id, dni, phone, city, lineas, etc.) | null
- *   loading — true mientras se resuelve la sesión inicial
- *   loginWithGoogle()
- *   logout()
- *   refreshPerfil() — re-fetch manual del perfil (útil tras PATCH /me)
- */
+const BASE = (process.env.NEXT_PUBLIC_CURSOS_API_URL ?? '').replace(/\/$/, '')
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-  type ReactNode,
-} from "react"
-import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  type User,
-} from "firebase/auth"
-import { auth, googleProvider } from "@/lib/firebase"
-import {
-  loginCiudadano,
-  getMiPerfil,
-  type CiudadanoDB,
-} from "@/lib/ciudadano-api"
-
-interface AuthContextValue {
-  user: User | null
-  perfil: CiudadanoDB | null
-  loading: boolean
-  loginWithGoogle: () => Promise<void>
-  logout: () => Promise<void>
-  refreshPerfil: () => Promise<void>
+function url(path: string) {
+  if (!BASE) throw new Error('[cursos-api] NEXT_PUBLIC_CURSOS_API_URL no configurada')
+  return `${BASE}/api/v1${path}`
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined)
-
-// Errores de Firebase que NO son fallos reales
-const IGNORED_FIREBASE_ERRORS = new Set([
-  "auth/popup-closed-by-user",
-  "auth/cancelled-popup-request",
-])
-
-function isIgnoredFirebaseError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false
-  const code = (error as { code?: string }).code
-  return typeof code === "string" && IGNORED_FIREBASE_ERRORS.has(code)
+export async function getCursos(params?: {
+  page?: number; limit?: number; search?: string
+}): Promise<CursosListResponse> {
+  const qs = new URLSearchParams()
+  if (params?.page)   qs.set('page',   String(params.page))
+  if (params?.limit)  qs.set('limit',  String(params.limit))
+  if (params?.search) qs.set('search', params.search)
+  const res = await fetch(url(`/courses${qs.size ? `?${qs}` : ''}`), {
+    next: { revalidate: 60 },
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!res.ok) throw new Error(`[cursos-api] GET /courses → ${res.status}`)
+  const json = await res.json()
+  return (json?.data ?? json) as CursosListResponse
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [perfil, setPerfil] = useState<CiudadanoDB | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  /**
-   * Sincroniza con ciudadano-back: hace upsert y luego fetcha el perfil completo.
-   * Se llama tanto en el primer login como en cada recarga de sesión.
-   */
-  const syncConBack = useCallback(async (firebaseUser: User) => {
-    try {
-      const idToken = await firebaseUser.getIdToken()
-
-      // Upsert — crea o actualiza el ciudadano en la BD
-      await loginCiudadano(idToken)
-
-      // Perfil completo con lineas
-      const ciudadanoDB = await getMiPerfil(idToken)
-      setPerfil(ciudadanoDB)
-    } catch (err) {
-      // Si el back no está disponible (NEXT_PUBLIC_CIUDADANO_API_URL no seteada
-      // o error de red), logueamos pero NO rompemos la sesión Firebase.
-      console.warn("[auth] ciudadano-back no disponible o no configurado:", err)
-      setPerfil(null)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!auth) {
-      setLoading(false)
-      return
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser)
-
-      if (firebaseUser) {
-        await syncConBack(firebaseUser)
-      } else {
-        setPerfil(null)
-      }
-
-      setLoading(false)
+export async function getCursoBySlug(slug: string): Promise<CursoBack | null> {
+  try {
+    const res = await fetch(url(`/courses/by-slug/${slug}`), {
+      next: { revalidate: 60 },
+      headers: { 'Content-Type': 'application/json' },
     })
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error(`${res.status}`)
+    const json = await res.json()
+    return (json?.data ?? json) as CursoBack
+  } catch { return null }
+}
+EOF
 
-    return () => unsubscribe()
-  }, [syncConBack])
+# ── app/cursos/page.tsx ───────────────────────────────────────────────────────
+cat > app/cursos/page.tsx << 'EOF'
+// app/cursos/page.tsx — Server Component
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import { Clock, Users, MapPin, CalendarDays, ExternalLink, BookOpen } from 'lucide-react'
+import { getCursos } from '@/lib/cursos/api'
+import type { CursoBack } from '@/lib/cursos/types'
+import { getRegistroSlug, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
 
-  const loginWithGoogle = async () => {
-    if (!auth || !googleProvider) {
-      console.warn("[auth] Firebase no está configurado (faltan NEXT_PUBLIC_FIREBASE_*)")
-      return
-    }
-    try {
-      await signInWithPopup(auth, googleProvider)
-      // onAuthStateChanged se encarga del syncConBack
-    } catch (error) {
-      if (!isIgnoredFirebaseError(error)) {
-        console.error("[auth] Error en login con Google:", error)
-        throw error
-      }
-    }
-  }
+export const metadata: Metadata = {
+  title: 'Cursos | Nodo Tecnológico Catamarca',
+  description: 'Explorá la oferta de cursos gratuitos del Nodo Tecnológico de Catamarca.',
+}
 
-  const logout = async () => {
-    if (!auth) return
-    await firebaseSignOut(auth)
-    setPerfil(null)
-  }
+const REGISTRO_URL =
+  process.env.NEXT_PUBLIC_REGISTRO_URL ?? 'https://registro.nodo.cc.gob.ar'
 
-  /** Re-fetcha el perfil desde ciudadano-back (usar tras PATCH /me). */
-  const refreshPerfil = useCallback(async () => {
-    if (!user) return
-    try {
-      const idToken = await user.getIdToken()
-      const ciudadanoDB = await getMiPerfil(idToken)
-      setPerfil(ciudadanoDB)
-    } catch (err) {
-      console.error("[auth] Error al refrescar perfil:", err)
-    }
-  }, [user])
+const NIVEL_COLOR: Record<string, string> = {
+  PRINCIPIANTE: 'bg-green-100 text-green-800 border-green-200',
+  INTERMEDIO:   'bg-amber-100 text-amber-800 border-amber-200',
+  AVANZADO:     'bg-red-100   text-red-800   border-red-200',
+}
+
+function CursoCard({ curso }: { curso: CursoBack }) {
+  const registroSlug = getRegistroSlug(curso)
+  const aulaLabel    = curso.aula ? AULA_NOMBRE[curso.aula] : null
 
   return (
-    <AuthContext.Provider
-      value={{ user, perfil, loading, loginWithGoogle, logout, refreshPerfil }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error("useAuth debe usarse dentro de <AuthProvider>")
-  return ctx
-}
-EOF
-ok "contexts/auth-context.tsx"
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 3. app/perfil/page.tsx — perfil completo con datos de BD + lineas
-# ══════════════════════════════════════════════════════════════════════════════
-log "Actualizando app/perfil/page.tsx..."
-mkdir -p app/perfil
-
-cat > app/perfil/page.tsx << 'EOF'
-"use client"
-
-/**
- * app/perfil/page.tsx
- *
- * Página de perfil del ciudadano.
- * Muestra datos de Firebase (nombre, foto) + datos extendidos de ciudadano-back
- * (dni, teléfono, ciudad, provincia) + lineas/actividades del ecosistema NODO.
- */
-
-import { useState } from "react"
-import Link from "next/link"
-import { useAuth } from "@/contexts/auth-context"
-import { updateMiPerfil, type UpdatePerfilDto } from "@/lib/ciudadano-api"
-import { UserPhoto } from "@/components/ui/user-photo"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  UserRound,
-  Mail,
-  ShieldCheck,
-  CalendarDays,
-  Activity,
-  LogIn,
-  LogOut,
-  Loader2,
-  GraduationCap,
-  Phone,
-  MapPin,
-  CreditCard,
-  Pencil,
-  Save,
-  X,
-  Layers,
-} from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatDate(dateStr: string | null | undefined, locale = "es-AR") {
-  if (!dateStr) return null
-  return new Date(dateStr).toLocaleDateString(locale, {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  })
-}
-
-const SYSTEM_LABEL: Record<string, string> = {
-  cursos: "Cursos",
-  eventos: "Eventos",
-  "profe-ia": "Profe IA",
-  catamarcaopen: "CatamarcaOpen",
-  laboratorio: "Laboratorio",
-  aula: "Aula Virtual",
-  registro: "Registro",
-}
-
-const LINEA_STATUS_COLOR: Record<string, string> = {
-  ACTIVA: "bg-emerald-100 text-emerald-700",
-  INACTIVA: "bg-gray-100 text-gray-500",
-  PENDIENTE: "bg-amber-100 text-amber-700",
-  CANCELADA: "bg-red-100 text-red-600",
-}
-
-// ── Componente principal ──────────────────────────────────────────────────────
-
-export default function PerfilPage() {
-  const { user, perfil, loading, loginWithGoogle, logout, refreshPerfil } = useAuth()
-
-  const [signingIn, setSigningIn] = useState(false)
-  const [signingOut, setSigningOut] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState<UpdatePerfilDto>({})
-
-  // ── Handlers ────────────────────────────────────────────────────────────────
-
-  const handleLogin = async () => {
-    if (signingIn) return
-    setSigningIn(true)
-    try {
-      await loginWithGoogle()
-    } catch (error) {
-      console.error("[perfil] Error al iniciar sesión:", error)
-    } finally {
-      setSigningIn(false)
-    }
-  }
-
-  const handleLogout = async () => {
-    if (signingOut) return
-    setSigningOut(true)
-    try {
-      await logout()
-    } catch (error) {
-      console.error("[perfil] Error al cerrar sesión:", error)
-    } finally {
-      setSigningOut(false)
-    }
-  }
-
-  const startEdit = () => {
-    setForm({
-      phone: perfil?.phone ?? "",
-      dni: perfil?.dni ?? "",
-      address: perfil?.address ?? "",
-      city: perfil?.city ?? "",
-      province: perfil?.province ?? "",
-    })
-    setEditing(true)
-  }
-
-  const cancelEdit = () => {
-    setEditing(false)
-    setForm({})
-  }
-
-  const handleSave = async () => {
-    if (!user) return
-    setSaving(true)
-    try {
-      const idToken = await user.getIdToken()
-      // Filtrar campos vacíos para no pisar con string vacío
-      const payload: UpdatePerfilDto = {}
-      if (form.phone?.trim()) payload.phone = form.phone.trim()
-      if (form.dni?.trim()) payload.dni = form.dni.trim()
-      if (form.address?.trim()) payload.address = form.address.trim()
-      if (form.city?.trim()) payload.city = form.city.trim()
-      if (form.province?.trim()) payload.province = form.province.trim()
-
-      await updateMiPerfil(idToken, payload)
-      await refreshPerfil()
-      setEditing(false)
-    } catch (err) {
-      console.error("[perfil] Error al guardar:", err)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // ── Estados de carga y no autenticado ────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <main className="min-h-screen pt-32 pb-16 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
-        <div className="container mx-auto px-4 max-w-3xl">
-          <div className="flex flex-col items-center gap-4 mb-10">
-            <Skeleton className="h-28 w-28 rounded-full" />
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-          <Skeleton className="h-10 w-full rounded-lg mb-6" />
-          <Skeleton className="h-64 w-full rounded-xl" />
-        </div>
-      </main>
-    )
-  }
-
-  if (!user) {
-    return (
-      <main className="min-h-screen pt-32 pb-16 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
-        <Card className="max-w-md w-full border-cyan-100">
-          <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
-            <div className="mb-5 h-16 w-16 rounded-2xl bg-cyan-100 flex items-center justify-center">
-              <UserRound className="h-8 w-8 text-cyan-600" />
+    <Card className="flex flex-col overflow-hidden border border-cyan-100 bg-white/80 backdrop-blur-sm transition-shadow hover:shadow-md">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl leading-none">{curso.emoji || '📚'}</span>
+            <div>
+              <h2 className="text-lg font-bold leading-tight text-gray-900 text-balance">
+                {curso.title}
+              </h2>
+              {curso.profe && (
+                <p className="mt-0.5 text-xs text-muted-foreground">{curso.profe.nombre}</p>
+              )}
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Tu perfil de ciudadano</h1>
-            <p className="text-sm text-muted-foreground mb-6 text-pretty">
-              Iniciá sesión con tu cuenta de Google para ver y gestionar tu perfil,
-              tus cursos e inscripciones.
-            </p>
-            <Button
-              size="lg"
-              onClick={handleLogin}
-              disabled={signingIn}
-              className="w-full text-white"
-              style={{ backgroundImage: "linear-gradient(to right, #0EA5E9, #0284C7)" }}
-            >
-              {signingIn
-                ? <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                : <LogIn className="mr-2 h-5 w-5" />}
-              {signingIn ? "Ingresando..." : "Ingresar con Google"}
-            </Button>
-          </CardContent>
-        </Card>
-      </main>
-    )
-  }
+          </div>
+          <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${NIVEL_COLOR[curso.level] ?? 'bg-gray-100 text-gray-800'}`}>
+            {NIVEL_LABEL[curso.level] ?? curso.level}
+          </span>
+        </div>
+      </CardHeader>
 
-  // ── Autenticado ───────────────────────────────────────────────────────────────
+      <CardContent className="flex-1 space-y-4 pb-4">
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 text-pretty">
+          {curso.description}
+        </p>
 
-  const displayName = perfil?.name ?? user.displayName ?? "Ciudadano NODO"
-  const createdAt = perfil
-    ? formatDate(perfil.createdAt)
-    : formatDate(user.metadata?.creationTime ?? null)
-  const lastLogin = formatDate(user.metadata?.lastSignInTime ?? null)
-  const lineas = perfil?.lineas ?? []
-
-  return (
-    <main className="min-h-screen pt-32 pb-16 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
-      <div className="container mx-auto px-4 max-w-3xl">
-
-        {/* Avatar + nombre */}
-        <div className="flex flex-col items-center gap-3 mb-8">
-          <UserPhoto
-            name={displayName}
-            photoURL={perfil?.picture ?? user.photoURL}
-            sizeClass="h-28 w-28"
-          />
-          <h1 className="text-2xl font-bold text-gray-900">{displayName}</h1>
-          <p className="text-sm text-muted-foreground">{user.email}</p>
-          {perfil && (
-            <div className="flex flex-wrap gap-2 justify-center">
-              {perfil.systemSlugs.map((slug) => (
-                <Badge key={slug} variant="secondary" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200">
-                  {SYSTEM_LABEL[slug] ?? slug}
-                </Badge>
-              ))}
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+            <span>{curso.duration}</span>
+          </div>
+          {curso.maxParticipants && (
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+              <span>{curso.maxParticipants} cupos</span>
+            </div>
+          )}
+          {aulaLabel && (
+            <div className="flex items-center gap-1.5 col-span-2">
+              <MapPin className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+              <span>{aulaLabel}</span>
+            </div>
+          )}
+          {(curso.horaInicio || curso.fechaInicio) && (
+            <div className="flex items-center gap-1.5 col-span-2">
+              <CalendarDays className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+              <span>
+                {curso.fechaInicio && new Date(curso.fechaInicio).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {curso.horaInicio && curso.horaFin && ` · ${curso.horaInicio}–${curso.horaFin} hs`}
+              </span>
+            </div>
+          )}
+          {curso.modules > 0 && (
+            <div className="flex items-center gap-1.5">
+              <BookOpen className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+              <span>{curso.modules} módulos</span>
             </div>
           )}
         </div>
 
-        {/* Botón cerrar sesión */}
-        <div className="flex justify-end mb-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLogout}
-            disabled={signingOut}
-            className="text-gray-600 border-gray-200"
-          >
-            {signingOut
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <LogOut className="mr-2 h-4 w-4" />}
-            Cerrar sesión
+        {curso.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {curso.tags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      <CardFooter className="flex flex-col gap-2 border-t border-cyan-50 pt-4">
+        {registroSlug && curso.available ? (
+          <Button asChild size="sm" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
+            <a href={`${REGISTRO_URL}/inscripcion/${registroSlug}`} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Inscribirme
+            </a>
           </Button>
+        ) : (
+          <Button size="sm" variant="outline" disabled className="w-full cursor-not-allowed opacity-60">
+            {curso.waitlistEnabled ? 'Lista de espera' : 'Sin inscripción activa'}
+          </Button>
+        )}
+        <Button asChild size="sm" variant="ghost" className="w-full text-cyan-700 hover:text-cyan-800">
+          <Link href={`/cursos/${curso.slug}`}>Ver detalle</Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+
+export default async function CursosPage() {
+  let cursos: CursoBack[] = []
+  let error = false
+  try {
+    const data = await getCursos({ limit: 100 })
+    cursos = data.items.filter((c) => c.available).sort((a, b) => a.order - b.order)
+  } catch { error = true }
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-cyan-50 via-white to-blue-50">
+      <section className="relative overflow-hidden pt-24 pb-10">
+        <div className="container mx-auto px-4 text-center">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-cyan-600">Formación gratuita</p>
+          <h1 className="mb-4 text-4xl font-bold text-balance md:text-5xl">
+            Nuestros <span className="text-cyan-500">Cursos</span>
+          </h1>
+          <p className="mx-auto max-w-2xl text-base text-muted-foreground text-pretty leading-relaxed">
+            Aprendé tecnología con el equipo del Nodo Tecnológico de Catamarca. Todos los cursos son gratuitos.
+          </p>
         </div>
+      </section>
 
-        {/* Tabs */}
-        <Tabs defaultValue="datos" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-white/70 border border-cyan-100">
-            <TabsTrigger value="datos">Datos</TabsTrigger>
-            <TabsTrigger value="actividad">
-              Actividad
-              {lineas.length > 0 && (
-                <span className="ml-1.5 text-xs bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded-full">
-                  {lineas.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="cursos">Mis cursos</TabsTrigger>
-          </TabsList>
-
-          {/* ── Tab: Datos ──────────────────────────────────────────────── */}
-          <TabsContent value="datos" className="mt-6 space-y-4">
-
-            {/* Identidad Google (solo lectura) */}
-            <Card className="border-cyan-100">
-              <CardContent className="pt-6 divide-y divide-gray-100">
-                <div className="flex items-center justify-between py-3">
-                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <UserRound className="h-4 w-4" /> Nombre
-                  </span>
-                  <span className="text-sm font-medium text-gray-900">{displayName}</span>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="h-4 w-4" /> Correo
-                  </span>
-                  <span className="text-sm font-medium text-gray-900">{user.email ?? "—"}</span>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ShieldCheck className="h-4 w-4" /> Cuenta verificada
-                  </span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {user.emailVerified ? "Sí" : "No"}
-                  </span>
-                </div>
-                {createdAt && (
-                  <div className="flex items-center justify-between py-3">
-                    <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CalendarDays className="h-4 w-4" /> Ciudadano desde
-                    </span>
-                    <span className="text-sm font-medium text-gray-900">{createdAt}</span>
-                  </div>
-                )}
-                {lastLogin && (
-                  <div className="flex items-center justify-between py-3">
-                    <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Activity className="h-4 w-4" /> Último acceso
-                    </span>
-                    <span className="text-sm font-medium text-gray-900">{lastLogin}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Perfil extendido (editable) */}
-            <Card className="border-cyan-100">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-gray-700">Datos adicionales</h3>
-                  {!editing ? (
-                    <Button variant="ghost" size="sm" onClick={startEdit} className="text-cyan-600 hover:text-cyan-700">
-                      <Pencil className="h-4 w-4 mr-1" /> Editar
-                    </Button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={saving} className="text-gray-500">
-                        <X className="h-4 w-4 mr-1" /> Cancelar
-                      </Button>
-                      <Button size="sm" onClick={handleSave} disabled={saving}
-                        className="text-white"
-                        style={{ backgroundImage: "linear-gradient(to right, #0EA5E9, #0284C7)" }}>
-                        {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-                        Guardar
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {!editing ? (
-                  <div className="divide-y divide-gray-100">
-                    <div className="flex items-center justify-between py-3">
-                      <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CreditCard className="h-4 w-4" /> DNI
-                      </span>
-                      <span className="text-sm font-medium text-gray-900">{perfil?.dni ?? "—"}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-3">
-                      <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Phone className="h-4 w-4" /> Teléfono
-                      </span>
-                      <span className="text-sm font-medium text-gray-900">{perfil?.phone ?? "—"}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-3">
-                      <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="h-4 w-4" /> Dirección
-                      </span>
-                      <span className="text-sm font-medium text-gray-900 text-right max-w-[60%]">
-                        {[perfil?.address, perfil?.city, perfil?.province].filter(Boolean).join(", ") || "—"}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="dni" className="text-xs text-muted-foreground">DNI</Label>
-                        <Input
-                          id="dni"
-                          placeholder="12345678"
-                          value={form.dni ?? ""}
-                          onChange={(e) => setForm((p) => ({ ...p, dni: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="phone" className="text-xs text-muted-foreground">Teléfono</Label>
-                        <Input
-                          id="phone"
-                          placeholder="383-4000000"
-                          value={form.phone ?? ""}
-                          onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="address" className="text-xs text-muted-foreground">Dirección</Label>
-                        <Input
-                          id="address"
-                          placeholder="Av. Belgrano 123"
-                          value={form.address ?? ""}
-                          onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="city" className="text-xs text-muted-foreground">Ciudad</Label>
-                        <Input
-                          id="city"
-                          placeholder="San Fernando del Valle..."
-                          value={form.city ?? ""}
-                          onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
-                        />
-                      </div>
-                      <div className="space-y-1.5 sm:col-span-2">
-                        <Label htmlFor="province" className="text-xs text-muted-foreground">Provincia</Label>
-                        <Input
-                          id="province"
-                          placeholder="Catamarca"
-                          value={form.province ?? ""}
-                          onChange={(e) => setForm((p) => ({ ...p, province: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* ── Tab: Actividad (lineas) ─────────────────────────────────── */}
-          <TabsContent value="actividad" className="mt-6">
-            {lineas.length === 0 ? (
-              <Card className="border-cyan-100">
-                <CardContent className="pt-10 pb-10 flex flex-col items-center text-center">
-                  <div className="mb-4 h-14 w-14 rounded-2xl bg-cyan-100 flex items-center justify-center">
-                    <Layers className="h-7 w-7 text-cyan-600" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Sin actividad registrada</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm text-pretty">
-                    Cuando uses los servicios del Nodo (cursos, eventos, laboratorio) tu actividad
-                    aparecerá acá.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {lineas.map((linea) => (
-                  <Card key={linea.id} className="border-cyan-100 hover:border-cyan-300 transition-colors">
-                    <CardContent className="pt-4 pb-4 flex items-center justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {SYSTEM_LABEL[linea.systemSlug] ?? linea.systemSlug}
-                          <span className="text-muted-foreground font-normal"> · {linea.entityType}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatDate(linea.createdAt) ?? linea.createdAt}
-                        </p>
-                      </div>
-                      <span
-                        className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${LINEA_STATUS_COLOR[linea.status] ?? "bg-gray-100 text-gray-500"}`}
-                      >
-                        {linea.status}
-                      </span>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ── Tab: Mis cursos ─────────────────────────────────────────── */}
-          <TabsContent value="cursos" className="mt-6">
-            {(() => {
-              const cursosLineas = lineas.filter((l) => l.systemSlug === "cursos")
-              if (cursosLineas.length === 0) {
-                return (
-                  <Card className="border-cyan-100">
-                    <CardContent className="pt-10 pb-10 flex flex-col items-center text-center">
-                      <div className="mb-4 h-14 w-14 rounded-2xl bg-cyan-100 flex items-center justify-center">
-                        <GraduationCap className="h-7 w-7 text-cyan-600" />
-                      </div>
-                      <h3 className="font-semibold text-gray-900 mb-1">
-                        Todavía no tenés cursos ni inscripciones
-                      </h3>
-                      <p className="text-sm text-muted-foreground mb-6 max-w-sm text-pretty">
-                        Cuando te inscribas a un curso del Nodo, vas a verlo acá con su estado y progreso.
-                      </p>
-                      <Button asChild variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
-                        <Link href="/cursos">Ver cursos disponibles</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )
-              }
-              return (
-                <div className="space-y-3">
-                  {cursosLineas.map((linea) => {
-                    const meta = linea.metadata as Record<string, string>
-                    return (
-                      <Card key={linea.id} className="border-cyan-100">
-                        <CardContent className="pt-4 pb-4 flex items-center justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {meta?.cursoTitle ?? linea.entityId}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5 capitalize">
-                              {linea.entityType} · {formatDate(linea.createdAt)}
-                            </p>
-                          </div>
-                          <span
-                            className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${LINEA_STATUS_COLOR[linea.status] ?? "bg-gray-100 text-gray-500"}`}
-                          >
-                            {linea.status}
-                          </span>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              )
-            })()}
-          </TabsContent>
-        </Tabs>
-      </div>
+      <section className="container mx-auto px-4 pb-24">
+        {error ? (
+          <div className="rounded-xl border border-red-100 bg-red-50 p-8 text-center">
+            <p className="text-sm text-red-600">No pudimos cargar los cursos. Intentá de nuevo más tarde.</p>
+          </div>
+        ) : cursos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <span className="text-6xl mb-4">🎓</span>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Pronto habrá nuevos cursos</h2>
+            <p className="text-sm text-muted-foreground max-w-xs">Estamos preparando la próxima oferta formativa.</p>
+          </div>
+        ) : (
+          <>
+            <p className="mb-6 text-sm text-muted-foreground">
+              {cursos.length} curso{cursos.length !== 1 ? 's' : ''} disponible{cursos.length !== 1 ? 's' : ''}
+            </p>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {cursos.map((curso) => <CursoCard key={curso.id} curso={curso} />)}
+            </div>
+          </>
+        )}
+      </section>
     </main>
   )
 }
 EOF
-ok "app/perfil/page.tsx"
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 4. Dockerfile — agrega ARG/ENV NEXT_PUBLIC_CIUDADANO_API_URL
-# ══════════════════════════════════════════════════════════════════════════════
-log "Actualizando Dockerfile..."
+# ── app/cursos/[id]/page.tsx ──────────────────────────────────────────────────
+cat > 'app/cursos/[id]/page.tsx' << 'EOF'
+// app/cursos/[id]/page.tsx — Server Component
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { Clock, MapPin, Users, BookOpen, ExternalLink, CalendarDays, ArrowLeft, GraduationCap, CheckCircle2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { getCursoBySlug } from '@/lib/cursos/api'
+import { getRegistroSlug, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
 
-if grep -q "NEXT_PUBLIC_CIUDADANO_API_URL" Dockerfile 2>/dev/null; then
-  warn "Dockerfile ya tiene NEXT_PUBLIC_CIUDADANO_API_URL — saltando"
-else
-  # Inserta el secret mount justo antes del pnpm run build
-  # Busca la línea del pnpm build y agrega el secret antes
-  sed -i 's|--mount=type=secret,id=NEXT_PUBLIC_FIREBASE_APP_ID \\|--mount=type=secret,id=NEXT_PUBLIC_FIREBASE_APP_ID \\\n    --mount=type=secret,id=NEXT_PUBLIC_CIUDADANO_API_URL \\|g' Dockerfile
+const REGISTRO_URL =
+  process.env.NEXT_PUBLIC_REGISTRO_URL ?? 'https://registro.nodo.cc.gob.ar'
 
-  # Agrega la variable de entorno en el bloque ENV del build
-  sed -i 's|NEXT_PUBLIC_FIREBASE_APP_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_APP_ID) \\|NEXT_PUBLIC_FIREBASE_APP_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_APP_ID) \\\n    NEXT_PUBLIC_CIUDADANO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CIUDADANO_API_URL) \\|g' Dockerfile
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id: slug } = await params
+  const curso = await getCursoBySlug(slug)
+  if (!curso) return { title: 'Curso no encontrado | Nodo Tecnológico Catamarca' }
+  return { title: `${curso.emoji} ${curso.title} | Nodo Tecnológico Catamarca`, description: curso.description }
+}
 
-  ok "Dockerfile actualizado"
-fi
+export default async function CursoDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: slug } = await params
+  const curso = await getCursoBySlug(slug)
+  if (!curso) notFound()
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 5. .github/workflows/deploy.yml — agrega el secret al CI
-# ══════════════════════════════════════════════════════════════════════════════
-DEPLOY_YML=".github/workflows/deploy.yml"
-log "Actualizando $DEPLOY_YML..."
+  const registroSlug = getRegistroSlug(curso)
+  const aulaLabel    = curso.aula ? AULA_NOMBRE[curso.aula] : null
 
-if [[ -f "$DEPLOY_YML" ]]; then
-  if grep -q "NEXT_PUBLIC_CIUDADANO_API_URL" "$DEPLOY_YML" 2>/dev/null; then
-    warn "$DEPLOY_YML ya tiene NEXT_PUBLIC_CIUDADANO_API_URL — saltando"
-  else
-    # Agrega el secret después de NEXT_PUBLIC_FIREBASE_APP_ID en el bloque secrets del build
-    sed -i 's|"NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}"|"NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}"\n              "NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}"|g' "$DEPLOY_YML"
-    ok "$DEPLOY_YML actualizado"
-  fi
-else
-  warn "$DEPLOY_YML no encontrado — agregá manualmente el secret NEXT_PUBLIC_CIUDADANO_API_URL"
-fi
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-cyan-100 via-white to-blue-100">
+      <section className="pt-24 pb-16">
+        <div className="container mx-auto px-4">
+          <Link href="/cursos" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-cyan-600 transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            Todos los cursos
+          </Link>
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 6. .env.local — agrega la variable si no existe (solo dev)
-# ══════════════════════════════════════════════════════════════════════════════
-log "Verificando .env.local..."
-if [[ -f ".env.local" ]]; then
-  if grep -q "NEXT_PUBLIC_CIUDADANO_API_URL" .env.local; then
-    warn ".env.local ya tiene NEXT_PUBLIC_CIUDADANO_API_URL"
-  else
-    echo "" >> .env.local
-    echo "# ciudadano-back — API de perfil de ciudadanos NODO" >> .env.local
-    echo "NEXT_PUBLIC_CIUDADANO_API_URL=https://api.ciudadano.nodo.cc.gob.ar" >> .env.local
-    ok ".env.local actualizado"
-  fi
-else
-  cat > .env.local << 'ENVEOF'
-# ciudadano-back — API de perfil de ciudadanos NODO
-NEXT_PUBLIC_CIUDADANO_API_URL=https://api.ciudadano.nodo.cc.gob.ar
-ENVEOF
-  ok ".env.local creado (completá las otras variables Firebase que ya tenés)"
-fi
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              <div>
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="text-5xl leading-none">{curso.emoji || '📚'}</span>
+                  <div>
+                    <h1 className="text-3xl font-bold text-balance md:text-4xl">{curso.title}</h1>
+                    {curso.profe && <p className="mt-1 text-sm text-muted-foreground">Docente: {curso.profe.nombre}</p>}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {curso.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                  <Badge variant="outline" className="border-cyan-500 text-cyan-600">Presencial</Badge>
+                  <Badge variant="outline">{NIVEL_LABEL[curso.level] ?? curso.level}</Badge>
+                </div>
+              </div>
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Resumen
-# ══════════════════════════════════════════════════════════════════════════════
-sep
-echo -e "${GREEN}✅ ciudadano-front conectado con ciudadano-back${NC}"
-sep
+              <Card className="bg-white/70 backdrop-blur-sm">
+                <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-cyan-500" />Sobre el curso</CardTitle></CardHeader>
+                <CardContent><p className="text-base text-muted-foreground leading-relaxed text-pretty">{curso.description}</p></CardContent>
+              </Card>
+
+              {curso.modules > 0 && (
+                <Card className="bg-white/70 backdrop-blur-sm">
+                  <CardHeader><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-cyan-500" />Contenido</CardTitle></CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-gray-700">{curso.modules} módulo{curso.modules !== 1 ? 's' : ''}</span>
+                      {curso.steps > 0 && ` · ${curso.steps} actividades`}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {curso.waitlistEnabled && (
+                <Card className="border-amber-100 bg-amber-50/60">
+                  <CardContent className="pt-5 pb-5">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+                      <p className="text-sm text-amber-800 leading-relaxed">Este curso tiene lista de espera. Si los cupos se cubren, quedás en espera y te avisamos.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <div className="lg:col-span-1">
+              <Card className="sticky top-4 bg-white/80 backdrop-blur-sm border-cyan-100">
+                <CardHeader><CardTitle className="text-base">Detalles</CardTitle></CardHeader>
+                <CardContent className="space-y-4 pb-2">
+                  <div className="flex items-start gap-3 text-sm">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                    <div><p className="font-semibold text-gray-700">Duración</p><p className="text-muted-foreground">{curso.duration}</p></div>
+                  </div>
+                  {aulaLabel && (
+                    <div className="flex items-start gap-3 text-sm">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                      <div><p className="font-semibold text-gray-700">Ubicación</p><p className="text-muted-foreground">{aulaLabel}</p></div>
+                    </div>
+                  )}
+                  {(curso.horaInicio || curso.fechaInicio) && (
+                    <div className="flex items-start gap-3 text-sm">
+                      <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                      <div>
+                        <p className="font-semibold text-gray-700">Horario</p>
+                        {curso.fechaInicio && <p className="text-muted-foreground">{new Date(curso.fechaInicio).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>}
+                        {curso.horaInicio && curso.horaFin && <p className="text-muted-foreground">{curso.horaInicio} – {curso.horaFin} hs</p>}
+                      </div>
+                    </div>
+                  )}
+                  {curso.maxParticipants && (
+                    <div className="flex items-start gap-3 text-sm">
+                      <Users className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                      <div><p className="font-semibold text-gray-700">Cupos</p><p className="text-muted-foreground">{curso.maxParticipants} participantes{curso.waitlistEnabled && ' + lista de espera'}</p></div>
+                    </div>
+                  )}
+                  {curso.profe && (
+                    <div className="flex items-start gap-3 text-sm">
+                      <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                      <div><p className="font-semibold text-gray-700">Docente</p><p className="text-muted-foreground">{curso.profe.nombre}</p></div>
+                    </div>
+                  )}
+                </CardContent>
+                <div className="p-6 pt-2 space-y-2">
+                  {registroSlug && curso.available ? (
+                    <Button asChild size="lg" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
+                      <a href={`${REGISTRO_URL}/inscripcion/${registroSlug}`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />Inscribirme al curso
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button size="lg" variant="outline" disabled className="w-full cursor-not-allowed opacity-60">Sin inscripción activa</Button>
+                  )}
+                  {curso.whatsappLink && (
+                    <Button asChild size="sm" variant="ghost" className="w-full text-green-700 hover:text-green-800 hover:bg-green-50">
+                      <a href={curso.whatsappLink} target="_blank" rel="noopener noreferrer">Grupo de WhatsApp</a>
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  )
+}
+EOF
+
 echo ""
-echo -e "Archivos modificados:"
-echo -e "  ${CYAN}lib/ciudadano-api.ts${NC}          → cliente tipado (login, me, patch, lineas)"
-echo -e "  ${CYAN}contexts/auth-context.tsx${NC}     → post-login upsert + expone \`perfil\` (CiudadanoDB)"
-echo -e "  ${CYAN}app/perfil/page.tsx${NC}           → perfil completo + edición + lineas NODO"
-echo -e "  ${CYAN}Dockerfile${NC}                    → secret NEXT_PUBLIC_CIUDADANO_API_URL"
-echo -e "  ${CYAN}.github/workflows/deploy.yml${NC}  → secret al CI"
-echo -e "  ${CYAN}.env.local${NC}                    → variable para desarrollo local"
+echo "✅ Archivos escritos:"
+echo "   lib/cursos/types.ts"
+echo "   lib/cursos/api.ts"
+echo "   app/cursos/page.tsx"
+echo "   app/cursos/[id]/page.tsx"
 echo ""
-echo -e "${YELLOW}⚠  Verificá .env.local — ajustá NEXT_PUBLIC_CIUDADANO_API_URL si usás otro host${NC}"
-echo -e "${YELLOW}⚠  Agregá NEXT_PUBLIC_CIUDADANO_API_URL como secret en GitHub Actions${NC}"
-echo -e "${YELLOW}⚠  Si el Dockerfile usa ARG en lugar de secrets, ajustá manualmente${NC}"
+echo "⚠️  Secrets a agregar en GitHub Actions (deploy.yml + servidor):"
+echo "   NEXT_PUBLIC_CURSOS_API_URL=https://api.cursos.nodo.cc.gob.ar"
+echo "   NEXT_PUBLIC_REGISTRO_URL=https://registro.nodo.cc.gob.ar"
 echo ""
-echo -e "${CYAN}Flujo de login resultante:${NC}"
-echo -e "  1. Usuario clickea 'Ingresar con Google'"
-echo -e "  2. Firebase popup → signInWithPopup"
-echo -e "  3. onAuthStateChanged → getIdToken()"
-echo -e "  4. POST /api/auth/login → upsert en BD"
-echo -e "  5. GET  /api/ciudadanos/me → perfil completo con lineas"
-echo -e "  6. \`perfil\` disponible en useAuth() en toda la app"
-sep
+echo "   Y en .env.local para dev."

@@ -1,20 +1,82 @@
-export type Modalidad = "todos" | "presencial" | "virtual"
+// lib/cursos/types.ts
+// Tipos que devuelve cursos-nodo-back (GET /api/v1/courses)
 
-export type Curso = {
-  id: string | number
-  titulo: string
-  descripcion: string
-  modalidad: Modalidad
+export type CursoLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO'
+
+export type AulaSlot =
+  | 'AULA_1' | 'AULA_2' | 'AULA_3'
+  | 'AULA_4' | 'AULA_5' | 'AULA_6'
+
+export interface RegistroModuleResumen {
+  id: string
+  slug: string
+  name: string
+  active: boolean
+  type: string
+}
+
+export interface ProfeResumen {
+  id: string
+  nombre: string
+  email: string
+}
+
+export interface CursoBack {
+  id: string
+  slug: string
+  title: string
+  description: string
+  level: CursoLevel
+  duration: string
+  modules: number
+  steps: number
+  emoji: string
   tags: string[]
-  duracion: string
-  cupo: number
-  ubicacion?: string
-  link?: string
-  edad?: string
-  turno?: string
-  publicadoEnFecha?: string
-  slug?: string
-  documentId?: string
-  requisitos?: string[]
-  cupos?: string
+  available: boolean
+  current: boolean
+  order: number
+  whatsappLink: string | null
+  maxParticipants: number | null
+  waitlistEnabled: boolean
+  aula: AulaSlot | null
+  horaInicio: string | null
+  horaFin: string | null
+  fechaInicio: string | null
+  fechaFin: string | null
+  profeId: string | null
+  profe: ProfeResumen | null
+  createdAt: string
+  updatedAt: string
+  registroModules: RegistroModuleResumen[]
+  _count: { preinscripciones: number; registroModules: number }
+}
+
+export interface CursosListResponse {
+  items: CursoBack[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
+/** Slug del RegistroModule PREINSCRIPCION activo, o null */
+export function getRegistroSlug(curso: CursoBack): string | null {
+  return curso.registroModules.find(
+    (m) => m.active && m.type === 'PREINSCRIPCION',
+  )?.slug ?? null
+}
+
+export const NIVEL_LABEL: Record<CursoLevel, string> = {
+  PRINCIPIANTE: 'Principiante',
+  INTERMEDIO:   'Intermedio',
+  AVANZADO:     'Avanzado',
+}
+
+export const AULA_NOMBRE: Record<AulaSlot, string> = {
+  AULA_1: 'Aula 1 — Planta baja',
+  AULA_2: 'Aula 2 — Planta baja',
+  AULA_3: 'Aula 3 — Primer piso',
+  AULA_4: 'Aula 4 — Primer piso',
+  AULA_5: 'Aula 5 — Segundo piso',
+  AULA_6: 'Aula 6 — Segundo piso',
 }
