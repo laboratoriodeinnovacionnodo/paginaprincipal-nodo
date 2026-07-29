@@ -1,412 +1,264 @@
 #!/usr/bin/env bash
 # =============================================================================
-# restore-chatbot-widget.sh — ciudadano-front
-# Regenera el widget flotante de chat con IA (botón abajo a la derecha + modal)
-# tal como estaba: componente, endpoint API, import en layout y botón en home.
-# Ejecutar desde la raíz del repo ciudadano-front: bash restore-chatbot-widget.sh
+# fix-cursos-card-click-profe-ia.sh — ciudadano-front
+# - Card completa de curso clickeable → /cursos/[slug]
+# - Botón "Inscribirme" → registro externo (stopPropagation)
+# - Nuevo botón "Aprender con el Profe IA" → https://profe.nodo.cc.gob.ar (stopPropagation)
+# Ejecutar desde la raíz del repo ciudadano-front: bash fix-cursos-card-click-profe-ia.sh
 # =============================================================================
 set -euo pipefail
 
-mkdir -p components/chatbot
-mkdir -p app/api/chat
+mkdir -p components/cursos
 
 # -----------------------------------------------------------------------------
-# components/chatbot/chatbot-widget.tsx
+# components/cursos/curso-card-nodo.tsx (nuevo, client component)
 # -----------------------------------------------------------------------------
-echo "♻️  Restaurando components/chatbot/chatbot-widget.tsx..."
+echo "♻️  Creando components/cursos/curso-card-nodo.tsx..."
 
-cat > components/chatbot/chatbot-widget.tsx << 'EOF'
+cat > components/cursos/curso-card-nodo.tsx << 'EOF'
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { Bot, Send } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import { Clock, Users, MapPin, CalendarDays, ExternalLink, BookOpen, Sparkles } from "lucide-react"
+import type { CursoBack } from "@/lib/cursos/types"
+import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from "@/lib/cursos/types"
+import { buildInscripcionUrl } from "@/lib/cursos/registro-url"
 
-interface Message {
-  id: string
-  text: string
-  sender: "user" | "bot"
-  timestamp: Date
+const PROFE_IA_URL = "https://profe.nodo.cc.gob.ar"
+
+const NIVEL_COLOR: Record<string, string> = {
+  PRINCIPIANTE: "bg-green-100 text-green-800 border-green-200",
+  INTERMEDIO: "bg-amber-100 text-amber-800 border-amber-200",
+  AVANZADO: "bg-red-100 text-red-800 border-red-200",
 }
 
-interface GroqMessage {
-  role: "user" | "assistant"
-  content: string
-}
+export function CursoCardNodo({ curso }: { curso: CursoBack }) {
+  const router = useRouter()
+  const puedeInscribirse = tieneInscripcionActiva(curso) && curso.available
+  const aulaLabel = curso.aula ? AULA_NOMBRE[curso.aula] : null
 
-export function ChatbotWidget() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      text: "¡Hola! Soy el asistente virtual del Nodo Tecnológico. ¿En qué puedo ayudarte hoy?",
-      sender: "bot",
-      timestamp: new Date(),
-    },
-  ])
-  const [conversationHistory, setConversationHistory] = useState<GroqMessage[]>([])
-  const [inputValue, setInputValue] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const irAlDetalle = () => {
+    router.push(`/cursos/${curso.slug}`)
+  }
 
-  useEffect(() => {
-    const handleOpenChatbot = () => setIsOpen(true)
-    window.addEventListener("open-chatbot", handleOpenChatbot)
-    return () => window.removeEventListener("open-chatbot", handleOpenChatbot)
-  }, [])
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return
-
-    const userText = inputValue.trim()
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: userText,
-      sender: "user",
-      timestamp: new Date(),
-    }
-
-    const newHistory: GroqMessage[] = [
-      ...conversationHistory,
-      { role: "user", content: userText },
-    ]
-
-    setMessages((prev) => [...prev, userMessage])
-    setInputValue("")
-    setIsLoading(true)
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newHistory }),
-      })
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-      const data = await res.json()
-
-      if (data.response) {
-        const botMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          text: data.response,
-          sender: "bot",
-          timestamp: new Date(),
-        }
-
-        setMessages((prev) => [...prev, botMessage])
-        setConversationHistory([
-          ...newHistory,
-          { role: "assistant", content: data.response },
-        ])
-      } else {
-        throw new Error("Respuesta inválida")
-      }
-    } catch (error) {
-      console.error("Error:", error)
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Lo siento, hubo un error al procesar tu mensaje. Por favor, intentá nuevamente.",
-        sender: "bot",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
-    }
+  const stop = (e: React.MouseEvent) => {
+    e.stopPropagation()
   }
 
   return (
-    <>
-      <Button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-12 w-12 rounded-xl bg-cyan-500 shadow-lg hover:shadow-xl hover:bg-cyan-700 transition-all duration-300 z-50 cursor-pointer"
-        size="icon"
-      >
-        <Bot className="text-white" style={{ width: "75%", height: "75%" }} />
-      </Button>
-
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[425px] md:max-w-[500px] h-[600px] max-h-[85vh] p-0 gap-0 flex flex-col overflow-hidden bg-gradient-to-b from-cyan-50 via-white to-blue-50">
-          <DialogTitle className="sr-only">Asistente Virtual del Nodo Tecnológico</DialogTitle>
-
-          <div className="px-4 pt-2 pb-1 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-cyan-100 flex items-center justify-center rounded-full">
-                <Bot className="h-5 w-5 text-cyan-600" />
-              </div>
-              <div>
-                <h2 className="text-gray-900 text-lg font-semibold">Asistente Virtual</h2>
-                <p className="text-xs text-gray-500">Nodo Tecnológico</p>
-              </div>
+    <Card
+      onClick={irAlDetalle}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") irAlDetalle()
+      }}
+      className="flex flex-col overflow-hidden border border-cyan-100 bg-white/80 backdrop-blur-sm transition-shadow hover:shadow-md cursor-pointer"
+    >
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl leading-none">{curso.emoji || "📚"}</span>
+            <div>
+              <h2 className="text-lg font-bold leading-tight text-gray-900 text-balance">{curso.title}</h2>
+              {curso.profe && <p className="mt-0.5 text-xs text-muted-foreground">{curso.profe.nombre}</p>}
             </div>
           </div>
+          <span
+            className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+              NIVEL_COLOR[curso.level] ?? "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {NIVEL_LABEL[curso.level] ?? curso.level}
+          </span>
+        </div>
+      </CardHeader>
 
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full px-4 py-4" ref={scrollAreaRef}>
-              <div className="space-y-4 pb-2">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        message.sender === "user"
-                          ? "bg-cyan-400 text-white rounded-br-sm"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-                        {message.text}
-                      </p>
-                      <p
-                        className={`text-xs mt-1 ${
-                          message.sender === "user" ? "text-white/70" : "text-gray-400"
-                        }`}
-                      >
-                        {message.timestamp.toLocaleTimeString("es-AR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-                {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 rounded-bl-sm">
-                      <div className="flex items-center gap-1">
-                        {[0, 150, 300].map((delay) => (
-                          <span
-                            key={delay}
-                            className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
-                            style={{ animationDelay: `${delay}ms` }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
+      <CardContent className="flex-1 space-y-4 pb-4">
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 text-pretty">
+          {curso.description}
+        </p>
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+            <span>{curso.duration}</span>
           </div>
-
-          <div className="border-t border-cyan-100 p-4 bg-white shrink-0">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleSendMessage()
-              }}
-              className="flex gap-3"
-            >
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder={isLoading ? "Esperando respuesta..." : "Escribe tu mensaje..."}
-                disabled={isLoading}
-                className="flex-1 bg-white border border-cyan-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-all disabled:opacity-50"
-              />
-              <Button
-                type="submit"
-                size="icon"
-                disabled={!inputValue.trim() || isLoading}
-                className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl disabled:opacity-50 h-10 w-10"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
+          {curso.maxParticipants && (
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+              <span>{curso.maxParticipants} cupos</span>
+            </div>
+          )}
+          {aulaLabel && (
+            <div className="flex items-center gap-1.5 col-span-2">
+              <MapPin className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+              <span>{aulaLabel}</span>
+            </div>
+          )}
+          {(curso.horaInicio || curso.fechaInicio) && (
+            <div className="flex items-center gap-1.5 col-span-2">
+              <CalendarDays className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+              <span>
+                {curso.fechaInicio &&
+                  new Date(curso.fechaInicio).toLocaleDateString("es-AR", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                {curso.horaInicio && curso.horaFin && ` · ${curso.horaInicio}–${curso.horaFin} hs`}
+              </span>
+            </div>
+          )}
+          {curso.modules > 0 && (
+            <div className="flex items-center gap-1.5">
+              <BookOpen className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+              <span>{curso.modules} módulos</span>
+            </div>
+          )}
+        </div>
+        {curso.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {curso.tags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        )}
+      </CardContent>
+
+      <CardFooter className="flex flex-col gap-2 border-t border-cyan-50 pt-4">
+        {puedeInscribirse ? (
+          <Button asChild size="sm" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white" onClick={stop}>
+            <a href={buildInscripcionUrl(curso.slug)} target="_blank" rel="noopener noreferrer" onClick={stop}>
+              <ExternalLink className="h-3.5 w-3.5" />
+              Inscribirme
+            </a>
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled
+            className="w-full cursor-not-allowed opacity-60"
+            onClick={stop}
+          >
+            {curso.waitlistEnabled ? "Lista de espera" : "Sin inscripción activa"}
+          </Button>
+        )}
+
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          className="w-full gap-2 border-cyan-200 text-cyan-700 hover:bg-cyan-50 hover:text-cyan-800"
+          onClick={stop}
+        >
+          <a href={PROFE_IA_URL} target="_blank" rel="noopener noreferrer" onClick={stop}>
+            <Sparkles className="h-3.5 w-3.5" />
+            Aprender con el Profe IA
+          </a>
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }
 EOF
 
 # -----------------------------------------------------------------------------
-# app/api/chat/route.ts
+# app/cursos/page.tsx — usar el nuevo componente, sacar CursoCard local
 # -----------------------------------------------------------------------------
-echo "♻️  Restaurando app/api/chat/route.ts..."
+echo "♻️  Regenerando app/cursos/page.tsx..."
 
-cat > app/api/chat/route.ts << 'EOF'
-import { NextRequest, NextResponse } from "next/server"
-import Groq from "groq-sdk"
+cat > app/cursos/page.tsx << 'EOF'
+// app/cursos/page.tsx — Server Component
+import type { Metadata } from 'next'
+import { getCursos } from '@/lib/cursos/api'
+import type { CursoBack } from '@/lib/cursos/types'
+import { CursoCardNodo } from '@/components/cursos/curso-card-nodo'
 
-const groq = new Groq({
-  apiKey: process.env.NEXT_GROQ_API_KEY || "BUILD_TIME_PLACEHOLDER",
-})
-
-const SYSTEM_PROMPT = `Eres el asistente virtual del Nodo Tecnológico, un centro de innovación y educación digital en Argentina. 
-Tu rol es ayudar a los usuarios con información sobre cursos, talleres, capacitaciones en programación, inteligencia artificial y tecnologías emergentes.
-Respondé siempre en español argentino, de manera amigable, clara y concisa.
-Si no sabés algo específico sobre el Nodo, ofrecé orientar al usuario para que contacte directamente al centro.`
-
-export async function POST(req: NextRequest) {
-  try {
-    const { messages } = await req.json()
-
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: "Mensajes inválidos" }, { status: 400 })
-    }
-
-    const completion = await groq.chat.completions.create({
-      model: process.env.NEXT_GROQ_MODEL || "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...messages,
-      ],
-      max_tokens: 1024,
-      temperature: 0.7,
-    })
-
-    const response = completion.choices[0]?.message?.content
-
-    if (!response) {
-      return NextResponse.json({ error: "Sin respuesta del modelo" }, { status: 500 })
-    }
-
-    return NextResponse.json({ response })
-  } catch (error) {
-    console.error("Groq API error:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
-  }
+export const metadata: Metadata = {
+  title: 'Cursos | Nodo Tecnológico Catamarca',
+  description: 'Explorá la oferta de cursos gratuitos del Nodo Tecnológico de Catamarca.',
 }
-EOF
 
-# -----------------------------------------------------------------------------
-# app/layout.tsx — asegurar import + render de <ChatbotWidget />
-# -----------------------------------------------------------------------------
-echo "♻️  Verificando app/layout.tsx..."
-
-if ! grep -q 'components/chatbot/chatbot-widget' app/layout.tsx; then
-  perl -0777 -pi -e 's/(import \{ StructuredData \} from "\@\/components\/seo\/structured-data"\n)/$1import { ChatbotWidget } from "\@\/components\/chatbot\/chatbot-widget"\n/' app/layout.tsx
-  echo "   → import agregado"
-else
-  echo "   → import ya presente"
-fi
-
-if ! grep -q '<ChatbotWidget />' app/layout.tsx; then
-  perl -0777 -pi -e 's/(<\/AuthProvider>)/  <ChatbotWidget \/>\n        $1/' app/layout.tsx
-  echo "   → render agregado antes de </AuthProvider>"
-else
-  echo "   → render ya presente"
-fi
-
-# -----------------------------------------------------------------------------
-# components/home/contacto-section.tsx — asegurar botón "Consultarle a la IA"
-# -----------------------------------------------------------------------------
-echo "♻️  Verificando components/home/contacto-section.tsx..."
-
-if ! grep -q 'handleOpenChatbot' components/home/contacto-section.tsx; then
-  echo "   ⚠️  No se encontró handleOpenChatbot. Restaurando archivo completo..."
-  cat > components/home/contacto-section.tsx << 'EOF'
-"use client"
-
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Mail, MapPin, Phone } from "lucide-react"
-
-export function ContactoSection() {
-  const handleOpenChatbot = () => {
-    const event = new CustomEvent("open-chatbot")
-    window.dispatchEvent(event)
-  }
-
-  const googleMapsUrl = "https://www.google.com/maps/search/?api=1&query=-28.47661266945215,-65.78625572883533"
-  const whatsappUrl = "https://wa.me/5493834567890" // Reemplazar con el número real
-  const gmailUrl = "https://mail.google.com/mail/?view=cm&fs=1&to=info@nodotecnologico.edu.ar"
+export default async function CursosPage() {
+  let cursos: CursoBack[] = []
+  let error = false
+  try {
+    const data = await getCursos({ limit: 100 })
+    cursos = data.items.filter((c) => c.available).sort((a, b) => a.order - b.order)
+  } catch { error = true }
 
   return (
-    <section id="contacto" className="pt-20 relative">
-      <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none" />
-
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              ¿Listo para <span className="text-primary">empezar?</span>
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Contáctanos para más información sobre nuestros cursos y programas
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="block">
-              <Card className="border-2 hover:border-primary transition-colors cursor-pointer h-full">
-                <CardContent className="pt-6 text-center">
-                  <div className="mb-4 inline-flex p-3 rounded-xl bg-primary/10 text-primary">
-                    <MapPin className="h-6 w-6" />
-                  </div>
-                  <h3 className="font-semibold mb-2">Dirección</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Nodo Tecnológico
-                    <br />
-                    Catamarca, Argentina
-                  </p>
-                </CardContent>
-              </Card>
-            </a>
-
-            <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className="block">
-              <Card className="border-2 hover:border-primary transition-colors cursor-pointer h-full">
-                <CardContent className="pt-6 text-center">
-                  <div className="mb-4 inline-flex p-3 rounded-xl bg-primary/10 text-primary">
-                    <Mail className="h-6 w-6" />
-                  </div>
-                  <h3 className="font-semibold mb-2">Email</h3>
-                  <p className="text-sm text-muted-foreground">info@nodotecnologico.edu.ar</p>
-                </CardContent>
-              </Card>
-            </a>
-
-            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="block">
-              <Card className="border-2 hover:border-primary transition-colors cursor-pointer h-full">
-                <CardContent className="pt-6 text-center">
-                  <div className="mb-4 inline-flex p-3 rounded-xl bg-primary/10 text-primary">
-                    <Phone className="h-6 w-6" />
-                  </div>
-                  <h3 className="font-semibold mb-2">Teléfono</h3>
-                  <p className="text-sm text-muted-foreground">+54 (383) 123-4567</p>
-                </CardContent>
-              </Card>
-            </a>
-          </div>
-
-          <div className="text-center mt-8">
-            <Button size="lg" onClick={handleOpenChatbot}>
-              Consultarle a la IA
-            </Button>
-          </div>
+    <main className="min-h-screen bg-gradient-to-b from-cyan-50 via-white to-blue-50">
+      <section className="relative overflow-hidden pt-24 pb-10">
+        <div className="container mx-auto px-4 text-center">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-cyan-600">Formación gratuita</p>
+          <h1 className="mb-4 text-4xl font-bold text-balance md:text-5xl">Nuestros <span className="text-cyan-500">Cursos</span></h1>
+          <p className="mx-auto max-w-2xl text-base text-muted-foreground text-pretty leading-relaxed">
+            Aprendé tecnología con el equipo del Nodo Tecnológico de Catamarca. Todos los cursos son gratuitos.
+          </p>
         </div>
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" />
-    </section>
+      </section>
+      <section className="container mx-auto px-4 pb-24">
+        {error ? (
+          <div className="rounded-xl border border-red-100 bg-red-50 p-8 text-center">
+            <p className="text-sm text-red-600">No pudimos cargar los cursos. Intentá de nuevo más tarde.</p>
+          </div>
+        ) : cursos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <span className="text-6xl mb-4">🎓</span>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Pronto habrá nuevos cursos</h2>
+            <p className="text-sm text-muted-foreground max-w-xs">Estamos preparando la próxima oferta formativa.</p>
+          </div>
+        ) : (
+          <>
+            <p className="mb-6 text-sm text-muted-foreground">{cursos.length} curso{cursos.length !== 1 ? 's' : ''} disponible{cursos.length !== 1 ? 's' : ''}</p>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {cursos.map((curso) => <CursoCardNodo key={curso.id} curso={curso} />)}
+            </div>
+          </>
+        )}
+      </section>
+    </main>
   )
 }
 EOF
+
+# -----------------------------------------------------------------------------
+# app/cursos/[id]/page.tsx — agregar botón "Aprender con el Profe IA" en detalle
+# -----------------------------------------------------------------------------
+echo "♻️  Agregando botón Profe IA en app/cursos/[id]/page.tsx..."
+
+if ! grep -q 'profe.nodo.cc.gob.ar' 'app/cursos/[id]/page.tsx'; then
+  perl -0777 -pi -e "s|(import \{ Card, CardContent, CardHeader, CardTitle \} from '\@/components/ui/card'\n)|\$1import { buildInscripcionUrl } from '\@/lib/cursos/registro-url'\n|" 'app/cursos/[id]/page.tsx' 2>/dev/null || true
+
+  perl -0777 -pi -e "s|(<Clock className=\"h-4 w-4\" /> Sparkles)||" 'app/cursos/[id]/page.tsx' 2>/dev/null || true
+
+  # Insertar import de Sparkles en la línea de lucide-react
+  sed -i "s/CheckCircle2 } from 'lucide-react'/CheckCircle2, Sparkles } from 'lucide-react'/" 'app/cursos/[id]/page.tsx'
+
+  # Insertar el botón justo después del botón/bloque de WhatsApp (o antes del cierre del bloque de acciones)
+  perl -0777 -pi -e 's|(\{curso\.whatsappLink && \(\s*<Button asChild size="sm" variant="ghost" className="w-full text-green-700 hover:text-green-800 hover:bg-green-50">\s*<a href=\{curso\.whatsappLink\} target="_blank" rel="noopener noreferrer">Grupo de WhatsApp</a>\s*</Button>\s*\)\})|$1\n                  <Button asChild size="sm" variant="outline" className="w-full gap-2 border-cyan-200 text-cyan-700 hover:bg-cyan-50 hover:text-cyan-800">\n                    <a href="https://profe.nodo.cc.gob.ar" target="_blank" rel="noopener noreferrer">\n                      <Sparkles className="h-4 w-4" />\n                      Aprender con el Profe IA\n                    </a>\n                  </Button>|s' 'app/cursos/[id]/page.tsx'
+
+  echo "   → botón agregado"
 else
-  echo "   → ya tiene handleOpenChatbot, no se toca"
+  echo "   → ya existía referencia a profe.nodo.cc.gob.ar, no se toca"
 fi
 
 echo ""
-echo "✅ ChatbotWidget restaurado (componente + endpoint + layout + botón home)."
+echo "✅ Listo:"
+echo "   - Card de /cursos ahora es clickeable completa → /cursos/[slug]"
+echo "   - Botón Inscribirme sigue yendo al registro externo (stopPropagation)"
+echo "   - Nuevo botón 'Aprender con el Profe IA' → https://profe.nodo.cc.gob.ar (stopPropagation)"
+echo "   - Mismo botón agregado también en el detalle del curso"
 echo ""
-echo "⚠️  Revisar que estén seteadas las env vars (build-time):"
-echo "   NEXT_GROQ_API_KEY"
-echo "   NEXT_GROQ_MODEL"
+echo "⚠️  Revisar manualmente:"
+echo "   - Verificar que el regex del detalle insertó bien el botón (buscar 'profe.nodo.cc.gob.ar' en el archivo)"
+echo "   - Si el curso NO tiene whatsappLink, el botón Profe IA en el detalle no se insertará: revisar y agregar a mano ese caso si aplica"
 echo ""
-echo "▶️  Corré 'pnpm build' para confirmar que compila limpio."
+echo "▶️  Corré 'pnpm build' antes de deployar para confirmar que compila limpio."

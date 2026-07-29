@@ -2,10 +2,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Clock, MapPin, Users, BookOpen, ExternalLink, CalendarDays, ArrowLeft, GraduationCap, CheckCircle2 } from 'lucide-react'
+import { Clock, MapPin, Users, BookOpen, ExternalLink, CalendarDays, ArrowLeft, GraduationCap, CheckCircle2, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
 import { getCursoBySlug } from '@/lib/cursos/api'
 import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
 import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
@@ -126,6 +127,12 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                       <a href={curso.whatsappLink} target="_blank" rel="noopener noreferrer">Grupo de WhatsApp</a>
                     </Button>
                   )}
+                  <Button asChild size="sm" variant="outline" className="w-full gap-2 border-cyan-200 text-cyan-700 hover:bg-cyan-50 hover:text-cyan-800">
+                    <a href="https://profe.nodo.cc.gob.ar" target="_blank" rel="noopener noreferrer">
+                      <Sparkles className="h-4 w-4" />
+                      Aprender con el Profe IA
+                    </a>
+                  </Button>
                 </div>
               </Card>
             </div>
