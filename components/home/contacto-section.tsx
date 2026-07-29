@@ -5,6 +5,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Mail, MapPin, Phone } from "lucide-react"
 
 export function ContactoSection() {
+  const handleOpenChatbot = () => {
+    const event = new CustomEvent("open-chatbot")
+    window.dispatchEvent(event)
+  }
 
   const googleMapsUrl = "https://www.google.com/maps/search/?api=1&query=-28.47661266945215,-65.78625572883533"
   const whatsappUrl = "https://wa.me/5493834567890" // Reemplazar con el número real
@@ -65,6 +69,12 @@ export function ContactoSection() {
                 </CardContent>
               </Card>
             </a>
+          </div>
+
+          <div className="text-center mt-8">
+            <Button size="lg" onClick={handleOpenChatbot}>
+              Consultarle a la IA
+            </Button>
           </div>
         </div>
       </div>

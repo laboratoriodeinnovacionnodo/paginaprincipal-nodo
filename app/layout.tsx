@@ -7,6 +7,7 @@ import { FooterEducacion } from "@/components/footer-educacion"
 import { Header } from "@/components/header"
 import { ColorSeparator } from "@/components/color-separator"
 import { StructuredData } from "@/components/seo/structured-data"
+import { ChatbotWidget } from "@/components/chatbot/chatbot-widget"
 import { AuthProvider } from "@/contexts/auth-context"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -100,6 +101,7 @@ export default function RootLayout({
         <ColorSeparator colors="w-full h-20 sm:h-32 md:h-48 bg-gradient-to-b from-blue-100 via-sky-300 to-[#0EA5E9] shadow-[0_6px_15px_0_rgba(14,165,233,0.35)]" />
 
         <FooterEducacion />
+          <ChatbotWidget />
         </AuthProvider>
         <Analytics />
       </body>
