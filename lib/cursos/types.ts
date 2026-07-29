@@ -27,7 +27,7 @@ export interface CursosListResponse {
   items: CursoBack[]; total: number; page: number; limit: number; pages: number
 }
 
-/** True si el curso tiene un módulo PREINSCRIPCION activo */
+/** True si el curso tiene un módulo PREINSCRIPCION activo en registro */
 export function tieneInscripcionActiva(curso: CursoBack): boolean {
   return curso.registroModules.some(
     (m) => m.active && m.type === 'PREINSCRIPCION',

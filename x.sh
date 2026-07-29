@@ -9,16 +9,13 @@ mkdir -p lib/cursos
 
 cat > lib/cursos/registro-url.ts << 'EOF'
 // lib/cursos/registro-url.ts
-// Fuente de verdad para construir la URL de inscripción.
-// Usa el slug del CURSO directamente — sin prefijos.
-// registro-front recibe /preinscripciones/{cursoSlug} y construye
-// el slug del módulo internamente como "preinscripcion-{cursoSlug}".
+// URL de inscripción: /preinscripciones/{cursoSlug}
+// Ej: https://registro.nodo.cc.gob.ar/preinscripciones/robot-basico
 
 const REGISTRO_BASE =
   (process.env.NEXT_PUBLIC_REGISTRO_URL ?? 'https://registro.nodo.cc.gob.ar')
     .replace(/\/$/, '')
 
-/** Genera: https://registro.nodo.cc.gob.ar/preinscripciones/robot-basico */
 export function buildInscripcionUrl(cursoSlug: string): string {
   return `${REGISTRO_BASE}/preinscripciones/${cursoSlug}`
 }
@@ -54,7 +51,7 @@ export interface CursosListResponse {
   items: CursoBack[]; total: number; page: number; limit: number; pages: number
 }
 
-/** True si el curso tiene un módulo PREINSCRIPCION activo */
+/** True si el curso tiene un módulo PREINSCRIPCION activo en registro */
 export function tieneInscripcionActiva(curso: CursoBack): boolean {
   return curso.registroModules.some(
     (m) => m.active && m.type === 'PREINSCRIPCION',
@@ -388,4 +385,6 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
 }
 EOF
 
-echo "✅ ciudadano-front listo. URL: /preinscripciones/{curso.slug}"
+echo "✅ ciudadano-front listo."
+echo "   Botón apunta a: /preinscripciones/{curso.slug}"
+echo "   Ejemplo: https://registro.nodo.cc.gob.ar/preinscripciones/robot-basico"
