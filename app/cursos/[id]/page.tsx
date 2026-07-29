@@ -7,10 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getCursoBySlug } from '@/lib/cursos/api'
-import { getRegistroSlug, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
-
-const REGISTRO_URL =
-  process.env.NEXT_PUBLIC_REGISTRO_URL ?? 'https://registro.nodo.cc.gob.ar'
+import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
+import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id: slug } = await params
@@ -24,18 +22,16 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
   const curso = await getCursoBySlug(slug)
   if (!curso) notFound()
 
-  const registroSlug = getRegistroSlug(curso)
-  const aulaLabel    = curso.aula ? AULA_NOMBRE[curso.aula] : null
+  const puedeInscribirse = tieneInscripcionActiva(curso) && curso.available
+  const aulaLabel        = curso.aula ? AULA_NOMBRE[curso.aula] : null
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-cyan-100 via-white to-blue-100">
       <section className="pt-24 pb-16">
         <div className="container mx-auto px-4">
           <Link href="/cursos" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-cyan-600 transition-colors">
-            <ArrowLeft className="h-4 w-4" />
-            Todos los cursos
+            <ArrowLeft className="h-4 w-4" />Todos los cursos
           </Link>
-
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
               <div>
@@ -52,12 +48,10 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                   <Badge variant="outline">{NIVEL_LABEL[curso.level] ?? curso.level}</Badge>
                 </div>
               </div>
-
               <Card className="bg-white/70 backdrop-blur-sm">
                 <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-cyan-500" />Sobre el curso</CardTitle></CardHeader>
                 <CardContent><p className="text-base text-muted-foreground leading-relaxed text-pretty">{curso.description}</p></CardContent>
               </Card>
-
               {curso.modules > 0 && (
                 <Card className="bg-white/70 backdrop-blur-sm">
                   <CardHeader><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-cyan-500" />Contenido</CardTitle></CardHeader>
@@ -69,7 +63,6 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                   </CardContent>
                 </Card>
               )}
-
               {curso.waitlistEnabled && (
                 <Card className="border-amber-100 bg-amber-50/60">
                   <CardContent className="pt-5 pb-5">
@@ -81,7 +74,6 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                 </Card>
               )}
             </div>
-
             <div className="lg:col-span-1">
               <Card className="sticky top-4 bg-white/80 backdrop-blur-sm border-cyan-100">
                 <CardHeader><CardTitle className="text-base">Detalles</CardTitle></CardHeader>
@@ -120,9 +112,9 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                   )}
                 </CardContent>
                 <div className="p-6 pt-2 space-y-2">
-                  {registroSlug && curso.available ? (
+                  {puedeInscribirse ? (
                     <Button asChild size="lg" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
-                      <a href={`${REGISTRO_URL}/inscripcion/${registroSlug}`} target="_blank" rel="noopener noreferrer">
+                      <a href={buildInscripcionUrl(curso.slug)} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="h-4 w-4" />Inscribirme al curso
                       </a>
                     </Button>

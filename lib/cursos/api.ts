@@ -1,8 +1,4 @@
 // lib/cursos/api.ts
-// Cliente público para cursos-nodo-back.
-// GET /courses y GET /courses/by-slug/:slug son @Public() — sin API key.
-// Variable: NEXT_PUBLIC_CURSOS_API_URL
-
 import type { CursosListResponse, CursoBack } from './types'
 
 const BASE = (process.env.NEXT_PUBLIC_CURSOS_API_URL ?? '').replace(/\/$/, '')

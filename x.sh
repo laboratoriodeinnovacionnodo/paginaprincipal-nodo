@@ -1,79 +1,64 @@
 #!/usr/bin/env bash
 # =============================================================================
-# x.sh — ciudadano-front · feat: cursos desde cursos-nodo-back
-# Ejecutar desde la raíz del repo: bash x.sh
+# x.sh — ciudadano-front · fix: URL inscripción → /preinscripciones/{cursoSlug}
+# Ejecutar desde la raíz del repo ciudadano-front: bash x.sh
 # =============================================================================
 set -euo pipefail
 
-# ── lib/cursos/types.ts ───────────────────────────────────────────────────────
 mkdir -p lib/cursos
+
+cat > lib/cursos/registro-url.ts << 'EOF'
+// lib/cursos/registro-url.ts
+// Fuente de verdad para construir la URL de inscripción.
+// Usa el slug del CURSO directamente — sin prefijos.
+// registro-front recibe /preinscripciones/{cursoSlug} y construye
+// el slug del módulo internamente como "preinscripcion-{cursoSlug}".
+
+const REGISTRO_BASE =
+  (process.env.NEXT_PUBLIC_REGISTRO_URL ?? 'https://registro.nodo.cc.gob.ar')
+    .replace(/\/$/, '')
+
+/** Genera: https://registro.nodo.cc.gob.ar/preinscripciones/robot-basico */
+export function buildInscripcionUrl(cursoSlug: string): string {
+  return `${REGISTRO_BASE}/preinscripciones/${cursoSlug}`
+}
+EOF
+
 cat > lib/cursos/types.ts << 'EOF'
 // lib/cursos/types.ts
-// Tipos que devuelve cursos-nodo-back (GET /api/v1/courses)
-
 export type CursoLevel = 'PRINCIPIANTE' | 'INTERMEDIO' | 'AVANZADO'
-
 export type AulaSlot =
   | 'AULA_1' | 'AULA_2' | 'AULA_3'
   | 'AULA_4' | 'AULA_5' | 'AULA_6'
 
 export interface RegistroModuleResumen {
-  id: string
-  slug: string
-  name: string
-  active: boolean
-  type: string
+  id: string; slug: string; name: string; active: boolean; type: string
 }
-
-export interface ProfeResumen {
-  id: string
-  nombre: string
-  email: string
-}
+export interface ProfeResumen { id: string; nombre: string; email: string }
 
 export interface CursoBack {
-  id: string
-  slug: string
-  title: string
-  description: string
-  level: CursoLevel
-  duration: string
-  modules: number
-  steps: number
-  emoji: string
-  tags: string[]
-  available: boolean
-  current: boolean
-  order: number
-  whatsappLink: string | null
-  maxParticipants: number | null
-  waitlistEnabled: boolean
-  aula: AulaSlot | null
-  horaInicio: string | null
-  horaFin: string | null
-  fechaInicio: string | null
-  fechaFin: string | null
-  profeId: string | null
-  profe: ProfeResumen | null
-  createdAt: string
-  updatedAt: string
+  id: string; slug: string; title: string; description: string
+  level: CursoLevel; duration: string; modules: number; steps: number
+  emoji: string; tags: string[]; available: boolean; current: boolean
+  order: number; whatsappLink: string | null; maxParticipants: number | null
+  waitlistEnabled: boolean; aula: AulaSlot | null
+  horaInicio: string | null; horaFin: string | null
+  fechaInicio: string | null; fechaFin: string | null
+  profeId: string | null; profe: ProfeResumen | null
+  createdAt: string; updatedAt: string
   registroModules: RegistroModuleResumen[]
   _count: { preinscripciones: number; registroModules: number }
 }
 
 export interface CursosListResponse {
-  items: CursoBack[]
-  total: number
-  page: number
-  limit: number
-  pages: number
+  items: CursoBack[]; total: number; page: number; limit: number; pages: number
 }
 
-/** Slug del RegistroModule PREINSCRIPCION activo, o null */
-export function getRegistroSlug(curso: CursoBack): string | null {
-  return curso.registroModules.find(
+/** True si el curso tiene un módulo PREINSCRIPCION activo */
+export function tieneInscripcionActiva(curso: CursoBack): boolean {
+  return curso.registroModules.some(
     (m) => m.active && m.type === 'PREINSCRIPCION',
-  )?.slug ?? null
+  )
 }
 
 export const NIVEL_LABEL: Record<CursoLevel, string> = {
@@ -83,22 +68,14 @@ export const NIVEL_LABEL: Record<CursoLevel, string> = {
 }
 
 export const AULA_NOMBRE: Record<AulaSlot, string> = {
-  AULA_1: 'Aula 1 — Planta baja',
-  AULA_2: 'Aula 2 — Planta baja',
-  AULA_3: 'Aula 3 — Primer piso',
-  AULA_4: 'Aula 4 — Primer piso',
-  AULA_5: 'Aula 5 — Segundo piso',
-  AULA_6: 'Aula 6 — Segundo piso',
+  AULA_1: 'Aula 1 — Planta baja',  AULA_2: 'Aula 2 — Planta baja',
+  AULA_3: 'Aula 3 — Primer piso',  AULA_4: 'Aula 4 — Primer piso',
+  AULA_5: 'Aula 5 — Segundo piso', AULA_6: 'Aula 6 — Segundo piso',
 }
 EOF
 
-# ── lib/cursos/api.ts ─────────────────────────────────────────────────────────
 cat > lib/cursos/api.ts << 'EOF'
 // lib/cursos/api.ts
-// Cliente público para cursos-nodo-back.
-// GET /courses y GET /courses/by-slug/:slug son @Public() — sin API key.
-// Variable: NEXT_PUBLIC_CURSOS_API_URL
-
 import type { CursosListResponse, CursoBack } from './types'
 
 const BASE = (process.env.NEXT_PUBLIC_CURSOS_API_URL ?? '').replace(/\/$/, '')
@@ -138,7 +115,6 @@ export async function getCursoBySlug(slug: string): Promise<CursoBack | null> {
 }
 EOF
 
-# ── app/cursos/page.tsx ───────────────────────────────────────────────────────
 cat > app/cursos/page.tsx << 'EOF'
 // app/cursos/page.tsx — Server Component
 import type { Metadata } from 'next'
@@ -149,15 +125,13 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Clock, Users, MapPin, CalendarDays, ExternalLink, BookOpen } from 'lucide-react'
 import { getCursos } from '@/lib/cursos/api'
 import type { CursoBack } from '@/lib/cursos/types'
-import { getRegistroSlug, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
+import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
+import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
 
 export const metadata: Metadata = {
   title: 'Cursos | Nodo Tecnológico Catamarca',
   description: 'Explorá la oferta de cursos gratuitos del Nodo Tecnológico de Catamarca.',
 }
-
-const REGISTRO_URL =
-  process.env.NEXT_PUBLIC_REGISTRO_URL ?? 'https://registro.nodo.cc.gob.ar'
 
 const NIVEL_COLOR: Record<string, string> = {
   PRINCIPIANTE: 'bg-green-100 text-green-800 border-green-200',
@@ -166,8 +140,8 @@ const NIVEL_COLOR: Record<string, string> = {
 }
 
 function CursoCard({ curso }: { curso: CursoBack }) {
-  const registroSlug = getRegistroSlug(curso)
-  const aulaLabel    = curso.aula ? AULA_NOMBRE[curso.aula] : null
+  const puedeInscribirse = tieneInscripcionActiva(curso) && curso.available
+  const aulaLabel        = curso.aula ? AULA_NOMBRE[curso.aula] : null
 
   return (
     <Card className="flex flex-col overflow-hidden border border-cyan-100 bg-white/80 backdrop-blur-sm transition-shadow hover:shadow-md">
@@ -176,12 +150,8 @@ function CursoCard({ curso }: { curso: CursoBack }) {
           <div className="flex items-center gap-3">
             <span className="text-4xl leading-none">{curso.emoji || '📚'}</span>
             <div>
-              <h2 className="text-lg font-bold leading-tight text-gray-900 text-balance">
-                {curso.title}
-              </h2>
-              {curso.profe && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{curso.profe.nombre}</p>
-              )}
+              <h2 className="text-lg font-bold leading-tight text-gray-900 text-balance">{curso.title}</h2>
+              {curso.profe && <p className="mt-0.5 text-xs text-muted-foreground">{curso.profe.nombre}</p>}
             </div>
           </div>
           <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${NIVEL_COLOR[curso.level] ?? 'bg-gray-100 text-gray-800'}`}>
@@ -191,27 +161,11 @@ function CursoCard({ curso }: { curso: CursoBack }) {
       </CardHeader>
 
       <CardContent className="flex-1 space-y-4 pb-4">
-        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 text-pretty">
-          {curso.description}
-        </p>
-
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 text-pretty">{curso.description}</p>
         <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
-            <span>{curso.duration}</span>
-          </div>
-          {curso.maxParticipants && (
-            <div className="flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
-              <span>{curso.maxParticipants} cupos</span>
-            </div>
-          )}
-          {aulaLabel && (
-            <div className="flex items-center gap-1.5 col-span-2">
-              <MapPin className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
-              <span>{aulaLabel}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{curso.duration}</span></div>
+          {curso.maxParticipants && <div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{curso.maxParticipants} cupos</span></div>}
+          {aulaLabel && <div className="flex items-center gap-1.5 col-span-2"><MapPin className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{aulaLabel}</span></div>}
           {(curso.horaInicio || curso.fechaInicio) && (
             <div className="flex items-center gap-1.5 col-span-2">
               <CalendarDays className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
@@ -221,29 +175,20 @@ function CursoCard({ curso }: { curso: CursoBack }) {
               </span>
             </div>
           )}
-          {curso.modules > 0 && (
-            <div className="flex items-center gap-1.5">
-              <BookOpen className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
-              <span>{curso.modules} módulos</span>
-            </div>
-          )}
+          {curso.modules > 0 && <div className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5 text-cyan-500 shrink-0" /><span>{curso.modules} módulos</span></div>}
         </div>
-
         {curso.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {curso.tags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-            ))}
+            {curso.tags.map((tag) => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
           </div>
         )}
       </CardContent>
 
       <CardFooter className="flex flex-col gap-2 border-t border-cyan-50 pt-4">
-        {registroSlug && curso.available ? (
+        {puedeInscribirse ? (
           <Button asChild size="sm" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
-            <a href={`${REGISTRO_URL}/inscripcion/${registroSlug}`} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-3.5 w-3.5" />
-              Inscribirme
+            <a href={buildInscripcionUrl(curso.slug)} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-3.5 w-3.5" />Inscribirme
             </a>
           </Button>
         ) : (
@@ -272,15 +217,12 @@ export default async function CursosPage() {
       <section className="relative overflow-hidden pt-24 pb-10">
         <div className="container mx-auto px-4 text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-cyan-600">Formación gratuita</p>
-          <h1 className="mb-4 text-4xl font-bold text-balance md:text-5xl">
-            Nuestros <span className="text-cyan-500">Cursos</span>
-          </h1>
+          <h1 className="mb-4 text-4xl font-bold text-balance md:text-5xl">Nuestros <span className="text-cyan-500">Cursos</span></h1>
           <p className="mx-auto max-w-2xl text-base text-muted-foreground text-pretty leading-relaxed">
             Aprendé tecnología con el equipo del Nodo Tecnológico de Catamarca. Todos los cursos son gratuitos.
           </p>
         </div>
       </section>
-
       <section className="container mx-auto px-4 pb-24">
         {error ? (
           <div className="rounded-xl border border-red-100 bg-red-50 p-8 text-center">
@@ -294,9 +236,7 @@ export default async function CursosPage() {
           </div>
         ) : (
           <>
-            <p className="mb-6 text-sm text-muted-foreground">
-              {cursos.length} curso{cursos.length !== 1 ? 's' : ''} disponible{cursos.length !== 1 ? 's' : ''}
-            </p>
+            <p className="mb-6 text-sm text-muted-foreground">{cursos.length} curso{cursos.length !== 1 ? 's' : ''} disponible{cursos.length !== 1 ? 's' : ''}</p>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {cursos.map((curso) => <CursoCard key={curso.id} curso={curso} />)}
             </div>
@@ -308,7 +248,6 @@ export default async function CursosPage() {
 }
 EOF
 
-# ── app/cursos/[id]/page.tsx ──────────────────────────────────────────────────
 cat > 'app/cursos/[id]/page.tsx' << 'EOF'
 // app/cursos/[id]/page.tsx — Server Component
 import type { Metadata } from 'next'
@@ -319,10 +258,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getCursoBySlug } from '@/lib/cursos/api'
-import { getRegistroSlug, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
-
-const REGISTRO_URL =
-  process.env.NEXT_PUBLIC_REGISTRO_URL ?? 'https://registro.nodo.cc.gob.ar'
+import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
+import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id: slug } = await params
@@ -336,18 +273,16 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
   const curso = await getCursoBySlug(slug)
   if (!curso) notFound()
 
-  const registroSlug = getRegistroSlug(curso)
-  const aulaLabel    = curso.aula ? AULA_NOMBRE[curso.aula] : null
+  const puedeInscribirse = tieneInscripcionActiva(curso) && curso.available
+  const aulaLabel        = curso.aula ? AULA_NOMBRE[curso.aula] : null
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-cyan-100 via-white to-blue-100">
       <section className="pt-24 pb-16">
         <div className="container mx-auto px-4">
           <Link href="/cursos" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-cyan-600 transition-colors">
-            <ArrowLeft className="h-4 w-4" />
-            Todos los cursos
+            <ArrowLeft className="h-4 w-4" />Todos los cursos
           </Link>
-
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
               <div>
@@ -364,12 +299,10 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                   <Badge variant="outline">{NIVEL_LABEL[curso.level] ?? curso.level}</Badge>
                 </div>
               </div>
-
               <Card className="bg-white/70 backdrop-blur-sm">
                 <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-cyan-500" />Sobre el curso</CardTitle></CardHeader>
                 <CardContent><p className="text-base text-muted-foreground leading-relaxed text-pretty">{curso.description}</p></CardContent>
               </Card>
-
               {curso.modules > 0 && (
                 <Card className="bg-white/70 backdrop-blur-sm">
                   <CardHeader><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-cyan-500" />Contenido</CardTitle></CardHeader>
@@ -381,7 +314,6 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                   </CardContent>
                 </Card>
               )}
-
               {curso.waitlistEnabled && (
                 <Card className="border-amber-100 bg-amber-50/60">
                   <CardContent className="pt-5 pb-5">
@@ -393,7 +325,6 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                 </Card>
               )}
             </div>
-
             <div className="lg:col-span-1">
               <Card className="sticky top-4 bg-white/80 backdrop-blur-sm border-cyan-100">
                 <CardHeader><CardTitle className="text-base">Detalles</CardTitle></CardHeader>
@@ -432,9 +363,9 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                   )}
                 </CardContent>
                 <div className="p-6 pt-2 space-y-2">
-                  {registroSlug && curso.available ? (
+                  {puedeInscribirse ? (
                     <Button asChild size="lg" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
-                      <a href={`${REGISTRO_URL}/inscripcion/${registroSlug}`} target="_blank" rel="noopener noreferrer">
+                      <a href={buildInscripcionUrl(curso.slug)} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="h-4 w-4" />Inscribirme al curso
                       </a>
                     </Button>
@@ -457,15 +388,4 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
 }
 EOF
 
-echo ""
-echo "✅ Archivos escritos:"
-echo "   lib/cursos/types.ts"
-echo "   lib/cursos/api.ts"
-echo "   app/cursos/page.tsx"
-echo "   app/cursos/[id]/page.tsx"
-echo ""
-echo "⚠️  Secrets a agregar en GitHub Actions (deploy.yml + servidor):"
-echo "   NEXT_PUBLIC_CURSOS_API_URL=https://api.cursos.nodo.cc.gob.ar"
-echo "   NEXT_PUBLIC_REGISTRO_URL=https://registro.nodo.cc.gob.ar"
-echo ""
-echo "   Y en .env.local para dev."
+echo "✅ ciudadano-front listo. URL: /preinscripciones/{curso.slug}"
