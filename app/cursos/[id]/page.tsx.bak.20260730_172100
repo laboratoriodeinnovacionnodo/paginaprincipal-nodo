@@ -6,9 +6,9 @@ import { Clock, MapPin, Users, BookOpen, ExternalLink, CalendarDays, ArrowLeft, 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { buildInscripcionUrl } from '@/lib/cursos/registro-url'
 import { getCursoBySlug } from '@/lib/cursos/api'
 import { tieneInscripcionActiva, NIVEL_LABEL, AULA_NOMBRE } from '@/lib/cursos/types'
-import { InscribirseBtn } from '@/components/cursos/inscribirse-btn'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id: slug } = await params
@@ -113,7 +113,11 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                 </CardContent>
                 <div className="p-6 pt-2 space-y-2">
                   {puedeInscribirse ? (
-                    <InscribirseBtn slug={curso.slug} />
+                    <Button asChild size="lg" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
+                      <a href={buildInscripcionUrl(curso.slug)} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />Inscribirme al curso
+                      </a>
+                    </Button>
                   ) : (
                     <Button size="lg" variant="outline" disabled className="w-full cursor-not-allowed opacity-60">Sin inscripción activa</Button>
                   )}

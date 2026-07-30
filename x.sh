@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================================
-# sso-ciudadano-front-cursos.sh
-# ciudadano-front — Reemplazar link estático a registro por botón con SSO
+# sso-ciudadano-front-fix2.sh
+# ciudadano-front — Reemplazar el botón estático en app/cursos/[id]/page.tsx
+#
+# La página es un Server Component, por eso no puede usar useAuth.
+# Solución: extraer solo el botón a un Client Component pequeño.
 #
 # QUÉ HACE:
-#   - Actualiza app/cursos/[slug]/page.tsx:
-#     El <a href={registroUrl}> estático se reemplaza por InscribirseButton
-#     que obtiene el idToken de Firebase y redirige con ?ctoken=TOKEN
-#
-#   - Actualiza components/cursos/cursos-content.tsx:
-#     Si tiene botones de inscripción los convierte también
-#
-#   - Crea lib/registro-link.ts si no existe
-#   - Crea components/cursos/inscribirse-button.tsx si no existe
+#   1. Crea components/cursos/inscribirse-btn.tsx  — Client Component con useAuth
+#   2. Actualiza app/cursos/[id]/page.tsx          — usa InscribirseBtn en lugar del <a>
+#   3. Actualiza lib/cursos/registro-url.ts        — agrega la URL base sin token
 # =============================================================================
 set -euo pipefail
 
@@ -28,237 +25,202 @@ if [[ ! -f "next.config.ts" && ! -f "next.config.js" && ! -f "next.config.mjs" &
 fi
 
 sep
-echo -e "${GREEN}ciudadano-front — SSO en botones de inscripción${NC}"
+echo -e "${GREEN}ciudadano-front — Fix botón inscripción con SSO${NC}"
 sep
 
-# ── 1. lib/registro-link.ts ───────────────────────────────────────────────────
-log "Creando/actualizando lib/registro-link.ts..."
+# ── 1. components/cursos/inscribirse-btn.tsx ──────────────────────────────────
+log "Creando components/cursos/inscribirse-btn.tsx..."
+mkdir -p components/cursos
 
-cat > lib/registro-link.ts << 'TS_END'
+cat > components/cursos/inscribirse-btn.tsx << 'TSX_END'
+"use client"
+
 /**
- * lib/registro-link.ts
+ * InscribirseBtn — Client Component
  *
- * Construye la URL de registro-front con ?ctoken=<Firebase idToken>
- * para SSO silencioso — registro-front reconoce al ciudadano sin pedirle login.
+ * Reemplaza el <a href={buildInscripcionUrl}> estático en el Server Component.
+ * Obtiene el idToken de Firebase (si el usuario está logueado en ciudadano-front)
+ * y redirige a registro-front con ?ctoken=TOKEN para SSO silencioso.
+ *
+ * Si el usuario NO está logueado redirige igual sin token — registro pide login.
  */
-import type { User } from "firebase/auth"
+
+import { useState, useCallback } from "react"
+import { ExternalLink, Loader2 }  from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useAuth } from "@/contexts/auth-context"
 
 const REGISTRO_BASE =
   (process.env.NEXT_PUBLIC_REGISTRO_URL ?? "").replace(/\/$/, "")
 
-/**
- * Async — usar en onClick de botones de inscripción.
- * Obtiene un token fresco y construye la URL completa.
- */
-export async function buildRegistroUrl(slug: string, user: User | null): Promise<string> {
-  const base = `${REGISTRO_BASE}/preinscripciones/${slug}`
-  if (!user || !REGISTRO_BASE) return base
-  try {
-    const token = await user.getIdToken(true)
-    return `${base}?ctoken=${encodeURIComponent(token)}`
-  } catch {
-    return base
-  }
-}
-TS_END
-
-ok "lib/registro-link.ts listo"
-
-# ── 2. components/cursos/inscribirse-button.tsx ───────────────────────────────
-log "Creando components/cursos/inscribirse-button.tsx..."
-mkdir -p components/cursos
-
-cat > components/cursos/inscribirse-button.tsx << 'TSX_END'
-"use client"
-
-/**
- * InscribirseButton
- *
- * Reemplaza el <a href={registroUrl}> estático.
- * Obtiene el idToken de Firebase, construye la URL con ?ctoken y redirige.
- * Si el usuario NO está logueado, redirige igual sin token.
- *
- * Uso:
- *   <InscribirseButton
- *     slug="preinscripcion-robot-basico"
- *     className="..."
- *   >
- *     Inscribirme
- *   </InscribirseButton>
- */
-
-import { useState, useCallback } from "react"
-import { Loader2 } from "lucide-react"
-import { useAuth } from "@/contexts/auth-context"
-import { buildRegistroUrl } from "@/lib/registro-link"
-
 interface Props {
-  slug:       string
-  className?: string
-  children?:  React.ReactNode
+  /** slug del módulo de preinscripción — ej: "preinscripcion-robot-basic" */
+  slug: string
 }
 
-export function InscribirseButton({ slug, className = "", children }: Props) {
+export function InscribirseBtn({ slug }: Props) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
 
   const handleClick = useCallback(async () => {
+    const base = `${REGISTRO_BASE}/preinscripciones/${slug}`
     setLoading(true)
     try {
-      const url = await buildRegistroUrl(slug, user)
-      window.location.href = url
+      if (user) {
+        // getIdToken(true) fuerza refresh para evitar token expirado
+        const token = await user.getIdToken(true)
+        window.location.href = `${base}?ctoken=${encodeURIComponent(token)}`
+      } else {
+        // Sin sesión → flujo normal, registro pedirá login con Google
+        window.location.href = base
+      }
     } catch {
-      const base = (process.env.NEXT_PUBLIC_REGISTRO_URL ?? "").replace(/\/$/, "")
-      window.location.href = `${base}/preinscripciones/${slug}`
+      window.location.href = base
     } finally {
       setLoading(false)
     }
   }, [slug, user])
 
   return (
-    <button
-      type="button"
+    <Button
+      size="lg"
       onClick={handleClick}
       disabled={loading}
-      className={`inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait ${className}`}
+      className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white"
     >
-      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-      {loading ? "Redirigiendo..." : (children ?? "Inscribirme")}
-    </button>
+      {loading
+        ? <Loader2 className="h-4 w-4 animate-spin" />
+        : <ExternalLink className="h-4 w-4" />
+      }
+      {loading ? "Redirigiendo..." : "Inscribirme al curso"}
+    </Button>
   )
 }
 TSX_END
 
-ok "components/cursos/inscribirse-button.tsx listo"
+ok "components/cursos/inscribirse-btn.tsx creado"
 
-# ── 3. Buscar y actualizar la página de detalle del curso ─────────────────────
-# ciudadano-front tiene app/cursos/[slug]/page.tsx con <a href={registroUrl}>
+# ── 2. Actualizar app/cursos/[id]/page.tsx ────────────────────────────────────
+PAGE="app/cursos/[id]/page.tsx"
 
-DETALLE_PAGE=""
-for p in \
-  "app/cursos/[slug]/page.tsx" \
-  "app/(public)/cursos/[slug]/page.tsx" \
-  "app/cursos/[id]/page.tsx"; do
-  if [[ -f "$p" ]]; then
-    DETALLE_PAGE="$p"
-    break
-  fi
-done
+if [[ ! -f "$PAGE" ]]; then
+  warn "No se encontró $PAGE"
+  exit 1
+fi
 
-if [[ -z "$DETALLE_PAGE" ]]; then
-  warn "No se encontró la página de detalle del curso. Archivos en app/cursos/:"
-  find app -name "page.tsx" | grep -i curso | head -10 || true
-  warn "Editá manualmente el botón de inscripción usando InscribirseButton"
-else
-  log "Encontrada: $DETALLE_PAGE"
-  cp "$DETALLE_PAGE" "${DETALLE_PAGE}.bak.$(date +%Y%m%d_%H%M%S)"
+log "Actualizando $PAGE..."
+cp "$PAGE" "${PAGE}.bak.$(date +%Y%m%d_%H%M%S)"
 
-  # Verificar si ya tiene el patrón <a href={registroUrl}
-  if grep -q 'href={registroUrl}' "$DETALLE_PAGE"; then
-    log "Encontrado patrón href={registroUrl} — reemplazando con InscribirseButton..."
-
-    # Leer el contenido del archivo
-    node - << JSEOF
+# Usar node para el reemplazo exacto
+node - << 'JSEOF'
 const fs = require('fs')
-const file = '${DETALLE_PAGE}'
+const file = "app/cursos/[id]/page.tsx"
 let content = fs.readFileSync(file, 'utf8')
 
-// 1. Agregar import de InscribirseButton si no está
-if (!content.includes('InscribirseButton')) {
-  // Buscar la última línea de imports para agregar después
-  const importMatch = content.match(/(import[^;]+;[\s]*)([\s\S]*)/m)
-  if (importMatch) {
-    // Insertar después del último import
-    const lastImportEnd = content.lastIndexOf("import ")
-    const lineEnd = content.indexOf('\n', lastImportEnd)
-    const insertPos = lineEnd + 1
-    content = content.slice(0, insertPos)
-      + "import { InscribirseButton } from '@/components/cursos/inscribirse-button'\n"
-      + content.slice(insertPos)
-    console.log('OK: import InscribirseButton agregado')
+// ── A. Agregar import de InscribirseBtn ──────────────────────────────────────
+if (!content.includes('InscribirseBtn')) {
+  // Insertar después del último import existente
+  const lines = content.split('\n')
+  let lastImportLine = 0
+  lines.forEach((line, i) => {
+    if (line.startsWith('import ')) lastImportLine = i
+  })
+  lines.splice(lastImportLine + 1, 0, "import { InscribirseBtn } from '@/components/cursos/inscribirse-btn'")
+  content = lines.join('\n')
+  console.log('OK: import InscribirseBtn agregado')
+}
+
+// ── B. Reemplazar el bloque del botón estático ───────────────────────────────
+// Busca el patrón exacto del <Button asChild> con el <a href={buildInscripcionUrl}>
+// y lo reemplaza por <InscribirseBtn slug={...}>
+
+// Patrón 1: con puedeInscribirse y buildInscripcionUrl
+const patron1 = /\{puedeInscribirse \? \(\s*<Button asChild[\s\S]*?<a href=\{buildInscripcionUrl\(curso\.slug\)\}[\s\S]*?<\/a>\s*<\/Button>\s*\) : \(\s*<Button[\s\S]*?Sin inscripción activa[\s\S]*?<\/Button>\s*\)\}/
+
+if (patron1.test(content)) {
+  content = content.replace(patron1,
+    `{puedeInscribirse ? (
+                    <InscribirseBtn slug={curso.slug} />
+                  ) : (
+                    <Button size="lg" variant="outline" disabled className="w-full cursor-not-allowed opacity-60">Sin inscripción activa</Button>
+                  )}`
+  )
+  console.log('OK: botón reemplazado con InscribirseBtn (patrón 1)')
+} else {
+  // Patrón 2: solo el <a href={buildInscripcionUrl}> dentro de Button asChild
+  const patron2 = /<Button asChild size="lg"[^>]*>\s*<a href=\{buildInscripcionUrl\(curso\.slug\)\}[^>]*>[\s\S]*?<\/a>\s*<\/Button>/
+  if (patron2.test(content)) {
+    content = content.replace(patron2, '<InscribirseBtn slug={curso.slug} />')
+    console.log('OK: botón reemplazado con InscribirseBtn (patrón 2)')
+  } else {
+    console.log('WARN: no se encontró el patrón del botón — revisar manualmente')
+    console.log('Buscar: href={buildInscripcionUrl(curso.slug)}')
   }
 }
 
-// 2. Reemplazar el bloque <a href={registroUrl} ...> ... </a>
-// Patrón: {registroUrl && ( <a href={registroUrl} ...> <Button ...>texto</Button> </a> )}
-const oldPattern = /{registroUrl && \([\s\S]*?<a href={registroUrl}[\s\S]*?<\/a>[\s\S]*?\)}/
-const hasPattern = oldPattern.test(content)
-
-if (hasPattern) {
-  content = content.replace(oldPattern, \`{registroUrl && (
-          <InscribirseButton
-            slug={registroModule?.slug ?? ''}
-            className="gap-2 rounded-xl text-xs px-3 py-2 border border-[#26a7fc]/30 text-[#26a7fc] hover:bg-[#26a7fc]/5 font-semibold"
-          >
-            Inscribirme
-          </InscribirseButton>
-        )}\`)
-  console.log('OK: bloque <a href> reemplazado con InscribirseButton')
-} else {
-  // Intentar reemplazo más simple: solo la etiqueta <a>
-  if (content.includes('href={registroUrl}')) {
-    content = content
-      .replace(/<a href={registroUrl}[^>]*>/g, '')
-      .replace(/<\/a>/g, '')
-    console.log('WARN: se eliminó el wrapper <a> — revisá el archivo manualmente para agregar InscribirseButton')
-  } else {
-    console.log('INFO: patrón no encontrado — nada que reemplazar automáticamente')
-  }
+// ── C. Quitar import de buildInscripcionUrl si ya no se usa ─────────────────
+if (!content.includes('buildInscripcionUrl(') && content.includes("buildInscripcionUrl")) {
+  content = content.replace(/import \{ buildInscripcionUrl \} from '[^']+'\n/, '')
+  console.log('OK: import buildInscripcionUrl removido')
 }
 
 fs.writeFileSync(file, content)
 console.log('OK: archivo guardado')
 JSEOF
 
-    ok "$DETALLE_PAGE actualizado"
-  else
-    warn "No se encontró 'href={registroUrl}' en $DETALLE_PAGE"
-    warn "Reemplazá manualmente el botón de inscripción:"
-    echo ""
-    echo "  ANTES:"
-    echo "  <a href={registroUrl} target=\"_blank\" rel=\"noopener noreferrer\">"
-    echo "    <Button ...>Inscribirme</Button>"
-    echo "  </a>"
-    echo ""
-    echo "  DESPUÉS:"
-    echo "  <InscribirseButton"
-    echo "    slug={registroModule?.slug ?? ''}"
-    echo "    className=\"gap-2 rounded-xl text-xs px-3 py-2 border border-[#26a7fc]/30 text-[#26a7fc] hover:bg-[#26a7fc]/5 font-semibold\""
-    echo "  >"
-    echo "    Inscribirme"
-    echo "  </InscribirseButton>"
-    echo ""
-    echo "  Y arriba agregá el import:"
-    echo "  import { InscribirseButton } from '@/components/cursos/inscribirse-button'"
+ok "$PAGE actualizado"
+
+# ── 3. Verificar/crear lib/cursos/registro-url.ts ─────────────────────────────
+log "Verificando lib/cursos/registro-url.ts..."
+if [[ -f "lib/cursos/registro-url.ts" ]]; then
+  # Ver qué hace buildInscripcionUrl actualmente
+  echo "Contenido actual:"
+  cat lib/cursos/registro-url.ts
+  echo ""
+
+  # Si no tiene REGISTRO_URL agregar soporte para ctoken
+  if ! grep -q "NEXT_PUBLIC_REGISTRO_URL" lib/cursos/registro-url.ts; then
+    warn "lib/cursos/registro-url.ts no usa NEXT_PUBLIC_REGISTRO_URL"
+    warn "El nuevo InscribirseBtn usa NEXT_PUBLIC_REGISTRO_URL directamente — no hay problema"
   fi
+else
+  log "Creando lib/cursos/registro-url.ts..."
+  mkdir -p lib/cursos
+  cat > lib/cursos/registro-url.ts << 'TS_END'
+/**
+ * lib/cursos/registro-url.ts
+ * URL estática a registro-front (sin token).
+ * Para SSO usar InscribirseBtn que agrega ?ctoken automáticamente.
+ */
+const REGISTRO_BASE =
+  (process.env.NEXT_PUBLIC_REGISTRO_URL ?? "https://registro.nodo.cc.gob.ar").replace(/\/$/, "")
+
+export function buildInscripcionUrl(slug: string): string {
+  return `${REGISTRO_BASE}/preinscripciones/${slug}`
+}
+TS_END
+  ok "lib/cursos/registro-url.ts creado"
 fi
 
 # ── 4. Verificar .env.local ───────────────────────────────────────────────────
-log "Verificando NEXT_PUBLIC_REGISTRO_URL..."
+log "Verificando NEXT_PUBLIC_REGISTRO_URL en .env.local..."
 if [[ -f ".env.local" ]] && grep -q "NEXT_PUBLIC_REGISTRO_URL" .env.local; then
-  CURRENT=$(grep "NEXT_PUBLIC_REGISTRO_URL" .env.local)
-  ok ".env.local tiene: $CURRENT"
-  # Corregir si tiene la URL sin .cc.
-  if grep -q "registro.nodo.gob.ar" .env.local; then
-    sed -i 's|https://registro.nodo.gob.ar|https://registro.nodo.cc.gob.ar|g' .env.local
-    warn "URL corregida a registro.nodo.cc.gob.ar"
-  fi
+  ok "$(grep 'NEXT_PUBLIC_REGISTRO_URL' .env.local)"
 else
-  echo "" >> .env.local 2>/dev/null || touch .env.local
   echo "NEXT_PUBLIC_REGISTRO_URL=https://registro.nodo.cc.gob.ar" >> .env.local
-  ok "NEXT_PUBLIC_REGISTRO_URL=https://registro.nodo.cc.gob.ar agregado a .env.local"
+  ok "NEXT_PUBLIC_REGISTRO_URL=https://registro.nodo.cc.gob.ar agregado"
 fi
 
 sep
-echo -e "${GREEN}✅  ciudadano-front listo${NC}"
+echo -e "${GREEN}✅  Listo${NC}"
 echo ""
 echo -e "  ${YELLOW}Reiniciá el servidor:${NC} pnpm dev"
 echo ""
-echo -e "  ${YELLOW}Flujo SSO completo:${NC}"
-echo -e "  1. Usuario logueado en ciudadano-front"
-echo -e "  2. Click en 'Inscribirme' → InscribirseButton obtiene idToken"
-echo -e "  3. Redirige a: https://registro.nodo.cc.gob.ar/preinscripciones/[slug]?ctoken=TOKEN"
-echo -e "  4. registro-front valida el token → pre-rellena el formulario"
+echo -e "  ${YELLOW}Verificá en browser:${NC}"
+echo -e "  1. Logueate en ciudadano-front"
+echo -e "  2. Andá a un curso → 'Inscribirme al curso'"
+echo -e "  3. La URL de destino debe tener ?ctoken=eyJ..."
+echo -e "  4. registro-front debe mostrar tu nombre/foto directamente"
 echo ""
 echo -e "  ${YELLOW}Secret en GitHub (ciudadano-front):${NC}"
 echo -e "  NEXT_PUBLIC_REGISTRO_URL = https://registro.nodo.cc.gob.ar"
