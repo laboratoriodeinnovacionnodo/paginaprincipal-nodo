@@ -11,8 +11,7 @@
  *   GET  /lineas/me          → actividades del ciudadano en el ecosistema NODO
  */
 
-const BASE =
-  (process.env.NEXT_PUBLIC_CIUDADANO_API_URL ?? "").replace(/\/$/, "") + "/api"
+const BASE = (process.env.NEXT_PUBLIC_CIUDADANO_API_URL ?? "").replace(/\/$/, "") + "/api/v1"
 
 // ── Tipos que devuelve ciudadano-back ─────────────────────────────────────────
 
