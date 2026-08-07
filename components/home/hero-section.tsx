@@ -1,3 +1,7 @@
+"use client"
+
+
+import { CodeTitle } from "@/components/shared/code-title"
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
 import Link from "next/link"
@@ -22,9 +26,9 @@ export function HeroSection() {
       {/* Contenido */}
       <div className="container mx-auto px-4 py-20 relative z-10">
         <div className="max-w-4xl mx-auto text-center text-white">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 text-balance leading-tight">
+          <CodeTitle as="h1" className="text-5xl md:text-7xl font-bold mb-6 text-balance leading-tight" immediate>
             Conecta, Innova y <span className="text-primary">Crea el Futuro</span>
-          </h1>
+          </CodeTitle>
 
           <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto text-pretty text-white/75">
             El Nodo Tecnológico de Catamarca conecta innovación y Tecnología, impulsando a los jóvenes hacia las

@@ -40,7 +40,7 @@ export function InscribirseBtn({ slug }: Props) {
   // Mientras no está montado mostrar botón idéntico al SSR (sin interactividad)
   if (!mounted) {
     return (
-      <Button size="lg" className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
+      <Button size="lg" className="w-full gap-2 bg-[#1c8fe0] hover:bg-[#1c8fe0] text-white">
         <ExternalLink className="h-4 w-4" />
         Inscribirme al curso
       </Button>
@@ -52,7 +52,7 @@ export function InscribirseBtn({ slug }: Props) {
       size="lg"
       onClick={handleClick}
       disabled={loading}
-      className="w-full gap-2 bg-cyan-600 hover:bg-cyan-700 text-white"
+      className="w-full gap-2 bg-[#1c8fe0] hover:bg-[#1c8fe0] text-white"
     >
       {loading
         ? <Loader2 className="h-4 w-4 animate-spin" />

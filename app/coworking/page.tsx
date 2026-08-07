@@ -1,5 +1,5 @@
 "use client"
-
+import { CodeTitle } from "@/components/shared/code-title"
 import Link from "next/link"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
@@ -17,9 +17,9 @@ export default function CoworkingPage() {
       <main>
         <section className="relative overflow-hidden pt-24 pb-8">
           <div className="container mx-auto px-4 text-center">
-            <h1 className="mb-6 text-4xl font-bold text-balance md:text-6xl">
-              Áreas del <span className="text-cyan-500">Coworking</span>
-            </h1>
+            <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
+              Áreas del <span className="text-[#26a7fc]">Coworking</span>
+            </CodeTitle>
             <p className="text-lg text-muted-foreground mb-4 text-pretty max-w-3xl mx-auto leading-relaxed">
               Consulta en tiempo real la disponibilidad de las áreas de trabajo. Visualiza el estado de cada espacio
               antes de visitar nuestras instalaciones.
@@ -88,7 +88,7 @@ export default function CoworkingPage() {
               <CardContent className="p-6">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-12">
-                    <Loader2 className="h-12 w-12 animate-spin text-cyan-500 mb-4" />
+                    <Loader2 className="h-12 w-12 animate-spin text-[#26a7fc] mb-4" />
                     <p className="text-muted-foreground">Cargando áreas del coworking...</p>
                   </div>
                 ) : asientos.length === 0 ? (
@@ -100,7 +100,7 @@ export default function CoworkingPage() {
                     {asientos.map((asiento) => (
                       <Link key={asiento.id} href={`/coworking/${asiento.numero}`}>
                         <div className="relative group">
-                          <div className="aspect-square rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all hover:scale-105 relative">
+                          <div className="aspect-square rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all hover:scale-105 relative">
                             <Image
                               src={asiento.imagen || "/placeholder.svg"}
                               alt={asiento.nombre}
@@ -117,7 +117,7 @@ export default function CoworkingPage() {
                             </div>
 
                             {/* Número del asiento */}
-                            <div className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-sm text-white px-2.5 py-1.5 rounded-lg font-bold text-base shadow-lg border border-white/20">
+                            <div className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-sm text-white px-2.5 py-1.5 rounded-xl font-bold text-base shadow-lg border border-white/20">
                               #{asiento.numero}
                             </div>
 
@@ -136,7 +136,7 @@ export default function CoworkingPage() {
               </CardContent>
             </Card>
 
-            <Card className="mt-8 bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-600 text-white border-0 shadow-2xl">
+            <Card className="mt-8 bg-gradient-to-br from-[#26a7fc] via-cyan-600 to-blue-600 text-white border-0 shadow-2xl">
               <CardContent className="text-center py-8 px-6">
                 <h2 className="text-2xl font-bold text-white mb-4">Sistema de Reservas</h2>
                 <p className="text-lg text-white/95 max-w-2xl mx-auto text-pretty leading-relaxed mb-6">
@@ -163,7 +163,7 @@ export default function CoworkingPage() {
                 </div>
                 <Button
                   size="lg"
-                  className="bg-white text-cyan-600 hover:bg-gray-100 font-semibold"
+                  className="bg-white text-[#26a7fc] hover:bg-gray-100 font-semibold"
                   onClick={() => window.open("https://maps.google.com", "_blank")}
                 >
                   <Navigation className="mr-2 h-5 w-5" />

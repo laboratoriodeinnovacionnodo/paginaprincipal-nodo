@@ -67,7 +67,7 @@ export function ContactForm() {
               value={formData.nombre}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
               placeholder="Tu nombre"
             />
           </div>
@@ -83,7 +83,7 @@ export function ContactForm() {
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
               placeholder="tu@email.com"
             />
           </div>
@@ -100,7 +100,7 @@ export function ContactForm() {
               name="telefono"
               value={formData.telefono}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
               placeholder="+54 383 123-4567"
             />
           </div>
@@ -115,7 +115,7 @@ export function ContactForm() {
               value={formData.asunto}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             >
               <option value="">Selecciona un asunto</option>
               <option value="cursos">Información sobre Cursos</option>
@@ -138,13 +138,13 @@ export function ContactForm() {
             onChange={handleChange}
             required
             rows={6}
-            className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none"
+            className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none"
             placeholder="Escribe tu mensaje aquí..."
           />
         </div>
 
         {submitMessage && (
-          <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400">
+          <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400">
             {submitMessage}
           </div>
         )}
@@ -152,7 +152,7 @@ export function ContactForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full px-6 py-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+          className="w-full px-6 py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
         >
           {isSubmitting ? (
             <>

@@ -27,7 +27,7 @@ function UserPhoto({
   return (
     <div
       className={`${sizeClass} rounded-full flex items-center justify-center text-white font-bold`}
-      style={{ backgroundImage: "linear-gradient(to bottom right, #0EA5E9, #0284C7)" }}
+      style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
     >
       {name.charAt(0).toUpperCase()}
     </div>
@@ -65,7 +65,7 @@ export function HeaderAuth({ textColor }: { textColor: string }) {
       <Link
         href="/perfil"
         aria-label="Ir a mi perfil"
-        className="shrink-0 block rounded-full ring-2 ring-transparent hover:ring-[#0EA5E9] transition-all duration-200"
+        className="shrink-0 block rounded-full ring-2 ring-transparent hover:ring-[#26a7fc] transition-all duration-200"
       >
         <UserPhoto name={displayName} photoURL={user.photoURL} sizeClass="h-9 w-9 sm:h-10 sm:w-10" />
       </Link>
@@ -116,9 +116,9 @@ export function HeaderAuthMobileCard({ onNavigate }: { onNavigate: () => void })
         type="button"
         onClick={handleLogin}
         disabled={signingIn}
-        className="flex items-center justify-center gap-2 w-full px-4 py-3.5 text-sm font-semibold rounded-xl border border-cyan-200 text-gray-700 hover:bg-cyan-50 transition-all duration-200 disabled:opacity-60"
+        className="flex items-center justify-center gap-2 w-full px-4 py-3.5 text-sm font-semibold rounded-xl border border-[#26a7fc]/20 text-gray-700 hover:bg-[#26a7fc]/10 transition-all duration-200 disabled:opacity-60"
       >
-        {signingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4 text-cyan-600" />}
+        {signingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4 text-[#26a7fc]" />}
         {signingIn ? "Ingresando..." : "Ingresar con Google"}
       </button>
     )
@@ -127,11 +127,11 @@ export function HeaderAuthMobileCard({ onNavigate }: { onNavigate: () => void })
   const displayName = user.displayName ?? user.email ?? "Ciudadano"
 
   return (
-    <div className="rounded-xl border border-cyan-100 bg-white/60 p-3">
+    <div className="rounded-xl border border-[#26a7fc]/10 bg-white/60 p-3">
       <Link
         href="/perfil"
         onClick={onNavigate}
-        className="flex items-center gap-3 rounded-lg p-1.5 hover:bg-cyan-50 transition-colors"
+        className="flex items-center gap-3 rounded-lg p-1.5 hover:bg-[#26a7fc]/10 transition-colors"
       >
         <UserPhoto name={displayName} photoURL={user.photoURL} sizeClass="h-11 w-11" />
         <div className="flex-1 min-w-0">

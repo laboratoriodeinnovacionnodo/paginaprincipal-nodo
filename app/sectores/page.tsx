@@ -1,3 +1,7 @@
+"use client"
+
+
+import { CodeTitle } from "@/components/shared/code-title"
 import { Header } from "@/components/header"
 import { SectoresFisicosHero } from "@/components/sectores/sectores-fisicos-hero"
 import { ClubEmprendedoresSection } from "@/components/sectores/club-emprendedores-section"

@@ -29,7 +29,7 @@ export function UserPhoto({ name, photoURL, sizeClass = "h-10 w-10" }: UserPhoto
 
   return (
     <div
-      className={`${sizeClass} rounded-full bg-cyan-500 flex items-center justify-center text-white font-semibold text-sm`}
+      className={`${sizeClass} rounded-full bg-[#26a7fc] flex items-center justify-center text-white font-semibold text-sm`}
     >
       {initials}
     </div>

@@ -7,8 +7,8 @@ export const logo = {
   title: "NodoTech",
   subtitle: "CATAMARCA",
   href: "/",
-  gradientFrom: "#0EA5E9",
-  gradientTo: "#0284C7",
+  gradientFrom: "#26a7fc",
+  gradientTo: "#1c8fe0",
 }
 
 export const navLinks = [
@@ -36,7 +36,7 @@ export const navLinks = [
 
 export const ctaButton = {
   label: "Cursos",
-  href: "/cursos",
-  gradientFrom: "#0EA5E9",
-  gradientTo: "#0284C7",
+  href: "https://alumnos.nodo.cc.gob.ar",
+  gradientFrom: "#26a7fc",
+  gradientTo: "#1c8fe0",
 }

@@ -24,7 +24,7 @@ export function LaboratorioSection() {
               height={700}
               className="w-full h-auto"
             />
-            <div className="absolute bottom-6 left-6 bg-background/95 backdrop-blur-sm rounded-lg px-6 py-3 shadow-lg">
+            <div className="absolute bottom-6 left-6 bg-background/95 backdrop-blur-sm rounded-xl px-6 py-3 shadow-lg">
               <p className="text-sm font-semibold text-foreground">Área de Innovación</p>
             </div>
           </div>

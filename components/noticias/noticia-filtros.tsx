@@ -44,7 +44,7 @@ export function NoticiaFiltros({
       {/* Tags Filter */}
       <div className="flex flex-wrap justify-center items-center gap-3">
         {(tagsSeleccionados.length > 0 || busqueda) && (
-          <Button variant="ghost" size="sm" onClick={onLimpiarFiltros} className="text-cyan-600 hover:text-cyan-700">
+          <Button variant="ghost" size="sm" onClick={onLimpiarFiltros} className="text-[#26a7fc] hover:text-[#1c8fe0]">
             Limpiar filtros
           </Button>
         )}
@@ -58,8 +58,8 @@ export function NoticiaFiltros({
             variant={tagsSeleccionados.includes(tag) ? "default" : "outline"}
             className={`cursor-pointer transition-colors ${
               tagsSeleccionados.includes(tag)
-                ? "bg-cyan-500 hover:bg-cyan-600"
-                : "bg-white/70 backdrop-blur-sm hover:bg-cyan-50"
+                ? "bg-[#26a7fc] hover:bg-[#1c8fe0]"
+                : "bg-white/70 backdrop-blur-sm hover:bg-[#26a7fc]/10"
             }`}
             onClick={() => onToggleTag(tag)}
           >

@@ -29,7 +29,7 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
     <main className="min-h-screen bg-gradient-to-b from-cyan-100 via-white to-blue-100">
       <section className="pt-24 pb-16">
         <div className="container mx-auto px-4">
-          <Link href="/cursos" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-cyan-600 transition-colors">
+          <Link href="/cursos" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-[#26a7fc] transition-colors">
             <ArrowLeft className="h-4 w-4" />Todos los cursos
           </Link>
           <div className="grid gap-8 lg:grid-cols-3">
@@ -44,17 +44,17 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {curso.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}
-                  <Badge variant="outline" className="border-cyan-500 text-cyan-600">Presencial</Badge>
+                  <Badge variant="outline" className="border-cyan-500 text-[#26a7fc]">Presencial</Badge>
                   <Badge variant="outline">{NIVEL_LABEL[curso.level] ?? curso.level}</Badge>
                 </div>
               </div>
               <Card className="bg-white/70 backdrop-blur-sm">
-                <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-cyan-500" />Sobre el curso</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-[#26a7fc]" />Sobre el curso</CardTitle></CardHeader>
                 <CardContent><p className="text-base text-muted-foreground leading-relaxed text-pretty">{curso.description}</p></CardContent>
               </Card>
               {curso.modules > 0 && (
                 <Card className="bg-white/70 backdrop-blur-sm">
-                  <CardHeader><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-cyan-500" />Contenido</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-[#26a7fc]" />Contenido</CardTitle></CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
                       <span className="font-medium text-gray-700">{curso.modules} módulo{curso.modules !== 1 ? 's' : ''}</span>
@@ -75,22 +75,22 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
               )}
             </div>
             <div className="lg:col-span-1">
-              <Card className="sticky top-4 bg-white/80 backdrop-blur-sm border-cyan-100">
+              <Card className="sticky top-4 bg-white/80 backdrop-blur-sm border-[#26a7fc]/10">
                 <CardHeader><CardTitle className="text-base">Detalles</CardTitle></CardHeader>
                 <CardContent className="space-y-4 pb-2">
                   <div className="flex items-start gap-3 text-sm">
-                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#26a7fc]" />
                     <div><p className="font-semibold text-gray-700">Duración</p><p className="text-muted-foreground">{curso.duration}</p></div>
                   </div>
                   {aulaLabel && (
                     <div className="flex items-start gap-3 text-sm">
-                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#26a7fc]" />
                       <div><p className="font-semibold text-gray-700">Ubicación</p><p className="text-muted-foreground">{aulaLabel}</p></div>
                     </div>
                   )}
                   {(curso.horaInicio || curso.fechaInicio) && (
                     <div className="flex items-start gap-3 text-sm">
-                      <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                      <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#26a7fc]" />
                       <div>
                         <p className="font-semibold text-gray-700">Horario</p>
                         {curso.fechaInicio && <p className="text-muted-foreground">{new Date(curso.fechaInicio).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>}
@@ -100,13 +100,13 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                   )}
                   {curso.maxParticipants && (
                     <div className="flex items-start gap-3 text-sm">
-                      <Users className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                      <Users className="mt-0.5 h-4 w-4 shrink-0 text-[#26a7fc]" />
                       <div><p className="font-semibold text-gray-700">Cupos</p><p className="text-muted-foreground">{curso.maxParticipants} participantes{curso.waitlistEnabled && ' + lista de espera'}</p></div>
                     </div>
                   )}
                   {curso.profe && (
                     <div className="flex items-start gap-3 text-sm">
-                      <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+                      <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-[#26a7fc]" />
                       <div><p className="font-semibold text-gray-700">Docente</p><p className="text-muted-foreground">{curso.profe.nombre}</p></div>
                     </div>
                   )}
@@ -122,7 +122,7 @@ export default async function CursoDetailPage({ params }: { params: Promise<{ id
                       <a href={curso.whatsappLink} target="_blank" rel="noopener noreferrer">Grupo de WhatsApp</a>
                     </Button>
                   )}
-                  <Button asChild size="sm" variant="outline" className="w-full gap-2 border-cyan-200 text-cyan-700 hover:bg-cyan-50 hover:text-cyan-800">
+                  <Button asChild size="sm" variant="outline" className="w-full gap-2 border-[#26a7fc]/20 text-[#1c8fe0] hover:bg-[#26a7fc]/10 hover:text-cyan-800">
                     <a href="https://profe.nodo.cc.gob.ar" target="_blank" rel="noopener noreferrer">
                       <Sparkles className="h-4 w-4" />
                       Aprender con el Profe IA

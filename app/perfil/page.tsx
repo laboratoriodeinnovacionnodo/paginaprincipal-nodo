@@ -154,7 +154,7 @@ export default function PerfilPage() {
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-4 w-64" />
           </div>
-          <Skeleton className="h-10 w-full rounded-lg mb-6" />
+          <Skeleton className="h-10 w-full rounded-xl mb-6" />
           <Skeleton className="h-64 w-full rounded-xl" />
         </div>
       </main>
@@ -164,10 +164,10 @@ export default function PerfilPage() {
   if (!user) {
     return (
       <main className="min-h-screen pt-32 pb-16 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
-        <Card className="max-w-md w-full border-cyan-100">
+        <Card className="max-w-md w-full border-[#26a7fc]/10">
           <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
-            <div className="mb-5 h-16 w-16 rounded-2xl bg-cyan-100 flex items-center justify-center">
-              <UserRound className="h-8 w-8 text-cyan-600" />
+            <div className="mb-5 h-16 w-16 rounded-2xl bg-[#26a7fc]/10 flex items-center justify-center">
+              <UserRound className="h-8 w-8 text-[#26a7fc]" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Tu perfil de ciudadano</h1>
             <p className="text-sm text-muted-foreground mb-6 text-pretty">
@@ -179,7 +179,7 @@ export default function PerfilPage() {
               onClick={handleLogin}
               disabled={signingIn}
               className="w-full text-white"
-              style={{ backgroundImage: "linear-gradient(to right, #0EA5E9, #0284C7)" }}
+              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
             >
               {signingIn
                 ? <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -217,7 +217,7 @@ export default function PerfilPage() {
           {perfil && (
             <div className="flex flex-wrap gap-2 justify-center">
               {perfil.systemSlugs.map((slug) => (
-                <Badge key={slug} variant="secondary" className="text-xs bg-cyan-50 text-cyan-700 border-cyan-200">
+                <Badge key={slug} variant="secondary" className="text-xs bg-[#26a7fc]/10 text-[#1c8fe0] border-[#26a7fc]/20">
                   {SYSTEM_LABEL[slug] ?? slug}
                 </Badge>
               ))}
@@ -243,12 +243,12 @@ export default function PerfilPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="datos" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-white/70 border border-cyan-100">
+          <TabsList className="grid w-full grid-cols-3 bg-white/70 border border-[#26a7fc]/10">
             <TabsTrigger value="datos">Datos</TabsTrigger>
             <TabsTrigger value="actividad">
               Actividad
               {lineas.length > 0 && (
-                <span className="ml-1.5 text-xs bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded-full">
+                <span className="ml-1.5 text-xs bg-[#26a7fc]/10 text-[#1c8fe0] px-1.5 py-0.5 rounded-full">
                   {lineas.length}
                 </span>
               )}
@@ -260,7 +260,7 @@ export default function PerfilPage() {
           <TabsContent value="datos" className="mt-6 space-y-4">
 
             {/* Identidad Google (solo lectura) */}
-            <Card className="border-cyan-100">
+            <Card className="border-[#26a7fc]/10">
               <CardContent className="pt-6 divide-y divide-gray-100">
                 <div className="flex items-center justify-between py-3">
                   <span className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -302,12 +302,12 @@ export default function PerfilPage() {
             </Card>
 
             {/* Perfil extendido (editable) */}
-            <Card className="border-cyan-100">
+            <Card className="border-[#26a7fc]/10">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-gray-700">Datos adicionales</h3>
                   {!editing ? (
-                    <Button variant="ghost" size="sm" onClick={startEdit} className="text-cyan-600 hover:text-cyan-700">
+                    <Button variant="ghost" size="sm" onClick={startEdit} className="text-[#26a7fc] hover:text-[#1c8fe0]">
                       <Pencil className="h-4 w-4 mr-1" /> Editar
                     </Button>
                   ) : (
@@ -317,7 +317,7 @@ export default function PerfilPage() {
                       </Button>
                       <Button size="sm" onClick={handleSave} disabled={saving}
                         className="text-white"
-                        style={{ backgroundImage: "linear-gradient(to right, #0EA5E9, #0284C7)" }}>
+                        style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}>
                         {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
                         Guardar
                       </Button>
@@ -358,7 +358,7 @@ export default function PerfilPage() {
                           placeholder="12345678"
                           value={form.dni ?? ""}
                           onChange={(e) => setForm((p) => ({ ...p, dni: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
+                          className="border-[#26a7fc]/10 focus-visible:ring-cyan-300"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -368,7 +368,7 @@ export default function PerfilPage() {
                           placeholder="383-4000000"
                           value={form.phone ?? ""}
                           onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
+                          className="border-[#26a7fc]/10 focus-visible:ring-cyan-300"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -378,7 +378,7 @@ export default function PerfilPage() {
                           placeholder="Av. Belgrano 123"
                           value={form.address ?? ""}
                           onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
+                          className="border-[#26a7fc]/10 focus-visible:ring-cyan-300"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -388,7 +388,7 @@ export default function PerfilPage() {
                           placeholder="San Fernando del Valle..."
                           value={form.city ?? ""}
                           onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
+                          className="border-[#26a7fc]/10 focus-visible:ring-cyan-300"
                         />
                       </div>
                       <div className="space-y-1.5 sm:col-span-2">
@@ -398,7 +398,7 @@ export default function PerfilPage() {
                           placeholder="Catamarca"
                           value={form.province ?? ""}
                           onChange={(e) => setForm((p) => ({ ...p, province: e.target.value }))}
-                          className="border-cyan-100 focus-visible:ring-cyan-300"
+                          className="border-[#26a7fc]/10 focus-visible:ring-cyan-300"
                         />
                       </div>
                     </div>
@@ -411,10 +411,10 @@ export default function PerfilPage() {
           {/* ── Tab: Actividad (lineas) ─────────────────────────────────── */}
           <TabsContent value="actividad" className="mt-6">
             {lineas.length === 0 ? (
-              <Card className="border-cyan-100">
+              <Card className="border-[#26a7fc]/10">
                 <CardContent className="pt-10 pb-10 flex flex-col items-center text-center">
-                  <div className="mb-4 h-14 w-14 rounded-2xl bg-cyan-100 flex items-center justify-center">
-                    <Layers className="h-7 w-7 text-cyan-600" />
+                  <div className="mb-4 h-14 w-14 rounded-2xl bg-[#26a7fc]/10 flex items-center justify-center">
+                    <Layers className="h-7 w-7 text-[#26a7fc]" />
                   </div>
                   <h3 className="font-semibold text-gray-900 mb-1">Sin actividad registrada</h3>
                   <p className="text-sm text-muted-foreground max-w-sm text-pretty">
@@ -426,7 +426,7 @@ export default function PerfilPage() {
             ) : (
               <div className="space-y-3">
                 {lineas.map((linea) => (
-                  <Card key={linea.id} className="border-cyan-100 hover:border-cyan-300 transition-colors">
+                  <Card key={linea.id} className="border-[#26a7fc]/10 hover:border-[#26a7fc]/30 transition-colors">
                     <CardContent className="pt-4 pb-4 flex items-center justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
@@ -455,10 +455,10 @@ export default function PerfilPage() {
               const cursosLineas = lineas.filter((l) => l.systemSlug === "cursos")
               if (cursosLineas.length === 0) {
                 return (
-                  <Card className="border-cyan-100">
+                  <Card className="border-[#26a7fc]/10">
                     <CardContent className="pt-10 pb-10 flex flex-col items-center text-center">
-                      <div className="mb-4 h-14 w-14 rounded-2xl bg-cyan-100 flex items-center justify-center">
-                        <GraduationCap className="h-7 w-7 text-cyan-600" />
+                      <div className="mb-4 h-14 w-14 rounded-2xl bg-[#26a7fc]/10 flex items-center justify-center">
+                        <GraduationCap className="h-7 w-7 text-[#26a7fc]" />
                       </div>
                       <h3 className="font-semibold text-gray-900 mb-1">
                         Todavía no tenés cursos ni inscripciones
@@ -466,7 +466,7 @@ export default function PerfilPage() {
                       <p className="text-sm text-muted-foreground mb-6 max-w-sm text-pretty">
                         Cuando te inscribas a un curso del Nodo, vas a verlo acá con su estado y progreso.
                       </p>
-                      <Button asChild variant="outline" className="border-cyan-200 text-cyan-700 hover:bg-cyan-50">
+                      <Button asChild variant="outline" className="border-[#26a7fc]/20 text-[#1c8fe0] hover:bg-[#26a7fc]/10">
                         <Link href="/cursos">Ver cursos disponibles</Link>
                       </Button>
                     </CardContent>
@@ -478,7 +478,7 @@ export default function PerfilPage() {
                   {cursosLineas.map((linea) => {
                     const meta = linea.metadata as Record<string, string>
                     return (
-                      <Card key={linea.id} className="border-cyan-100">
+                      <Card key={linea.id} className="border-[#26a7fc]/10">
                         <CardContent className="pt-4 pb-4 flex items-center justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-900 truncate">

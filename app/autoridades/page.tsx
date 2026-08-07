@@ -1,3 +1,7 @@
+"use client"
+
+
+import { CodeTitle } from "@/components/shared/code-title"
 import { Header } from '@/components/header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -57,9 +61,9 @@ export default function AutoridadesPage() {
         {/* Hero Section */}
         <section className="relative overflow-hidden bg-gradient-to-br from-cyan-50 via-white to-blue-50 pt-24 pb-4">
           <div className="container mx-auto px-4 text-center">
-            <h1 className="mb-6 text-4xl font-bold text-balance md:text-6xl">
-              Nuestras <span className="text-cyan-500">Autoridades</span>
-            </h1>
+            <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
+              Nuestras <span className="text-[#26a7fc]">Autoridades</span>
+            </CodeTitle>
             <p className="mx-auto max-w-3xl text-lg text-muted-foreground text-pretty leading-relaxed">
               Conoce al equipo directivo que lidera el Nodo Tecnológico de Catamarca
             </p>
@@ -82,14 +86,14 @@ export default function AutoridadesPage() {
                           src={autoridad.foto || "/placeholder.svg"}
                           alt={autoridad.nombre}
                         />
-                        <AvatarFallback className="bg-cyan-500 text-2xl text-white">
+                        <AvatarFallback className="bg-[#26a7fc] text-2xl text-white">
                           {autoridad.iniciales}
                         </AvatarFallback>
                       </Avatar>
                       <h3 className="mb-2 text-xl font-semibold text-balance">
                         {autoridad.nombre}
                       </h3>
-                      <p className="text-sm text-cyan-600 font-medium">
+                      <p className="text-sm text-[#26a7fc] font-medium">
                         {autoridad.posicion}
                       </p>
                     </div>

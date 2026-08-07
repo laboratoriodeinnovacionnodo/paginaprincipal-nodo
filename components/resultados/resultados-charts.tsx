@@ -111,7 +111,7 @@ export function ResultadosCharts() {
         {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <Card className="p-6 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-blue-500/20">
             <div className="text-sm font-medium text-muted-foreground mb-2">Total Estudiantes</div>
-            <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
+            <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-[#26a7fc] bg-clip-text text-transparent">
               {totalCicloCompleto + totalEnFormacion}
             </div>
           </Card>

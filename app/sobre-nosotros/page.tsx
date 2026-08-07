@@ -1,5 +1,5 @@
 "use client"
-
+import { CodeTitle } from "@/components/shared/code-title"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Target, Eye, Users, Lightbulb } from "lucide-react"
 import { Organigrama } from "@/app/sobre-nosotros/components/organigrama"
@@ -11,9 +11,9 @@ export default function SobreNosotrosPage() {
         {/* Hero Section */}
         <section className="relative overflow-hidden pt-24 pb-8">
           <div className="container mx-auto px-4 text-center">
-            <h1 className="mb-6 text-4xl font-bold text-balance md:text-6xl">
-              Sobre <span className="text-cyan-500">Nosotros</span>
-            </h1>
+            <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
+              Sobre <span className="text-[#26a7fc]">Nosotros</span>
+            </CodeTitle>
             <p className="mx-auto max-w-3xl text-lg text-muted-foreground text-balance leading-relaxed">
               El Nodo Tecnológico de Catamarca es un espacio de innovación y desarrollo que impulsa la transformación
               digital en nuestra provincia.
@@ -24,12 +24,12 @@ export default function SobreNosotrosPage() {
         {/* Values */}
         <section className="pb-12">
           <div className="container mx-auto px-4">
-            <h2 className="mb-8 text-center text-3xl font-bold text-cyan-600">Nuestros Valores</h2>
+            <h2 className="mb-8 text-center text-3xl font-bold text-[#26a7fc]">Nuestros Valores</h2>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              <Card className="bg-white/70 backdrop-blur-sm border-cyan-100 text-center">
+              <Card className="bg-white/70 backdrop-blur-sm border-[#26a7fc]/10 text-center">
                 <CardHeader>
-                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-100">
-                    <Lightbulb className="h-8 w-8 text-cyan-600" />
+                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#26a7fc]/10">
+                    <Lightbulb className="h-8 w-8 text-[#26a7fc]" />
                   </div>
                   <CardTitle className="text-lg">Innovación</CardTitle>
                 </CardHeader>
@@ -40,10 +40,10 @@ export default function SobreNosotrosPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/70 backdrop-blur-sm border-cyan-100 text-center">
+              <Card className="bg-white/70 backdrop-blur-sm border-[#26a7fc]/10 text-center">
                 <CardHeader>
-                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-100">
-                    <Users className="h-8 w-8 text-cyan-600" />
+                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#26a7fc]/10">
+                    <Users className="h-8 w-8 text-[#26a7fc]" />
                   </div>
                   <CardTitle className="text-lg">Inclusión</CardTitle>
                 </CardHeader>
@@ -54,10 +54,10 @@ export default function SobreNosotrosPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/70 backdrop-blur-sm border-cyan-100 text-center">
+              <Card className="bg-white/70 backdrop-blur-sm border-[#26a7fc]/10 text-center">
                 <CardHeader>
-                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-100">
-                    <Target className="h-8 w-8 text-cyan-600" />
+                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#26a7fc]/10">
+                    <Target className="h-8 w-8 text-[#26a7fc]" />
                   </div>
                   <CardTitle className="text-lg">Excelencia</CardTitle>
                 </CardHeader>
@@ -68,10 +68,10 @@ export default function SobreNosotrosPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/70 backdrop-blur-sm border-cyan-100 text-center">
+              <Card className="bg-white/70 backdrop-blur-sm border-[#26a7fc]/10 text-center">
                 <CardHeader>
-                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-100">
-                    <Eye className="h-8 w-8 text-cyan-600" />
+                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#26a7fc]/10">
+                    <Eye className="h-8 w-8 text-[#26a7fc]" />
                   </div>
                   <CardTitle className="text-lg">Transparencia</CardTitle>
                 </CardHeader>
@@ -89,7 +89,7 @@ export default function SobreNosotrosPage() {
         <section className="pb-12">
           <div className="container mx-auto px-4">
             <div className="mb-8 text-center">
-              <h2 className="mb-4 text-3xl font-bold text-cyan-600">Estructura Organizacional</h2>
+              <h2 className="mb-4 text-3xl font-bold text-[#26a7fc]">Estructura Organizacional</h2>
               <p className="mx-auto max-w-2xl text-muted-foreground text-balance">
                 Conoce la estructura del Nodo Tecnológico y las diferentes áreas que trabajan para impulsar la
                 transformación digital en Catamarca.
@@ -102,9 +102,9 @@ export default function SobreNosotrosPage() {
         {/* Description Section */}
         <section className="pb-16">
           <div className="container mx-auto px-4">
-            <Card className="bg-white/70 backdrop-blur-sm border-cyan-100">
+            <Card className="bg-white/70 backdrop-blur-sm border-[#26a7fc]/10">
               <CardHeader>
-                <CardTitle className="text-2xl text-cyan-600">¿Qué es el Nodo Tecnológico?</CardTitle>
+                <CardTitle className="text-2xl text-[#26a7fc]">¿Qué es el Nodo Tecnológico?</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground leading-relaxed">

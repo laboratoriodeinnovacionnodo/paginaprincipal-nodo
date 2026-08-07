@@ -45,7 +45,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
         <main className="pt-20 pb-16">
           <div className="container mx-auto px-4">
             <div className="flex flex-col items-center justify-center py-24">
-              <Loader2 className="h-12 w-12 animate-spin text-cyan-500 mb-4" />
+              <Loader2 className="h-12 w-12 animate-spin text-[#26a7fc] mb-4" />
               <p className="text-muted-foreground">Cargando información del espacio...</p>
             </div>
           </div>
@@ -89,7 +89,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
               </div>
               {espacio.precio && (
                 <div className="text-right">
-                  <p className="text-3xl font-bold text-cyan-600">{espacio.precio}</p>
+                  <p className="text-3xl font-bold text-[#26a7fc]">{espacio.precio}</p>
                 </div>
               )}
             </div>
@@ -114,7 +114,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-4">
-                    <Monitor className="h-8 w-8 text-cyan-600" />
+                    <Monitor className="h-8 w-8 text-[#26a7fc]" />
                   </div>
                 </div>
               </div>
@@ -133,7 +133,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-3">
-                      <Monitor className="h-6 w-6 text-cyan-600" />
+                      <Monitor className="h-6 w-6 text-[#26a7fc]" />
                     </div>
                   </div>
                 </div>
@@ -149,7 +149,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-3">
-                      <Monitor className="h-6 w-6 text-cyan-600" />
+                      <Monitor className="h-6 w-6 text-[#26a7fc]" />
                     </div>
                   </div>
                 </div>
@@ -186,7 +186,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                 <Card className="bg-white/70 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Monitor className="h-5 w-5 text-cyan-600" />
+                      <Monitor className="h-5 w-5 text-[#26a7fc]" />
                       Usos Principales
                     </CardTitle>
                   </CardHeader>
@@ -194,7 +194,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                     <ul className="space-y-3">
                       {espacio.usosPrincipales.map((uso, index) => (
                         <li key={index} className="flex items-start gap-2">
-                          <Check className="h-5 w-5 text-cyan-600 mt-0.5 flex-shrink-0" />
+                          <Check className="h-5 w-5 text-[#26a7fc] mt-0.5 flex-shrink-0" />
                           <span className="text-pretty leading-relaxed">{uso}</span>
                         </li>
                       ))}
@@ -207,7 +207,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                 <Card className="bg-white/70 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Check className="h-5 w-5 text-cyan-600" />
+                      <Check className="h-5 w-5 text-[#26a7fc]" />
                       Características Destacadas
                     </CardTitle>
                   </CardHeader>
@@ -215,7 +215,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                     <ul className="space-y-3">
                       {espacio.caracteristicas.map((caracteristica, index) => (
                         <li key={index} className="flex items-start gap-2">
-                          <Check className="h-5 w-5 text-cyan-600 mt-0.5 flex-shrink-0" />
+                          <Check className="h-5 w-5 text-[#26a7fc] mt-0.5 flex-shrink-0" />
                           <span className="text-pretty leading-relaxed">{caracteristica}</span>
                         </li>
                       ))}
@@ -233,7 +233,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                     {espacio.detalles.area && (
                       <div>
                         <h4 className="font-semibold mb-2 flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-cyan-600" />
+                          <MapPin className="h-4 w-4 text-[#26a7fc]" />
                           Área Total
                         </h4>
                         <p className="text-muted-foreground">{espacio.detalles.area}</p>
@@ -277,7 +277,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-start gap-3">
-                    <Users className="h-5 w-5 text-cyan-600 mt-0.5" />
+                    <Users className="h-5 w-5 text-[#26a7fc] mt-0.5" />
                     <div>
                       <p className="font-semibold">Capacidad</p>
                       <p className="text-sm text-muted-foreground">
@@ -287,7 +287,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                   </div>
                   {espacio.precio && (
                     <div className="flex items-start gap-3">
-                      <DollarSign className="h-5 w-5 text-cyan-600 mt-0.5" />
+                      <DollarSign className="h-5 w-5 text-[#26a7fc] mt-0.5" />
                       <div>
                         <p className="font-semibold">Precio</p>
                         <p className="text-sm text-muted-foreground">{espacio.precio}</p>
@@ -296,7 +296,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                   )}
                   {espacio.detalles?.accesoHorario && (
                     <div className="flex items-start gap-3">
-                      <Clock className="h-5 w-5 text-cyan-600 mt-0.5" />
+                      <Clock className="h-5 w-5 text-[#26a7fc] mt-0.5" />
                       <div>
                         <p className="font-semibold">Horario de Acceso</p>
                         <p className="text-sm text-muted-foreground text-pretty">{espacio.detalles.accesoHorario}</p>
@@ -324,7 +324,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                 </Card>
               )}
 
-              <Card className="bg-gradient-to-br from-cyan-500 to-blue-500 text-white border-0">
+              <Card className="bg-gradient-to-br from-[#26a7fc] to-blue-500 text-white border-0">
                 <CardHeader>
                   <CardTitle className="text-white">¿Interesado en este espacio?</CardTitle>
                   <CardDescription className="text-white/90 text-pretty leading-relaxed">
@@ -344,7 +344,7 @@ export default function EspacioDetailPage({ params }: { params: { id: string } }
                     </div>
                   </div>
                   <Button
-                    className="w-full bg-white text-cyan-600 hover:bg-gray-100"
+                    className="w-full bg-white text-[#26a7fc] hover:bg-gray-100"
                     onClick={() => window.open("https://wa.me/", "_blank")}
                   >
                     Contactar para Reservar

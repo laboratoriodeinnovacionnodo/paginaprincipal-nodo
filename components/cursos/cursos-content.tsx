@@ -112,7 +112,7 @@ export function CursosContent({ todosCursos, cursosPresenciales, cursosVirtuales
                       </div>
                     </CardContent>
                     <CardFooter className="flex gap-2">
-                      <Button asChild className="flex-1 bg-cyan-500 hover:bg-cyan-600">
+                      <Button asChild className="flex-1 bg-[#26a7fc] hover:bg-[#1c8fe0]">
                         <Link href={`/cursos/${curso.slug}`}>Ver detalles</Link>
                       </Button>
                     </CardFooter>

@@ -1,3 +1,7 @@
+"use client"
+
+
+import { CodeTitle } from "@/components/shared/code-title"
 import { Header } from "@/components/header"
 import { ResultadosHero } from "@/components/resultados/resultados-hero"
 import { ResultadosCharts } from "@/components/resultados/resultados-charts"

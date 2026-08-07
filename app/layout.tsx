@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Plus_Jakarta_Sans, Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { FooterEducacion } from "@/components/footer-educacion"
@@ -10,8 +10,8 @@ import { StructuredData } from "@/components/seo/structured-data"
 import { ChatbotWidget } from "@/components/chatbot/chatbot-widget"
 import { AuthProvider } from "@/contexts/auth-context"
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const _heading = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-heading" })
+const _body = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nodo.edu.ar"), // Cambiar a tu dominio real
@@ -93,12 +93,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`font-sans antialiased`}>
+      <body className={`${_heading.variable} ${_body.variable} font-sans antialiased`}>
         <StructuredData />
         <AuthProvider>
         <Header />
         {children}
-        <ColorSeparator colors="w-full h-20 sm:h-32 md:h-48 bg-gradient-to-b from-blue-100 via-sky-300 to-[#0EA5E9] shadow-[0_6px_15px_0_rgba(14,165,233,0.35)]" />
+        <ColorSeparator colors="w-full h-20 sm:h-32 md:h-48 bg-gradient-to-b from-blue-100 via-sky-300 to-[#26a7fc] shadow-[0_6px_15px_0_rgba(14,165,233,0.35)]" />
 
         <FooterEducacion />
           <ChatbotWidget />

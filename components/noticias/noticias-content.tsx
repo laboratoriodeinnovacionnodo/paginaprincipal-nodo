@@ -92,7 +92,7 @@ export function NoticiasContent({ noticias }: NoticiasContentProps) {
                       </div>
                     </CardContent>
                     <CardFooter>
-                      <Button asChild className="w-full bg-cyan-500 hover:bg-cyan-600">
+                      <Button asChild className="w-full bg-[#26a7fc] hover:bg-[#1c8fe0]">
                         <Link href={`/noticias/${noticia.slug}`}>Leer más</Link>
                       </Button>
                     </CardFooter>

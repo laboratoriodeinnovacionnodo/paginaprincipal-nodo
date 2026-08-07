@@ -36,7 +36,7 @@ export function HeaderMobile({ mobileMenuOpen, setMobileMenuOpen }: HeaderMobile
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-4 py-3 text-sm font-semibold rounded-lg text-gray-600 transition-all hover:text-[#0EA5E9] hover:border-b-2 hover:border-[#0EA5E9]"
+                className="px-4 py-3 text-sm font-semibold rounded-lg text-gray-600 transition-all hover:text-[#26a7fc] hover:border-b-2 hover:border-[#26a7fc]"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {link.label}

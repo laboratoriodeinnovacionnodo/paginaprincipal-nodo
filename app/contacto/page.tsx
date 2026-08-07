@@ -1,3 +1,7 @@
+"use client"
+
+
+import { CodeTitle } from "@/components/shared/code-title"
 import { ContactHero } from "@/components/contacto/contact-hero"
 import { ContactInfo } from "@/components/contacto/contact-info"
 import { ContactForm } from "@/components/contacto/contact-form"

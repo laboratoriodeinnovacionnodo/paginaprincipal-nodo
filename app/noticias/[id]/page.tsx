@@ -43,7 +43,7 @@ export default async function NoticiaDetailPage({ params }: { params: Promise<{ 
                   </p>
 
                   {noticia.covertura && (
-                    <div className="mb-6 rounded-lg overflow-hidden shadow-md">
+                    <div className="mb-6 rounded-xl overflow-hidden shadow-md">
                       <Image
                         src={noticia.covertura || "/placeholder.svg"}
                         alt={noticia.titulo}
@@ -69,7 +69,7 @@ export default async function NoticiaDetailPage({ params }: { params: Promise<{ 
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-start gap-3">
-                      <Calendar className="h-5 w-5 text-cyan-600 mt-0.5 flex-shrink-0" />
+                      <Calendar className="h-5 w-5 text-[#26a7fc] mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Fecha de Publicación</p>
                         <p className="text-sm text-gray-600">
@@ -83,7 +83,7 @@ export default async function NoticiaDetailPage({ params }: { params: Promise<{ 
                     </div>
 
                     <div className="flex items-start gap-3">
-                      <User className="h-5 w-5 text-cyan-600 mt-0.5 flex-shrink-0" />
+                      <User className="h-5 w-5 text-[#26a7fc] mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Autor</p>
                         <p className="text-sm text-gray-600">{noticia.autor}</p>
@@ -91,7 +91,7 @@ export default async function NoticiaDetailPage({ params }: { params: Promise<{ 
                     </div>
 
                     <div className="flex items-start gap-3">
-                      <MapPin className="h-5 w-5 text-cyan-600 mt-0.5 flex-shrink-0" />
+                      <MapPin className="h-5 w-5 text-[#26a7fc] mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Ubicación</p>
                         <p className="text-sm text-gray-600">Nodo Tecnológico</p>
@@ -100,12 +100,12 @@ export default async function NoticiaDetailPage({ params }: { params: Promise<{ 
 
                     {noticia.tags && noticia.tags.length > 0 && (
                       <div className="flex items-start gap-3 pt-2 border-t border-gray-200">
-                        <Tag className="h-5 w-5 text-cyan-600 mt-0.5 flex-shrink-0" />
+                        <Tag className="h-5 w-5 text-[#26a7fc] mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900 mb-2">Etiquetas</p>
                           <div className="flex flex-wrap gap-2">
                             {noticia.tags.map((tag) => (
-                              <Badge key={tag} variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-200">
+                              <Badge key={tag} variant="outline" className="bg-[#26a7fc]/10 text-[#1c8fe0] border-[#26a7fc]/20">
                                 {tag}
                               </Badge>
                             ))}
@@ -118,7 +118,7 @@ export default async function NoticiaDetailPage({ params }: { params: Promise<{ 
 
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-3">
-                  <Button asChild className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
+                  <Button asChild className="w-full bg-[#1c8fe0] hover:bg-[#1c8fe0] text-white">
                     <Link href="/noticias">Volver a noticias</Link>
                   </Button>
                 </div>
@@ -138,7 +138,7 @@ export default async function NoticiaDetailPage({ params }: { params: Promise<{ 
                             <Badge
                               key={tag}
                               variant="secondary"
-                              className="text-xs bg-cyan-100 text-cyan-800 border-cyan-200"
+                              className="text-xs bg-[#26a7fc]/10 text-cyan-800 border-[#26a7fc]/20"
                             >
                               {tag}
                             </Badge>
@@ -146,7 +146,7 @@ export default async function NoticiaDetailPage({ params }: { params: Promise<{ 
                         </div>
                         <h3 className="mb-2 font-semibold text-balance line-clamp-2 text-gray-900">{related.titulo}</h3>
                         <p className="mb-4 text-sm text-gray-600 line-clamp-3">{related.descripcion}</p>
-                        <Button variant="link" className="p-0 h-auto text-cyan-600 hover:text-cyan-700" asChild>
+                        <Button variant="link" className="p-0 h-auto text-[#26a7fc] hover:text-[#1c8fe0]" asChild>
                           <Link href={`/noticias/${related.slug}`}>Leer más →</Link>
                         </Button>
                       </CardContent>

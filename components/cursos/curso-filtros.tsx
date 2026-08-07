@@ -45,7 +45,7 @@ export function CursoFiltros({
         <Button
           variant={modalidadActiva === "todos" ? "default" : "outline"}
           onClick={() => onModalidadChange("todos")}
-          className={modalidadActiva === "todos" ? "bg-cyan-500 hover:bg-cyan-600" : "bg-white/70 backdrop-blur-sm"}
+          className={modalidadActiva === "todos" ? "bg-[#26a7fc] hover:bg-[#1c8fe0]" : "bg-white/70 backdrop-blur-sm"}
         >
           Todos
         </Button>
@@ -53,7 +53,7 @@ export function CursoFiltros({
           variant={modalidadActiva === "presencial" ? "default" : "outline"}
           onClick={() => onModalidadChange("presencial")}
           className={
-            modalidadActiva === "presencial" ? "bg-cyan-500 hover:bg-cyan-600" : "bg-white/70 backdrop-blur-sm"
+            modalidadActiva === "presencial" ? "bg-[#26a7fc] hover:bg-[#1c8fe0]" : "bg-white/70 backdrop-blur-sm"
           }
         >
           Presenciales
@@ -61,13 +61,13 @@ export function CursoFiltros({
         <Button
           variant={modalidadActiva === "virtual" ? "default" : "outline"}
           onClick={() => onModalidadChange("virtual")}
-          className={modalidadActiva === "virtual" ? "bg-cyan-500 hover:bg-cyan-600" : "bg-white/70 backdrop-blur-sm"}
+          className={modalidadActiva === "virtual" ? "bg-[#26a7fc] hover:bg-[#1c8fe0]" : "bg-white/70 backdrop-blur-sm"}
         >
           Virtuales
         </Button>
 
         {(tagsSeleccionados.length > 0 || busqueda) && (
-          <Button variant="ghost" size="sm" onClick={onLimpiarFiltros} className="text-cyan-600 hover:text-cyan-700">
+          <Button variant="ghost" size="sm" onClick={onLimpiarFiltros} className="text-[#26a7fc] hover:text-[#1c8fe0]">
             Limpiar filtros
           </Button>
         )}
@@ -81,8 +81,8 @@ export function CursoFiltros({
             variant={tagsSeleccionados.includes(tag) ? "default" : "outline"}
             className={`cursor-pointer transition-colors ${
               tagsSeleccionados.includes(tag)
-                ? "bg-cyan-500 hover:bg-cyan-600"
-                : "bg-white/70 backdrop-blur-sm hover:bg-cyan-50"
+                ? "bg-[#26a7fc] hover:bg-[#1c8fe0]"
+                : "bg-white/70 backdrop-blur-sm hover:bg-[#26a7fc]/10"
             }`}
             onClick={() => onToggleTag(tag)}
           >

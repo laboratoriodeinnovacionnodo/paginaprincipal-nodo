@@ -93,7 +93,7 @@ export default function CatamarcaOpenProyectoDetailPage() {
       <div className="container mx-auto px-4 max-w-2xl">
         <Link
           href="/catamarcaopen/proyectos"
-          className="inline-flex items-center gap-1.5 text-sm text-cyan-700 hover:text-cyan-800 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
           Volver al listado
@@ -109,7 +109,7 @@ export default function CatamarcaOpenProyectoDetailPage() {
         <div className="flex items-center gap-2 mb-6">
           <div
             className="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
-            style={{ backgroundImage: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
+            style={{ backgroundImage: "linear-gradient(135deg, #26a7fc, #1c8fe0)" }}
           >
             {initials(project.authorName)}
           </div>
@@ -125,14 +125,14 @@ export default function CatamarcaOpenProyectoDetailPage() {
           href={project.repoUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-700 hover:text-cyan-800 mb-8"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-[#1c8fe0] hover:text-cyan-800 mb-8"
         >
           <Github className="h-4 w-4" />
           Ver repositorio
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
 
-        <Card className="border-cyan-100">
+        <Card className="border-[#26a7fc]/10">
           <CardContent className="pt-6">
             <h2 className="text-sm font-semibold text-gray-900 mb-4">Revisiones ({reviews.length})</h2>
             {reviews.length === 0 ? (
@@ -143,7 +143,7 @@ export default function CatamarcaOpenProyectoDetailPage() {
                   <div key={review.id} className="flex gap-3 py-3 first:pt-0 last:pb-0">
                     <div
                       className="h-7 w-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
-                      style={{ backgroundImage: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
+                      style={{ backgroundImage: "linear-gradient(135deg, #26a7fc, #1c8fe0)" }}
                     >
                       {initials(review.authorName)}
                     </div>

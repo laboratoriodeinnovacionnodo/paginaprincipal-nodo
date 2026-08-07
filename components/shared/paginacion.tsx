@@ -31,7 +31,7 @@ export function Paginacion({ paginaActual, totalPaginas, onPaginaChange }: Pagin
             variant={paginaActual === pagina ? "default" : "outline"}
             size="sm"
             onClick={() => onPaginaChange(pagina)}
-            className={paginaActual === pagina ? "bg-cyan-500 hover:bg-cyan-600" : "bg-white/70 backdrop-blur-sm"}
+            className={paginaActual === pagina ? "bg-[#26a7fc] hover:bg-[#1c8fe0]" : "bg-white/70 backdrop-blur-sm"}
           >
             {pagina}
           </Button>

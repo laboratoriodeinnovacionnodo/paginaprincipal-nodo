@@ -72,7 +72,7 @@ export function Header() {
             <div className="hidden lg:flex flex-col transition-colors duration-500">
               <span className={`text-xl font-bold leading-tight ${logoTitleColor}`}>
                 {logo.title.split("Tech")[0]}
-                <span className="text-[#0EA5E9]"> Tecnologico</span>
+                <span className="text-[#26a7fc]"> Tecnologico</span>
               </span>
               <span className={`text-[10px] font-medium tracking-wide ${logoSubtitleColor}`}>{logo.subtitle}</span>
             </div>
@@ -89,7 +89,7 @@ export function Header() {
                   className={`group relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${textColor}`}
                 >
                   {link.label}
-                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#0EA5E9] rounded-full opacity-0 transition-all duration-300 group-hover:w-1/2 group-hover:opacity-100" />
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#26a7fc] rounded-full opacity-0 transition-all duration-300 group-hover:w-1/2 group-hover:opacity-100" />
                 </Link>
               ))}
 
@@ -120,7 +120,7 @@ export function Header() {
       </nav>
 
       <Drawer open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} direction="bottom">
-        <DrawerContent className="bg-gradient-to-b from-white to-cyan-50/30 backdrop-blur-xl border-t border-cyan-100">
+        <DrawerContent className="bg-gradient-to-b from-white to-cyan-50/30 backdrop-blur-xl border-t border-[#26a7fc]/10">
           <DrawerHeader className="sr-only">
             <DrawerTitle>Menu de navegación</DrawerTitle>
             <DrawerDescription>Opciones de navegación del sitio</DrawerDescription>
@@ -143,10 +143,10 @@ export function Header() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="flex items-center gap-3 px-4 py-3.5 text-base font-semibold rounded-xl text-gray-700 hover:bg-cyan-50 active:bg-cyan-100 transition-all duration-200"
+                    className="flex items-center gap-3 px-4 py-3.5 text-base font-semibold rounded-xl text-gray-700 hover:bg-[#26a7fc]/10 active:bg-[#26a7fc]/10 transition-all duration-200"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    {Icon && <Icon className="h-5 w-5 text-cyan-600" />}
+                    {Icon && <Icon className="h-5 w-5 text-[#26a7fc]" />}
                     {link.label}
                   </Link>
                 )

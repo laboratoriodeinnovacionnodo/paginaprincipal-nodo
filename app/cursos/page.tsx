@@ -1,4 +1,8 @@
+"use client"
+
 // app/cursos/page.tsx — Server Component
+
+import { CodeTitle } from "@/components/shared/code-title"
 import type { Metadata } from 'next'
 import { getCursos } from '@/lib/cursos/api'
 import type { CursoBack } from '@/lib/cursos/types'
@@ -21,8 +25,8 @@ export default async function CursosPage() {
     <main className="min-h-screen bg-gradient-to-b from-cyan-50 via-white to-blue-50">
       <section className="relative overflow-hidden pt-24 pb-10">
         <div className="container mx-auto px-4 text-center">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-cyan-600">Formación gratuita</p>
-          <h1 className="mb-4 text-4xl font-bold text-balance md:text-5xl">Nuestros <span className="text-cyan-500">Cursos</span></h1>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#26a7fc]">Formación gratuita</p>
+          <CodeTitle as="h1" className="mb-4 text-4xl font-bold text-balance md:text-5xl">Nuestros <span className="text-[#26a7fc]">Cursos</span></CodeTitle>
           <p className="mx-auto max-w-2xl text-base text-muted-foreground text-pretty leading-relaxed">
             Aprendé tecnología con el equipo del Nodo Tecnológico de Catamarca. Todos los cursos son gratuitos.
           </p>

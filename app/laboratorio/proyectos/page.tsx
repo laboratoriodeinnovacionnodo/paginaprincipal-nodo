@@ -24,7 +24,7 @@ const AREA_LABEL: Record<ProjectArea, string> = {
 
 function AreaBadge({ area }: { area: ProjectArea }) {
   return (
-    <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-cyan-100 text-cyan-700">
+    <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-[#26a7fc]/10 text-[#1c8fe0]">
       {AREA_LABEL[area]}
     </span>
   )
@@ -50,7 +50,7 @@ export default function LaboratorioProyectosPage() {
       <div className="container mx-auto px-4 max-w-5xl">
         <Link
           href="/laboratorio"
-          className="inline-flex items-center gap-1.5 text-sm text-cyan-700 hover:text-cyan-800 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
           Laboratorio
@@ -68,7 +68,7 @@ export default function LaboratorioProyectosPage() {
                 key={a.key}
                 onClick={() => setAreaActiva(a.key)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                  isActive ? "bg-cyan-500 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-cyan-50"
+                  isActive ? "bg-[#26a7fc] text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-[#26a7fc]/10"
                 }`}
               >
                 {a.icon ? <a.icon className="h-3.5 w-3.5" /> : null}
@@ -92,9 +92,9 @@ export default function LaboratorioProyectosPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {projects.map((project) => (
               <Link key={project.id} href={`/laboratorio/proyectos/${project.slug}`}>
-                <Card className="h-full border-cyan-100 hover:border-cyan-300 transition-colors overflow-hidden">
+                <Card className="h-full border-[#26a7fc]/10 hover:border-[#26a7fc]/30 transition-colors overflow-hidden">
                   <div
-                    className="h-32 bg-cover bg-center bg-cyan-100"
+                    className="h-32 bg-cover bg-center bg-[#26a7fc]/10"
                     style={project.coverImage ? { backgroundImage: `url(${project.coverImage})` } : undefined}
                   />
                   <CardContent className="pt-4 flex flex-col gap-2">

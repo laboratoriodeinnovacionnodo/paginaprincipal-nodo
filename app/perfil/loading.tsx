@@ -9,7 +9,7 @@ export default function PerfilLoading() {
           <Skeleton className="h-6 w-48" />
           <Skeleton className="h-4 w-64" />
         </div>
-        <Skeleton className="h-10 w-full rounded-lg mb-6" />
+        <Skeleton className="h-10 w-full rounded-xl mb-6" />
         <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     </main>

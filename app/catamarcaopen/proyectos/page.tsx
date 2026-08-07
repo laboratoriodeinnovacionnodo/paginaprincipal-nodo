@@ -58,7 +58,7 @@ export default function CatamarcaOpenProyectosPage() {
       <div className="container mx-auto px-4 max-w-5xl">
         <Link
           href="/catamarcaopen"
-          className="inline-flex items-center gap-1.5 text-sm text-cyan-700 hover:text-cyan-800 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
           CatamarcaOpen
@@ -76,7 +76,7 @@ export default function CatamarcaOpenProyectosPage() {
           <Button
             asChild
             className="text-white shrink-0"
-            style={{ backgroundImage: "linear-gradient(to right, #0EA5E9, #0284C7)" }}
+            style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
           >
             <Link href="/catamarcaopen/proyectos/nuevo">
               <Plus className="mr-2 h-4 w-4" />
@@ -95,7 +95,7 @@ export default function CatamarcaOpenProyectosPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {projects.map((project) => (
               <Link key={project.id} href={`/catamarcaopen/proyectos/${project.id}`}>
-                <Card className="h-full border-cyan-100 hover:border-cyan-300 transition-colors">
+                <Card className="h-full border-[#26a7fc]/10 hover:border-[#26a7fc]/30 transition-colors">
                   <CardContent className="pt-5 flex flex-col gap-3 h-full">
                     <div className="flex items-center justify-between">
                       <StatusBadge status={project.status} />
@@ -108,7 +108,7 @@ export default function CatamarcaOpenProyectosPage() {
                     <div className="flex items-center gap-2 mt-auto pt-2">
                       <div
                         className="h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
-                        style={{ backgroundImage: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}
+                        style={{ backgroundImage: "linear-gradient(135deg, #26a7fc, #1c8fe0)" }}
                       >
                         {initials(project.authorName)}
                       </div>

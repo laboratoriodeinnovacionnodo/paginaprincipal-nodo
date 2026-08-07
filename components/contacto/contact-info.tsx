@@ -60,7 +60,7 @@ export function ContactInfo() {
         <p className="text-muted-foreground mb-4">
           También puedes visitarnos en nuestras instalaciones para conocer todos nuestros espacios y programas
         </p>
-        <button className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors">
+        <button className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-colors">
           Agendar Visita
         </button>
       </div>

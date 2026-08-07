@@ -22,7 +22,7 @@ export default async function LaboratorioProyectoDetailPage({ params }: { params
       <div className="container mx-auto px-4 max-w-2xl">
         <Link
           href="/laboratorio/proyectos"
-          className="inline-flex items-center gap-1.5 text-sm text-cyan-700 hover:text-cyan-800 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
           Volver al listado
@@ -30,12 +30,12 @@ export default async function LaboratorioProyectoDetailPage({ params }: { params
 
         {project.coverImage && (
           <div
-            className="h-56 w-full rounded-xl bg-cover bg-center bg-cyan-100 mb-6"
+            className="h-56 w-full rounded-xl bg-cover bg-center bg-[#26a7fc]/10 mb-6"
             style={{ backgroundImage: `url(${project.coverImage})` }}
           />
         )}
 
-        <span className="inline-block text-[10px] font-medium px-2 py-1 rounded-full bg-cyan-100 text-cyan-700 mb-3">
+        <span className="inline-block text-[10px] font-medium px-2 py-1 rounded-full bg-[#26a7fc]/10 text-[#1c8fe0] mb-3">
           {AREA_LABEL[project.area]}
         </span>
 
@@ -64,7 +64,7 @@ export default async function LaboratorioProyectoDetailPage({ params }: { params
               {project.images.map((image) => (
                 <div
                   key={image.id}
-                  className="aspect-square rounded-lg bg-cover bg-center bg-cyan-100"
+                  className="aspect-square rounded-xl bg-cover bg-center bg-[#26a7fc]/10"
                   style={{ backgroundImage: `url(${image.url})` }}
                   role="img"
                   aria-label={image.alt ?? project.title}

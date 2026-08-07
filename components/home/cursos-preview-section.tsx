@@ -17,10 +17,10 @@ export function CursosPreviewSection() {
 
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
           {/* Cursos Virtuales Card */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 p-8 border-2 border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20">
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 to-[#26a7fc]/10 p-8 border-2 border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20">
             <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
             <div className="relative z-10">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white mb-6 shadow-lg shadow-blue-500/30">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-[#26a7fc] text-white mb-6 shadow-lg shadow-blue-500/30">
                 <Monitor className="h-8 w-8" />
               </div>
               <h3 className="text-2xl font-bold mb-3">Cursos Virtuales</h3>
@@ -44,10 +44,10 @@ export function CursosPreviewSection() {
           </div>
 
           {/* Cursos Presenciales Card */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 p-8 border-2 border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20">
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 to-[#26a7fc]/10 p-8 border-2 border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20">
             <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors" />
             <div className="relative z-10">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white mb-6 shadow-lg shadow-blue-500/30">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-[#26a7fc] text-white mb-6 shadow-lg shadow-blue-500/30">
                 <Monitor className="h-8 w-8" />
               </div>
               <h3 className="text-2xl font-bold mb-3">Cursos Presenciales</h3>

@@ -55,7 +55,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
   if (loading) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-cyan-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#26a7fc]" />
       </main>
     )
   }
@@ -63,7 +63,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
   if (!user) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
-        <Card className="max-w-md w-full border-cyan-100">
+        <Card className="max-w-md w-full border-[#26a7fc]/10">
           <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
             <h1 className="text-xl font-bold text-gray-900 mb-2">Necesitás iniciar sesión</h1>
             <p className="text-sm text-muted-foreground mb-6 text-pretty">
@@ -73,7 +73,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
               onClick={handleLogin}
               disabled={signingIn}
               className="w-full text-white"
-              style={{ backgroundImage: "linear-gradient(to right, #0EA5E9, #0284C7)" }}
+              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
             >
               {signingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
               Ingresar con Google
@@ -87,7 +87,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
   if (submitted) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
-        <Card className="max-w-md w-full border-cyan-100">
+        <Card className="max-w-md w-full border-[#26a7fc]/10">
           <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
             <div className="h-14 w-14 rounded-2xl bg-green-100 flex items-center justify-center mb-4">
               <CheckCircle2 className="h-7 w-7 text-green-600" />
@@ -110,7 +110,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
       <div className="container mx-auto px-4 max-w-xl">
         <Link
           href="/catamarcaopen/proyectos"
-          className="inline-flex items-center gap-1.5 text-sm text-cyan-700 hover:text-cyan-800 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
         >
           Volver al listado
         </Link>
@@ -120,7 +120,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
           Tu proyecto pasa por revisión de la comunidad antes de publicarse.
         </p>
 
-        <Card className="border-cyan-100">
+        <Card className="border-[#26a7fc]/10">
           <CardContent className="pt-6 flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-gray-700">Título</label>
@@ -165,7 +165,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
               onClick={handleSubmit}
               disabled={!isValid || submitting}
               className="text-white"
-              style={{ backgroundImage: "linear-gradient(to right, #0EA5E9, #0284C7)" }}
+              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
             >
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {submitting ? "Enviando..." : "Enviar para revisión"}

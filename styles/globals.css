@@ -1,37 +1,37 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.99 0.005 234);
+  --foreground: oklch(0.18 0.02 234);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.18 0.02 234);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.18 0.02 234);
+  --primary: oklch(0.68 0.17 234);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.95 0.01 234);
+  --secondary-foreground: oklch(0.18 0.02 234);
+  --muted: oklch(0.95 0.01 234);
+  --muted-foreground: oklch(0.5 0.01 234);
+  --accent: oklch(0.94 0.05 234);
+  --accent-foreground: oklch(0.4 0.12 234);
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.9 0.01 234);
+  --input: oklch(0.9 0.01 234);
+  --ring: oklch(0.68 0.17 234);
+  --chart-1: oklch(0.68 0.17 234);
+  --chart-2: oklch(0.65 0.15 186);
+  --chart-3: oklch(0.72 0.12 150);
+  --chart-4: oklch(0.68 0.14 280);
+  --chart-5: oklch(0.62 0.16 320);
+  --radius: 0.75rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.68 0.17 234);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
@@ -42,23 +42,23 @@
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
+  --card: oklch(0.18 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
+  --popover: oklch(0.18 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
+  --primary: oklch(0.7 0.17 234);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.25 0.01 234);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --muted: oklch(0.25 0.01 234);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.3 0.08 234);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --destructive: oklch(0.55 0.2 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.25 0.01 234);
+  --input: oklch(0.25 0.01 234);
+  --ring: oklch(0.7 0.17 234);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -75,8 +75,9 @@
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: "Inter", "Inter Fallback";
+  --font-heading: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -121,5 +122,21 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    position: relative;
+    z-index: 1;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(ellipse 60% 40% at 10% 10%, hsl(204 97% 57% / .04) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 35% at 90% 85%, hsl(204 97% 57% / .03) 0%, transparent 60%);
   }
 }

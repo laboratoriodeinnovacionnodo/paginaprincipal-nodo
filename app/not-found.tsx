@@ -27,22 +27,22 @@ export default function NotFound() {
 
         {/* Tarjetas de información */}
         <div className="grid md:grid-cols-3 gap-4 mb-8 max-w-xl mx-auto">
-          <div className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors">
-            <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
+          <div className="bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-colors">
+            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-2">
               <Home className="h-5 w-5 text-primary" />
             </div>
             <p className="text-sm text-muted-foreground">Volver al inicio</p>
           </div>
 
-          <div className="bg-card border border-border rounded-lg p-4 hover:border-accent/50 transition-colors">
-            <div className="h-10 w-10 bg-accent/10 rounded-lg flex items-center justify-center mx-auto mb-2">
+          <div className="bg-card border border-border rounded-xl p-4 hover:border-accent/50 transition-colors">
+            <div className="h-10 w-10 bg-accent/10 rounded-xl flex items-center justify-center mx-auto mb-2">
               <Search className="h-5 w-5 text-accent-foreground" />
             </div>
             <p className="text-sm text-muted-foreground">Explorar cursos</p>
           </div>
 
-          <div className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors">
-            <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-2">
+          <div className="bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-colors">
+            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-2">
               <Workflow className="h-5 w-5 text-primary" />
             </div>
             <p className="text-sm text-muted-foreground">Conocer el Nodo</p>
