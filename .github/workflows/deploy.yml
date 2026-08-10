@@ -44,6 +44,7 @@ jobs:
             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
+            NEXT_PUBLIC_COWORKING_URL=${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
 
       - name: Deploy en servidor
         uses: appleboy/ssh-action@v1
@@ -51,12 +52,13 @@ jobs:
           NEXT_GROQ_API_KEY:  ${{ secrets.NEXT_GROQ_API_KEY }}
           NEXT_GROQ_MODEL:    ${{ secrets.NEXT_GROQ_MODEL }}
           NOTICIAS_API_URL:   ${{ secrets.NOTICIAS_API_URL }}
+          NEXT_PUBLIC_COWORKING_URL: ${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
         with:
           host:     ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
           port:     ${{ secrets.DO_PORT }}
-          envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL,NOTICIAS_API_URL
+          envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL,NOTICIAS_API_URL,NEXT_PUBLIC_COWORKING_URL
           script: |
             set -e
             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
