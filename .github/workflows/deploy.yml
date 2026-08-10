@@ -30,6 +30,9 @@ jobs:
           tags: ghcr.io/${{ github.repository }}:latest
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
           cache-to:   type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
+          # NOTICIAS_API_URL va en build-args para el ARG del runner stage
+          build-args: |
+            NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
           secrets: |
             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
@@ -41,18 +44,19 @@ jobs:
             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
-            
+
       - name: Deploy en servidor
         uses: appleboy/ssh-action@v1
         env:
-          NEXT_GROQ_API_KEY: ${{ secrets.NEXT_GROQ_API_KEY }}
-          NEXT_GROQ_MODEL:   ${{ secrets.NEXT_GROQ_MODEL }}
+          NEXT_GROQ_API_KEY:  ${{ secrets.NEXT_GROQ_API_KEY }}
+          NEXT_GROQ_MODEL:    ${{ secrets.NEXT_GROQ_MODEL }}
+          NOTICIAS_API_URL:   ${{ secrets.NOTICIAS_API_URL }}
         with:
           host:     ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
           port:     ${{ secrets.DO_PORT }}
-          envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL
+          envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL,NOTICIAS_API_URL
           script: |
             set -e
             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
@@ -65,15 +69,13 @@ jobs:
             printf '%s\n' \
               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
+              "NOTICIAS_API_URL=${NOTICIAS_API_URL}" \
               > /etc/ciudadano-front/.env
             chmod 600 /etc/ciudadano-front/.env
 
             docker stop ciudadano-front || true
             docker rm   ciudadano-front || true
 
-            # Sin -p: se sirve solo en red_interna, igual que
-            # catamarcaopen-front / noticias-front / registro-front.
-            # Nginx Proxy Manager lo enruta por nombre de contenedor.
             docker run -d \
               --name    ciudadano-front \
               --restart always \

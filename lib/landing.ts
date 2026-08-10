@@ -1,10 +1,17 @@
 /**
  * lib/landing.ts
- * Obtiene la configuración del hero desde noticias-back.
- * Usado como Server Component — no ejecuta en el cliente.
+ * Server Component — fetch siempre fresco (no ISR).
+ *
+ * NOTICIAS_API_URL es una variable de entorno de SERVIDOR (sin NEXT_PUBLIC_),
+ * disponible solo en runtime dentro del contenedor Docker (red_interna).
+ * Valor esperado: http://noticias-back:3000
  */
 
-const API_URL = process.env.NOTICIAS_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? ''
+const API_URL = (
+  process.env.NOTICIAS_API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  ''
+).replace(/\/$/, '')
 
 export interface LandingConfig {
   titulo:      string
@@ -19,14 +26,21 @@ const FALLBACK: LandingConfig = {
 }
 
 export async function getLandingConfig(): Promise<LandingConfig> {
-  if (!API_URL) return FALLBACK
+  if (!API_URL) {
+    console.warn('[landing] NOTICIAS_API_URL no definida — usando fallback')
+    return FALLBACK
+  }
 
   try {
-    const res = await fetch(`${API_URL}/api/v1/landing`, {
-      next: { revalidate: 60 }, // ISR: refresca cada 60 segundos
+    const url = `${API_URL}/api/v1/landing`
+    const res = await fetch(url, {
+      cache: 'no-store', // siempre fresco, sin ISR que se rompe en standalone
     })
 
-    if (!res.ok) return FALLBACK
+    if (!res.ok) {
+      console.error(`[landing] GET ${url} → ${res.status}`)
+      return FALLBACK
+    }
 
     const json = await res.json() as { data?: LandingConfig } & LandingConfig
     const data = (json.data ?? json) as LandingConfig
@@ -36,8 +50,8 @@ export async function getLandingConfig(): Promise<LandingConfig> {
       descripcion: data.descripcion || FALLBACK.descripcion,
       videoUrl:    data.videoUrl    || FALLBACK.videoUrl,
     }
-  } catch {
-    // API no disponible → usa fallback sin romper el build
+  } catch (err) {
+    console.error('[landing] Error al obtener config:', err)
     return FALLBACK
   }
 }

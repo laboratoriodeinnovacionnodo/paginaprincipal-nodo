@@ -9284,95 +9284,6 @@ x.sh
 42: }
 ```
 
-## File: .github/workflows/deploy.yml
-```yaml
- 1: name: 🧑‍🤝‍🧑 Deploy — ciudadano-front
- 2: 
- 3: on:
- 4:   push:
- 5:     branches: [main]
- 6: 
- 7: jobs:
- 8:   build-and-deploy:
- 9:     runs-on: ubuntu-latest
-10: 
-11:     steps:
-12:       - name: Checkout código
-13:         uses: actions/checkout@v4
-14: 
-15:       - name: Setup Docker Buildx
-16:         uses: docker/setup-buildx-action@v3
-17: 
-18:       - name: Login a GitHub Container Registry
-19:         uses: docker/login-action@v3
-20:         with:
-21:           registry: ghcr.io
-22:           username: ${{ github.actor }}
-23:           password: ${{ secrets.GITHUB_TOKEN }}
-24: 
-25:       - name: Build y push imagen
-26:         uses: docker/build-push-action@v5
-27:         with:
-28:           context: .
-29:           push: true
-30:           tags: ghcr.io/${{ github.repository }}:latest
-31:           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
-32:           cache-to:   type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
-33:           secrets: |
-34:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
-35:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
-36:             NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-37:             NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-38:             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-39:             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
-40:             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
-41:             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
-42:             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
-43: 
-44:       - name: Deploy en servidor
-45:         uses: appleboy/ssh-action@v1
-46:         env:
-47:           NEXT_GROQ_API_KEY: ${{ secrets.NEXT_GROQ_API_KEY }}
-48:           NEXT_GROQ_MODEL:   ${{ secrets.NEXT_GROQ_MODEL }}
-49:         with:
-50:           host:     ${{ secrets.DO_HOST }}
-51:           username: ${{ secrets.DO_USER }}
-52:           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
-53:           port:     ${{ secrets.DO_PORT }}
-54:           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL
-55:           script: |
-56:             set -e
-57:             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
-58:             docker pull ghcr.io/${{ github.repository }}:latest
-59: 
-60:             docker network inspect red_interna >/dev/null 2>&1 || \
-61:               docker network create --driver bridge red_interna
-62: 
-63:             mkdir -p /etc/ciudadano-front
-64:             printf '%s\n' \
-65:               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
-66:               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
-67:               > /etc/ciudadano-front/.env
-68:             chmod 600 /etc/ciudadano-front/.env
-69: 
-70:             docker stop ciudadano-front || true
-71:             docker rm   ciudadano-front || true
-72: 
-73:             # Sin -p: se sirve solo en red_interna, igual que
-74:             # catamarcaopen-front / noticias-front / registro-front.
-75:             # Nginx Proxy Manager lo enruta por nombre de contenedor.
-76:             docker run -d \
-77:               --name    ciudadano-front \
-78:               --restart always \
-79:               --network red_interna \
-80:               --env-file /etc/ciudadano-front/.env \
-81:               ghcr.io/${{ github.repository }}:latest
-82: 
-83:             sleep 3
-84:             docker logs ciudadano-front --tail 20
-85:             docker image prune -f
-```
-
 ## File: app/cursos/page.tsx
 ```typescript
  1: import type { Metadata } from "next"
@@ -9819,6 +9730,96 @@ x.sh
 87: }
 ```
 
+## File: .github/workflows/deploy.yml
+```yaml
+ 1: name: 🧑‍🤝‍🧑 Deploy — ciudadano-front
+ 2: 
+ 3: on:
+ 4:   push:
+ 5:     branches: [main]
+ 6: 
+ 7: jobs:
+ 8:   build-and-deploy:
+ 9:     runs-on: ubuntu-latest
+10: 
+11:     steps:
+12:       - name: Checkout código
+13:         uses: actions/checkout@v4
+14: 
+15:       - name: Setup Docker Buildx
+16:         uses: docker/setup-buildx-action@v3
+17: 
+18:       - name: Login a GitHub Container Registry
+19:         uses: docker/login-action@v3
+20:         with:
+21:           registry: ghcr.io
+22:           username: ${{ github.actor }}
+23:           password: ${{ secrets.GITHUB_TOKEN }}
+24: 
+25:       - name: Build y push imagen
+26:         uses: docker/build-push-action@v5
+27:         with:
+28:           context: .
+29:           push: true
+30:           tags: ghcr.io/${{ github.repository }}:latest
+31:           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
+32:           cache-to:   type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
+33:           secrets: |
+34:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
+35:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
+36:             NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+37:             NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+38:             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+39:             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+40:             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
+41:             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
+42:             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
+43:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
+44:             
+45:       - name: Deploy en servidor
+46:         uses: appleboy/ssh-action@v1
+47:         env:
+48:           NEXT_GROQ_API_KEY: ${{ secrets.NEXT_GROQ_API_KEY }}
+49:           NEXT_GROQ_MODEL:   ${{ secrets.NEXT_GROQ_MODEL }}
+50:         with:
+51:           host:     ${{ secrets.DO_HOST }}
+52:           username: ${{ secrets.DO_USER }}
+53:           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
+54:           port:     ${{ secrets.DO_PORT }}
+55:           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL
+56:           script: |
+57:             set -e
+58:             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
+59:             docker pull ghcr.io/${{ github.repository }}:latest
+60: 
+61:             docker network inspect red_interna >/dev/null 2>&1 || \
+62:               docker network create --driver bridge red_interna
+63: 
+64:             mkdir -p /etc/ciudadano-front
+65:             printf '%s\n' \
+66:               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
+67:               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
+68:               > /etc/ciudadano-front/.env
+69:             chmod 600 /etc/ciudadano-front/.env
+70: 
+71:             docker stop ciudadano-front || true
+72:             docker rm   ciudadano-front || true
+73: 
+74:             # Sin -p: se sirve solo en red_interna, igual que
+75:             # catamarcaopen-front / noticias-front / registro-front.
+76:             # Nginx Proxy Manager lo enruta por nombre de contenedor.
+77:             docker run -d \
+78:               --name    ciudadano-front \
+79:               --restart always \
+80:               --network red_interna \
+81:               --env-file /etc/ciudadano-front/.env \
+82:               ghcr.io/${{ github.repository }}:latest
+83: 
+84:             sleep 3
+85:             docker logs ciudadano-front --tail 20
+86:             docker image prune -f
+```
+
 ## File: app/cursos/[id]/page.tsx
 ```typescript
   1: // app/cursos/[id]/page.tsx — Server Component
@@ -10101,33 +10102,36 @@ x.sh
 21:     --mount=type=secret,id=NEXT_PUBLIC_CIUDADANO_API_URL \
 22:     --mount=type=secret,id=NEXT_PUBLIC_CURSOS_API_URL \
 23:     --mount=type=secret,id=NEXT_PUBLIC_REGISTRO_URL \
-24:     NEXT_GROQ_API_KEY=$(cat /run/secrets/NEXT_GROQ_API_KEY) \
-25:     NEXT_GROQ_MODEL=$(cat /run/secrets/NEXT_GROQ_MODEL) \
-26:     NEXT_PUBLIC_FIREBASE_API_KEY=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_API_KEY) \
-27:     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) \
-28:     NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_PROJECT_ID) \
-29:     NEXT_PUBLIC_FIREBASE_APP_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_APP_ID) \
-30:     NEXT_PUBLIC_CIUDADANO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CIUDADANO_API_URL) \
-31:     NEXT_PUBLIC_CURSOS_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CURSOS_API_URL) \
-32:     NEXT_PUBLIC_REGISTRO_URL=$(cat /run/secrets/NEXT_PUBLIC_REGISTRO_URL) \
-33:     pnpm run build
-34: 
-35: # ─── Stage 3: runner ─────────────────────────────────────────
-36: FROM node:22-alpine AS runner
-37: WORKDIR /app
-38: ENV NODE_ENV=production
-39: ENV NEXT_TELEMETRY_DISABLED=1
-40: RUN addgroup --system --gid 1001 nodejs
-41: RUN adduser  --system --uid 1001 nextjs
-42: COPY --from=builder /app/public ./public
-43: RUN mkdir .next && chown nextjs:nodejs .next
-44: COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-45: COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-46: USER nextjs
-47: EXPOSE 3000
-48: ENV PORT=3000
-49: ENV HOSTNAME="0.0.0.0"
-50: CMD ["node", "server.js"]
+24:     --mount=type=secret,id=NOTICIAS_API_URL \
+25:     NEXT_GROQ_API_KEY=$(cat /run/secrets/NEXT_GROQ_API_KEY) \
+26:     NEXT_GROQ_MODEL=$(cat /run/secrets/NEXT_GROQ_MODEL) \
+27:     NEXT_PUBLIC_FIREBASE_API_KEY=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_API_KEY) \
+28:     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) \
+29:     NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_PROJECT_ID) \
+30:     NEXT_PUBLIC_FIREBASE_APP_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_APP_ID) \
+31:     NEXT_PUBLIC_CIUDADANO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CIUDADANO_API_URL) \
+32:     NEXT_PUBLIC_CURSOS_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CURSOS_API_URL) \
+33:     NEXT_PUBLIC_REGISTRO_URL=$(cat /run/secrets/NEXT_PUBLIC_REGISTRO_URL) \
+34:     NOTICIAS_API_URL=$(cat /run/secrets/NOTICIAS_API_URL) \
+35:     
+36:     pnpm run build
+37: 
+38: # ─── Stage 3: runner ─────────────────────────────────────────
+39: FROM node:22-alpine AS runner
+40: WORKDIR /app
+41: ENV NODE_ENV=production
+42: ENV NEXT_TELEMETRY_DISABLED=1
+43: RUN addgroup --system --gid 1001 nodejs
+44: RUN adduser  --system --uid 1001 nextjs
+45: COPY --from=builder /app/public ./public
+46: RUN mkdir .next && chown nextjs:nodejs .next
+47: COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+48: COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+49: USER nextjs
+50: EXPOSE 3000
+51: ENV PORT=3000
+52: ENV HOSTNAME="0.0.0.0"
+53: CMD ["node", "server.js"]
 ```
 
 ## File: x.sh
