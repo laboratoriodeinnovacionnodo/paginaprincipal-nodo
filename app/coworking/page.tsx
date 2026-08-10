@@ -1,178 +1,197 @@
 "use client"
-import { CodeTitle } from "@/components/shared/code-title"
-import Link from "next/link"
-import Image from "next/image"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+
+import { Badge }  from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Armchair, Users, MapPin, Clock, Navigation, Loader2 } from "lucide-react"
-import { useCoworking } from "@/hooks/coworking/use-coworking"
-import { obtenerColorBadge, obtenerTextoEstado, contarPorEstado } from "@/lib/coworking/utils"
+import { Card, CardContent } from "@/components/ui/card"
+import { useCoworking }       from "@/hooks/coworking/use-coworking"
+import {
+  obtenerColorBadge,
+  obtenerTextoEstado,
+  contarPorEstado,
+} from "@/lib/coworking/utils"
+import type { EstadoAsiento } from "@/lib/coworking/types"
+import {
+  Armchair,
+  RefreshCw,
+  Clock,
+  WifiOff,
+  Loader2,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+
+// ─── leyenda de estados ────────────────────────────────────────────────────
+const ESTADOS: { estado: EstadoAsiento; label: string; color: string }[] = [
+  { estado: "LIBRE",             label: "Libre",             color: "bg-green-500" },
+  { estado: "OCUPADO",           label: "Ocupado",           color: "bg-red-500"   },
+  { estado: "PARA_COMPARTIR",    label: "Para compartir",    color: "bg-orange-400"},
+  { estado: "COMPARTIDO",        label: "Compartido",        color: "bg-orange-500"},
+  { estado: "LIMPIANDO",         label: "Limpiando",         color: "bg-blue-500"  },
+  { estado: "FUERA_DE_SERVICIO", label: "Fuera de servicio", color: "bg-gray-400"  },
+]
 
 export default function CoworkingPage() {
-  const { asientos, ultimaActualizacion, loading } = useCoworking()
+  const { areas, loading, error, ultimaActualizacion, refetch } = useCoworking()
+
+  // Agrupar por zona (primera palabra de la descripción o "General")
+  const zonas = areas.reduce<Record<string, typeof areas>>((acc, area) => {
+    const zona = area.descripcion
+      ? area.descripcion.split(" - ")[0]
+      : "General"
+    if (!acc[zona]) acc[zona] = []
+    acc[zona].push(area)
+    return acc
+  }, {})
+
+  const libres = contarPorEstado(areas, "LIBRE")
+  const total  = areas.length
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
-      <main>
-        <section className="relative overflow-hidden pt-24 pb-8">
-          <div className="container mx-auto px-4 text-center">
-            <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
-              Áreas del <span className="text-[#26a7fc]">Coworking</span>
-            </CodeTitle>
-            <p className="text-lg text-muted-foreground mb-4 text-pretty max-w-3xl mx-auto leading-relaxed">
-              Consulta en tiempo real la disponibilidad de las áreas de trabajo. Visualiza el estado de cada espacio
-              antes de visitar nuestras instalaciones.
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span>Última actualización: {ultimaActualizacion}</span>
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-cyan-50 via-white to-blue-50">
+      <main className="container mx-auto px-4 py-12 max-w-5xl">
+
+        {/* ── Encabezado ─────────────────────────────────────────────── */}
+        <div className="mb-10 text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#26a7fc]/10 mb-4">
+            <Armchair className="w-7 h-7 text-[#26a7fc]" />
           </div>
-        </section>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+            Disponibilidad de Áreas
+          </h1>
+          <p className="text-gray-500 text-base max-w-xl mx-auto">
+            Consultá en tiempo real el estado de cada espacio antes de acercarte
+            al Nodo Tecnológico.
+          </p>
 
-        <section className="pb-6">
-          <div className="container mx-auto px-4">
-            {!loading && asientos.length > 0 && (
-              <div className="mb-6">
-                <div className="flex flex-wrap justify-center gap-4 py-4">
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-green-500 hover:bg-green-500 border-green-500 border-2">
-                      <Armchair className="h-3 w-3 mr-1" />
-                      Libre
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">({contarPorEstado(asientos, "libre")})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-red-600 hover:bg-red-600 border-red-600 border-2">
-                      <Armchair className="h-3 w-3 mr-1" />
-                      Ocupado
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">({contarPorEstado(asientos, "ocupado")})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-gray-500 hover:bg-gray-500 border-gray-500 border-2">
-                      <Armchair className="h-3 w-3 mr-1" />
-                      Fuera de servicio
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      ({contarPorEstado(asientos, "fuera-servicio")})
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-blue-500 hover:bg-blue-500 border-blue-500 border-2">
-                      <Armchair className="h-3 w-3 mr-1" />
-                      Limpiando
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">({contarPorEstado(asientos, "limpiando")})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-orange-500 hover:bg-orange-500 border-orange-500 border-2">
-                      <Users className="h-3 w-3 mr-1" />
-                      Para compartir
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">({contarPorEstado(asientos, "compartir")})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-orange-600 hover:bg-orange-600 border-orange-600 border-2">
-                      <Users className="h-3 w-3 mr-1" />
-                      Compartido
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">({contarPorEstado(asientos, "compartido")})</span>
-                  </div>
-                </div>
-              </div>
-            )}
+          {/* última actualización */}
+          <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-400">
+            <Clock className="w-4 h-4" />
+            {ultimaActualizacion
+              ? <span>Actualizado a las {ultimaActualizacion}</span>
+              : <span>Cargando...</span>
+            }
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full hover:bg-[#26a7fc]/10"
+              onClick={refetch}
+              aria-label="Actualizar"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-[#26a7fc]" />
+            </Button>
+          </div>
+        </div>
 
-            <Card className="bg-white/70 backdrop-blur-sm">
-              <CardContent className="p-6">
-                {loading ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <Loader2 className="h-12 w-12 animate-spin text-[#26a7fc] mb-4" />
-                    <p className="text-muted-foreground">Cargando áreas del coworking...</p>
-                  </div>
-                ) : asientos.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground">No hay áreas disponibles en este momento.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-                    {asientos.map((asiento) => (
-                      <Link key={asiento.id} href={`/coworking/${asiento.numero}`}>
-                        <div className="relative group">
-                          <div className="aspect-square rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all hover:scale-105 relative">
-                            <Image
-                              src={asiento.imagen || "/placeholder.svg"}
-                              alt={asiento.nombre}
-                              fill
-                              className="object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors" />
-
-                            {/* Badge de estado */}
-                            <div className="absolute top-2 right-2">
-                              <Badge className={`${obtenerColorBadge(asiento.estado)} text-white border-2 text-xs`}>
-                                {obtenerTextoEstado(asiento.estado)}
-                              </Badge>
-                            </div>
-
-                            {/* Número del asiento */}
-                            <div className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-sm text-white px-2.5 py-1.5 rounded-xl font-bold text-base shadow-lg border border-white/20">
-                              #{asiento.numero}
-                            </div>
-
-                            {/* Notificaciones */}
-                            {asiento.notificaciones && (
-                              <div className="absolute -top-1 -right-1 bg-black text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-white shadow-md z-10">
-                                {asiento.notificaciones}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
+        {/* ── Resumen numérico ────────────────────────────────────────── */}
+        {!loading && !error && total > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
+            <Card className="text-center py-4 border-green-200 bg-green-50/60">
+              <p className="text-2xl font-bold text-green-600">{libres}</p>
+              <p className="text-xs text-green-700 font-medium mt-0.5">Disponibles</p>
             </Card>
-
-            <Card className="mt-8 bg-gradient-to-br from-[#26a7fc] via-cyan-600 to-blue-600 text-white border-0 shadow-2xl">
-              <CardContent className="text-center py-8 px-6">
-                <h2 className="text-2xl font-bold text-white mb-4">Sistema de Reservas</h2>
-                <p className="text-lg text-white/95 max-w-2xl mx-auto text-pretty leading-relaxed mb-6">
-                  Las reservas se realizan <strong>por orden de llegada</strong> directamente en nuestras oficinas. Esta
-                  página es <strong>únicamente informativa</strong> para que puedas consultar el estado de los asientos
-                  en tiempo real antes de visitarnos.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6 text-white/95">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    <div className="text-left">
-                      <p className="font-semibold">Horarios de Atención</p>
-                      <p className="text-sm">Lunes a Viernes: 8:00 - 20:00</p>
-                      <p className="text-sm">Sábados: 9:00 - 14:00</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    <div className="text-left">
-                      <p className="font-semibold">Ubicación</p>
-                      <p className="text-sm">Av. Principal 123, Catamarca</p>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  size="lg"
-                  className="bg-white text-[#26a7fc] hover:bg-gray-100 font-semibold"
-                  onClick={() => window.open("https://maps.google.com", "_blank")}
-                >
-                  <Navigation className="mr-2 h-5 w-5" />
-                  Cómo Llegar al Edificio
-                </Button>
-              </CardContent>
+            <Card className="text-center py-4 border-red-200 bg-red-50/60">
+              <p className="text-2xl font-bold text-red-500">
+                {contarPorEstado(areas, "OCUPADO")}
+              </p>
+              <p className="text-xs text-red-600 font-medium mt-0.5">Ocupados</p>
+            </Card>
+            <Card className="text-center py-4 col-span-2 sm:col-span-1 border-gray-200 bg-gray-50/60">
+              <p className="text-2xl font-bold text-gray-700">{total}</p>
+              <p className="text-xs text-gray-500 font-medium mt-0.5">Total de áreas</p>
             </Card>
           </div>
-        </section>
+        )}
+
+        {/* ── Leyenda de estados ─────────────────────────────────────── */}
+        <div className="flex flex-wrap gap-2 justify-center mb-8">
+          {ESTADOS.map(({ estado, label, color }) => (
+            <span
+              key={estado}
+              className="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm"
+            >
+              <span className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", color)} />
+              {label}
+            </span>
+          ))}
+        </div>
+
+        {/* ── Estados de carga / error / vacío ───────────────────────── */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
+            <Loader2 className="w-10 h-10 animate-spin text-[#26a7fc]" />
+            <p className="text-sm">Cargando áreas...</p>
+          </div>
+        )}
+
+        {!loading && error && (
+          <Card className="border-red-200 bg-red-50/50 py-10">
+            <CardContent className="flex flex-col items-center gap-3 text-center">
+              <WifiOff className="w-10 h-10 text-red-400" />
+              <p className="text-red-600 font-medium">{error}</p>
+              <Button variant="outline" size="sm" onClick={refetch} className="mt-2">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Reintentar
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {!loading && !error && total === 0 && (
+          <div className="text-center py-20 text-gray-400">
+            <Armchair className="w-12 h-12 mx-auto mb-3 opacity-40" />
+            <p className="text-sm">No hay áreas registradas en este momento.</p>
+          </div>
+        )}
+
+        {/* ── Grilla de áreas agrupadas por zona ─────────────────────── */}
+        {!loading && !error && total > 0 && (
+          <div className="space-y-8">
+            {Object.entries(zonas).map(([zona, areasDeZona]) => (
+              <section key={zona}>
+                <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-3 pl-1">
+                  {zona}
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {areasDeZona.map((area) => (
+                    <div
+                      key={area.id}
+                      className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2 hover:shadow-md transition-shadow"
+                    >
+                      {/* punto de color */}
+                      <span
+                        className={cn(
+                          "w-3 h-3 rounded-full flex-shrink-0",
+                          obtenerColorBadge(area.estado),
+                        )}
+                      />
+                      {/* nombre del área */}
+                      <span className="text-sm font-bold text-gray-800 tracking-wide">
+                        {area.nombre}
+                      </span>
+                      {/* badge de estado */}
+                      <Badge
+                        className={cn(
+                          "text-[10px] px-2 py-0.5 rounded-full text-white border-0 font-medium",
+                          obtenerColorBadge(area.estado),
+                        )}
+                      >
+                        {obtenerTextoEstado(area.estado)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+
+        {/* ── Pie informativo ─────────────────────────────────────────── */}
+        {!loading && !error && total > 0 && (
+          <p className="text-center text-xs text-gray-400 mt-12">
+            Se actualiza automáticamente cada 30 segundos. Para reservar un
+            espacio acercate a recepción.
+          </p>
+        )}
+
       </main>
     </div>
   )

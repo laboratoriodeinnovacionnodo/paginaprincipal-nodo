@@ -1,47 +1,42 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import type { Asiento } from "@/lib/coworking/types"
-import { getAreas, convertAreaToAsiento } from "@/lib/coworking/api"
+import { useState, useEffect, useCallback } from "react"
+import type { AreaBackendResponse } from "@/lib/coworking/types"
+import { getAreas } from "@/lib/coworking/api"
 
-export const useCoworking = () => {
-  const [asientos, setAsientos] = useState<Asiento[]>([])
-  const [ultimaActualizacion, setUltimaActualizacion] = useState<string>("")
-  const [loading, setLoading] = useState(true)
+const POLL_INTERVAL = 30_000 // 30 segundos
 
-  useEffect(() => {
-    const cargarAreas = async () => {
-      setLoading(true)
-      const areas = await getAreas()
-      const asientosFromAPI = areas.map(convertAreaToAsiento)
-      setAsientos(asientosFromAPI)
+export function useCoworking() {
+  const [areas, setAreas]               = useState<AreaBackendResponse[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState<string | null>(null)
+  const [ultimaActualizacion, setUltima]= useState<string>("")
+
+  const cargar = useCallback(async () => {
+    try {
+      const data = await getAreas()
+      setAreas(data)
+      setError(null)
+    } catch (e) {
+      setError("No se pudo conectar con el servidor de coworking.")
+      console.error(e)
+    } finally {
       setLoading(false)
+      setUltima(
+        new Date().toLocaleTimeString("es-AR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+      )
     }
-
-    cargarAreas()
-    actualizarHora()
-
-    const interval = setInterval(() => {
-      actualizarHora()
-    }, 1000)
-
-    return () => clearInterval(interval)
   }, [])
 
-  const actualizarHora = () => {
-    const ahora = new Date()
-    setUltimaActualizacion(
-      ahora.toLocaleTimeString("es-AR", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }),
-    )
-  }
+  useEffect(() => {
+    cargar()
+    const id = setInterval(cargar, POLL_INTERVAL)
+    return () => clearInterval(id)
+  }, [cargar])
 
-  return {
-    asientos,
-    ultimaActualizacion,
-    loading,
-  }
+  return { areas, loading, error, ultimaActualizacion, refetch: cargar }
 }
