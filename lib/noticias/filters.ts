@@ -1,37 +1,27 @@
-import type { Noticia } from "./types"
+import type { Noticia } from './types'
 
-export const filterNoticias = (noticias: Noticia[], tags: string[], busqueda: string): Noticia[] => {
-  return noticias.filter((noticia) => {
-    const matchTags = tags.length === 0 || tags.some((tag) => noticia.tags.includes(tag))
+export function filterNoticias(
+  noticias: Noticia[],
+  tags: string[],
+  busqueda: string,
+): Noticia[] {
+  return noticias.filter((n) => {
+    const matchTags =
+      tags.length === 0 ||
+      n.tags.some((t) => tags.includes(t.nombre))
+
+    const q = busqueda.toLowerCase()
     const matchBusqueda =
-      busqueda === "" ||
-      noticia.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
-      noticia.descripcion.toLowerCase().includes(busqueda.toLowerCase()) ||
-      noticia.tags.some((tag) => tag.toLowerCase().includes(busqueda.toLowerCase()))
+      busqueda === '' ||
+      n.titulo.toLowerCase().includes(q) ||
+      (n.resumen ?? '').toLowerCase().includes(q) ||
+      n.tags.some((t) => t.nombre.toLowerCase().includes(q))
+
     return matchTags && matchBusqueda
   })
 }
 
-export const getCategoriaColor = (categoria: string) => {
-  switch (categoria) {
-    case "eventos":
-      return "border-blue-300 bg-blue-50 text-blue-700"
-    case "tecnologia":
-      return "border-purple-300 bg-purple-50 text-purple-700"
-    case "comunidad":
-      return "border-green-300 bg-green-50 text-green-700"
-    default:
-      return "border-gray-300 bg-gray-50 text-gray-700"
-  }
-}
-
-export const getTagsByCategoria = (noticias: Noticia[], categoria: string): string[] => {
-  const noticiasFiltradas = categoria === "todas" ? noticias : noticias.filter((n) => n.categoria === categoria)
-
-  const tagsSet = new Set<string>()
-  noticiasFiltradas.forEach((noticia) => {
-    noticia.tags.forEach((tag) => tagsSet.add(tag))
-  })
-
-  return Array.from(tagsSet).sort()
+export function getCategoriaColor(color?: string): string {
+  if (color) return color
+  return '#26a7fc'
 }
