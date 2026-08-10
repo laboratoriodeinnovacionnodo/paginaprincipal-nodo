@@ -22,7 +22,7 @@ function mapArea(area: AreaBackendResponse): AreaCoworkingAPI {
 
 export async function getAreas(): Promise<AreaCoworkingAPI[]> {
   try {
-    const res = await fetch(`${BASE}/area`, {
+    const res = await fetch(`${BASE}/areas`, {
       cache: "no-store",
       headers: { "Content-Type": "application/json" },
     })
@@ -37,7 +37,7 @@ export async function getAreas(): Promise<AreaCoworkingAPI[]> {
 
 export async function getAreaById(id: number): Promise<AreaCoworkingAPI | null> {
   try {
-    const res = await fetch(`${BASE}/area/${id}`, {
+    const res = await fetch(`${BASE}/areas/${id}`, {
       cache: "no-store",
       headers: { "Content-Type": "application/json" },
     })
