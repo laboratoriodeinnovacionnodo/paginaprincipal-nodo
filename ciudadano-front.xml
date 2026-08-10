@@ -6975,24 +6975,6 @@ x.sh
 103: }
 ```
 
-## File: lib/coworking/api.ts
-```typescript
- 1: import type { AreaBackendResponse } from "./types"
- 2: 
- 3: const BASE = (
- 4:   process.env.NEXT_PUBLIC_COWORKING_URL ?? "http://localhost:3550"
- 5: ).replace(/\/$/, "")
- 6: 
- 7: export async function getAreas(): Promise<AreaBackendResponse[]> {
- 8:   const res = await fetch(`${BASE}/area`, {
- 9:     cache: "no-store",
-10:     headers: { "Content-Type": "application/json" },
-11:   })
-12:   if (!res.ok) throw new Error(`[coworking-api] GET /area → ${res.status}`)
-13:   return res.json()
-14: }
-```
-
 ## File: lib/cursos/api.ts
 ```typescript
  1: // lib/cursos/api.ts
@@ -8342,25 +8324,6 @@ x.sh
 42: }
 ```
 
-## File: lib/coworking/types.ts
-```typescript
- 1: export type EstadoAsiento =
- 2:   | "LIBRE"
- 3:   | "OCUPADO"
- 4:   | "LIMPIANDO"
- 5:   | "FUERA_DE_SERVICIO"
- 6:   | "PARA_COMPARTIR"
- 7:   | "COMPARTIDO"
- 8: 
- 9: export type AreaBackendResponse = {
-10:   id: number
-11:   nombre: string
-12:   descripcion: string | null
-13:   estado: EstadoAsiento
-14:   createdAt: string
-15: }
-```
-
 ## File: lib/coworking/utils.ts
 ```typescript
  1: import type { EstadoAsiento } from "./types"
@@ -9137,6 +9100,125 @@ x.sh
 170:     </header>
 171:   )
 172: }
+```
+
+## File: lib/coworking/api.ts
+```typescript
+ 1: import type { AreaBackendResponse, AreaCoworkingAPI, Asiento } from "./types"
+ 2: 
+ 3: const BASE = (
+ 4:   process.env.NEXT_PUBLIC_COWORKING_URL ?? "http://localhost:3550"
+ 5: ).replace(/\/$/, "")
+ 6: 
+ 7: function mapArea(area: AreaBackendResponse): AreaCoworkingAPI {
+ 8:   return {
+ 9:     id: area.id,
+10:     nombre: area.nombre,
+11:     tipo: "Espacio de trabajo",
+12:     capacidad: 1,
+13:     equipamiento: ["Wi-Fi", "Escritorio ergonómico", "Silla cómoda"],
+14:     estado: area.estado,
+15:     imagen: "/modern-coworking-space.png",
+16:     descripcion: area.descripcion ?? undefined,
+17:     disponible: area.estado === "LIBRE" || area.estado === "PARA_COMPARTIR",
+18:     servicios: ["Wi-Fi", "Café gratis", "Impresora"],
+19:     imagenesAdicionales: [],
+20:   }
+21: }
+22: 
+23: export async function getAreas(): Promise<AreaCoworkingAPI[]> {
+24:   try {
+25:     const res = await fetch(`${BASE}/areas`, {
+26:       cache: "no-store",
+27:       headers: { "Content-Type": "application/json" },
+28:     })
+29:     if (!res.ok) throw new Error(`[coworking-api] GET /area → ${res.status}`)
+30:     const data: AreaBackendResponse[] = await res.json()
+31:     return data.map(mapArea)
+32:   } catch (error) {
+33:     console.error("[coworking-api] getAreas:", error)
+34:     return []
+35:   }
+36: }
+37: 
+38: export async function getAreaById(id: number): Promise<AreaCoworkingAPI | null> {
+39:   try {
+40:     const res = await fetch(`${BASE}/areas/${id}`, {
+41:       cache: "no-store",
+42:       headers: { "Content-Type": "application/json" },
+43:     })
+44:     if (res.status === 404) return null
+45:     if (!res.ok) throw new Error(`[coworking-api] GET /area/${id} → ${res.status}`)
+46:     const area: AreaBackendResponse = await res.json()
+47:     return mapArea(area)
+48:   } catch (error) {
+49:     console.error("[coworking-api] getAreaById:", error)
+50:     return null
+51:   }
+52: }
+53: 
+54: export function convertAreaToAsiento(area: AreaCoworkingAPI): Asiento {
+55:   return {
+56:     id: `asiento-${area.id}`,
+57:     numero: area.id,
+58:     estado: area.estado,
+59:     notificaciones: undefined,
+60:     imagen: area.imagen ?? "/modern-coworking-space.png",
+61:     nombre: area.nombre,
+62:   }
+63: }
+```
+
+## File: lib/coworking/types.ts
+```typescript
+ 1: export type EstadoAsiento =
+ 2:   | "LIBRE"
+ 3:   | "OCUPADO"
+ 4:   | "LIMPIANDO"
+ 5:   | "FUERA_DE_SERVICIO"
+ 6:   | "PARA_COMPARTIR"
+ 7:   | "COMPARTIDO"
+ 8: 
+ 9: export type AreaBackendResponse = {
+10:   id: number
+11:   nombre: string
+12:   descripcion: string | null
+13:   estado: EstadoAsiento
+14:   createdAt: string
+15: }
+16: 
+17: export type AreaCoworkingAPI = {
+18:   id: number
+19:   nombre: string
+20:   tipo: string
+21:   capacidad: number
+22:   equipamiento: string[]
+23:   estado: EstadoAsiento
+24:   imagen?: string
+25:   descripcion?: string
+26:   precio?: string
+27:   disponible: boolean
+28:   servicios?: string[]
+29:   imagenesAdicionales?: string[]
+30:   detalles?: {
+31:     area?: string
+32:     iluminacion?: string
+33:     mobiliario?: string[]
+34:     tecnologia?: string[]
+35:     accesoHorario?: string
+36:   }
+37:   usosPrincipales?: string[]
+38:   caracteristicas?: string[]
+39: }
+40: 
+41: export type Asiento = {
+42:   id: string
+43:   numero: number
+44:   estado: EstadoAsiento
+45:   notificaciones?: number
+46:   imagen: string
+47:   nombre: string
+48: }
 ```
 
 ## File: lib/cursos/types.ts
@@ -10300,385 +10382,143 @@ x.sh
 ```bash
   1: #!/usr/bin/env bash
   2: # =============================================================================
-  3: # ciudadano-coworking-view.sh
-  4: # Agrega vista pública de disponibilidad de áreas de coworking
-  5: # en ciudadano-front — el ciudadano SOLO ve el estado, sin interacción.
-  6: #
-  7: # Archivos creados/modificados:
-  8: #   app/coworking/page.tsx          → página principal (grilla de áreas)
-  9: #   lib/coworking/api.ts            → cliente hacia coworking-back (sin cambios si ya existe)
- 10: #   lib/coworking/types.ts          → tipos (sin cambios si ya existe)
- 11: #   lib/coworking/utils.ts          → helpers de color/texto (sin cambios si ya existe)
- 12: #   hooks/coworking/use-coworking.ts → hook de polling (sin cambios si ya existe)
- 13: # =============================================================================
- 14: set -euo pipefail
- 15: 
- 16: echo "🔧 [ciudadano-front] Configurando vista de coworking (solo lectura)..."
- 17: 
- 18: # ---------------------------------------------------------------------------
- 19: # 1. lib/coworking/types.ts — tipos base
- 20: # ---------------------------------------------------------------------------
- 21: mkdir -p lib/coworking
- 22: 
- 23: cat > lib/coworking/types.ts << 'EOF'
- 24: export type EstadoAsiento =
- 25:   | "LIBRE"
- 26:   | "OCUPADO"
- 27:   | "LIMPIANDO"
- 28:   | "FUERA_DE_SERVICIO"
- 29:   | "PARA_COMPARTIR"
- 30:   | "COMPARTIDO"
- 31: 
- 32: export type AreaBackendResponse = {
- 33:   id: number
- 34:   nombre: string
- 35:   descripcion: string | null
- 36:   estado: EstadoAsiento
- 37:   createdAt: string
- 38: }
- 39: EOF
- 40: echo "✅ lib/coworking/types.ts"
- 41: 
- 42: # ---------------------------------------------------------------------------
- 43: # 2. lib/coworking/utils.ts — helpers de color y texto
- 44: # ---------------------------------------------------------------------------
- 45: cat > lib/coworking/utils.ts << 'EOF'
- 46: import type { EstadoAsiento } from "./types"
- 47: 
- 48: export const obtenerColorBadge = (estado: EstadoAsiento): string => {
- 49:   switch (estado) {
- 50:     case "LIBRE":            return "bg-green-500"
- 51:     case "OCUPADO":          return "bg-red-500"
- 52:     case "FUERA_DE_SERVICIO":return "bg-gray-400"
- 53:     case "LIMPIANDO":        return "bg-blue-500"
- 54:     case "PARA_COMPARTIR":   return "bg-orange-400"
- 55:     case "COMPARTIDO":       return "bg-orange-500"
- 56:     default:                 return "bg-gray-300"
- 57:   }
- 58: }
- 59: 
- 60: export const obtenerTextoEstado = (estado: EstadoAsiento): string => {
- 61:   switch (estado) {
- 62:     case "LIBRE":            return "Libre"
- 63:     case "OCUPADO":          return "Ocupado"
- 64:     case "FUERA_DE_SERVICIO":return "Fuera de servicio"
- 65:     case "LIMPIANDO":        return "Limpiando"
- 66:     case "PARA_COMPARTIR":   return "Para compartir"
- 67:     case "COMPARTIDO":       return "Compartido"
- 68:     default:                 return "Desconocido"
- 69:   }
- 70: }
- 71: 
- 72: export const obtenerIconoEstado = (estado: EstadoAsiento): string => {
- 73:   switch (estado) {
- 74:     case "LIBRE":            return "✅"
- 75:     case "OCUPADO":          return "🔴"
- 76:     case "FUERA_DE_SERVICIO":return "⚫"
- 77:     case "LIMPIANDO":        return "🔵"
- 78:     case "PARA_COMPARTIR":   return "🟠"
- 79:     case "COMPARTIDO":       return "🟠"
- 80:     default:                 return "⚪"
- 81:   }
- 82: }
- 83: 
- 84: export const contarPorEstado = (
- 85:   areas: { estado: EstadoAsiento }[],
- 86:   estado: EstadoAsiento,
- 87: ): number => areas.filter((a) => a.estado === estado).length
- 88: EOF
- 89: echo "✅ lib/coworking/utils.ts"
- 90: 
- 91: # ---------------------------------------------------------------------------
- 92: # 3. lib/coworking/api.ts — fetch hacia coworking-back
- 93: # ---------------------------------------------------------------------------
- 94: cat > lib/coworking/api.ts << 'EOF'
- 95: import type { AreaBackendResponse } from "./types"
- 96: 
- 97: const BASE = (
- 98:   process.env.NEXT_PUBLIC_COWORKING_URL ?? "http://localhost:3550"
- 99: ).replace(/\/$/, "")
-100: 
-101: export async function getAreas(): Promise<AreaBackendResponse[]> {
-102:   const res = await fetch(`${BASE}/area`, {
-103:     cache: "no-store",
-104:     headers: { "Content-Type": "application/json" },
-105:   })
-106:   if (!res.ok) throw new Error(`[coworking-api] GET /area → ${res.status}`)
-107:   return res.json()
-108: }
-109: EOF
-110: echo "✅ lib/coworking/api.ts"
-111: 
-112: # ---------------------------------------------------------------------------
-113: # 4. hooks/coworking/use-coworking.ts — polling cada 30 segundos
-114: # ---------------------------------------------------------------------------
-115: mkdir -p hooks/coworking
-116: 
-117: cat > hooks/coworking/use-coworking.ts << 'EOF'
-118: "use client"
-119: 
-120: import { useState, useEffect, useCallback } from "react"
-121: import type { AreaBackendResponse } from "@/lib/coworking/types"
-122: import { getAreas } from "@/lib/coworking/api"
-123: 
-124: const POLL_INTERVAL = 30_000 // 30 segundos
-125: 
-126: export function useCoworking() {
-127:   const [areas, setAreas]               = useState<AreaBackendResponse[]>([])
-128:   const [loading, setLoading]           = useState(true)
-129:   const [error, setError]               = useState<string | null>(null)
-130:   const [ultimaActualizacion, setUltima]= useState<string>("")
-131: 
-132:   const cargar = useCallback(async () => {
-133:     try {
-134:       const data = await getAreas()
-135:       setAreas(data)
-136:       setError(null)
-137:     } catch (e) {
-138:       setError("No se pudo conectar con el servidor de coworking.")
-139:       console.error(e)
-140:     } finally {
-141:       setLoading(false)
-142:       setUltima(
-143:         new Date().toLocaleTimeString("es-AR", {
-144:           hour: "2-digit",
-145:           minute: "2-digit",
-146:           second: "2-digit",
-147:         }),
-148:       )
-149:     }
-150:   }, [])
-151: 
-152:   useEffect(() => {
-153:     cargar()
-154:     const id = setInterval(cargar, POLL_INTERVAL)
-155:     return () => clearInterval(id)
-156:   }, [cargar])
-157: 
-158:   return { areas, loading, error, ultimaActualizacion, refetch: cargar }
-159: }
-160: EOF
-161: echo "✅ hooks/coworking/use-coworking.ts"
-162: 
-163: # ---------------------------------------------------------------------------
-164: # 5. app/coworking/page.tsx — vista pública, solo lectura
-165: # ---------------------------------------------------------------------------
-166: mkdir -p app/coworking
-167: 
-168: cat > app/coworking/page.tsx << 'EOF'
-169: "use client"
-170: 
-171: import { Badge }  from "@/components/ui/badge"
-172: import { Button } from "@/components/ui/button"
-173: import { Card, CardContent } from "@/components/ui/card"
-174: import { useCoworking }       from "@/hooks/coworking/use-coworking"
-175: import {
-176:   obtenerColorBadge,
-177:   obtenerTextoEstado,
-178:   contarPorEstado,
-179: } from "@/lib/coworking/utils"
-180: import type { EstadoAsiento } from "@/lib/coworking/types"
-181: import {
-182:   Armchair,
-183:   RefreshCw,
-184:   Clock,
-185:   WifiOff,
-186:   Loader2,
-187: } from "lucide-react"
-188: import { cn } from "@/lib/utils"
-189: 
-190: // ─── leyenda de estados ────────────────────────────────────────────────────
-191: const ESTADOS: { estado: EstadoAsiento; label: string; color: string }[] = [
-192:   { estado: "LIBRE",             label: "Libre",             color: "bg-green-500" },
-193:   { estado: "OCUPADO",           label: "Ocupado",           color: "bg-red-500"   },
-194:   { estado: "PARA_COMPARTIR",    label: "Para compartir",    color: "bg-orange-400"},
-195:   { estado: "COMPARTIDO",        label: "Compartido",        color: "bg-orange-500"},
-196:   { estado: "LIMPIANDO",         label: "Limpiando",         color: "bg-blue-500"  },
-197:   { estado: "FUERA_DE_SERVICIO", label: "Fuera de servicio", color: "bg-gray-400"  },
-198: ]
-199: 
-200: export default function CoworkingPage() {
-201:   const { areas, loading, error, ultimaActualizacion, refetch } = useCoworking()
-202: 
-203:   // Agrupar por zona (primera palabra de la descripción o "General")
-204:   const zonas = areas.reduce<Record<string, typeof areas>>((acc, area) => {
-205:     const zona = area.descripcion
-206:       ? area.descripcion.split(" - ")[0]
-207:       : "General"
-208:     if (!acc[zona]) acc[zona] = []
-209:     acc[zona].push(area)
-210:     return acc
-211:   }, {})
-212: 
-213:   const libres = contarPorEstado(areas, "LIBRE")
-214:   const total  = areas.length
-215: 
-216:   return (
-217:     <div className="min-h-screen bg-gradient-to-b from-cyan-50 via-white to-blue-50">
-218:       <main className="container mx-auto px-4 py-12 max-w-5xl">
-219: 
-220:         {/* ── Encabezado ─────────────────────────────────────────────── */}
-221:         <div className="mb-10 text-center">
-222:           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#26a7fc]/10 mb-4">
-223:             <Armchair className="w-7 h-7 text-[#26a7fc]" />
-224:           </div>
-225:           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-226:             Disponibilidad de Áreas
-227:           </h1>
-228:           <p className="text-gray-500 text-base max-w-xl mx-auto">
-229:             Consultá en tiempo real el estado de cada espacio antes de acercarte
-230:             al Nodo Tecnológico.
-231:           </p>
-232: 
-233:           {/* última actualización */}
-234:           <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-400">
-235:             <Clock className="w-4 h-4" />
-236:             {ultimaActualizacion
-237:               ? <span>Actualizado a las {ultimaActualizacion}</span>
-238:               : <span>Cargando...</span>
-239:             }
-240:             <Button
-241:               variant="ghost"
-242:               size="icon"
-243:               className="h-7 w-7 rounded-full hover:bg-[#26a7fc]/10"
-244:               onClick={refetch}
-245:               aria-label="Actualizar"
-246:             >
-247:               <RefreshCw className="w-3.5 h-3.5 text-[#26a7fc]" />
-248:             </Button>
-249:           </div>
-250:         </div>
-251: 
-252:         {/* ── Resumen numérico ────────────────────────────────────────── */}
-253:         {!loading && !error && total > 0 && (
-254:           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
-255:             <Card className="text-center py-4 border-green-200 bg-green-50/60">
-256:               <p className="text-2xl font-bold text-green-600">{libres}</p>
-257:               <p className="text-xs text-green-700 font-medium mt-0.5">Disponibles</p>
-258:             </Card>
-259:             <Card className="text-center py-4 border-red-200 bg-red-50/60">
-260:               <p className="text-2xl font-bold text-red-500">
-261:                 {contarPorEstado(areas, "OCUPADO")}
-262:               </p>
-263:               <p className="text-xs text-red-600 font-medium mt-0.5">Ocupados</p>
-264:             </Card>
-265:             <Card className="text-center py-4 col-span-2 sm:col-span-1 border-gray-200 bg-gray-50/60">
-266:               <p className="text-2xl font-bold text-gray-700">{total}</p>
-267:               <p className="text-xs text-gray-500 font-medium mt-0.5">Total de áreas</p>
-268:             </Card>
-269:           </div>
-270:         )}
-271: 
-272:         {/* ── Leyenda de estados ─────────────────────────────────────── */}
-273:         <div className="flex flex-wrap gap-2 justify-center mb-8">
-274:           {ESTADOS.map(({ estado, label, color }) => (
-275:             <span
-276:               key={estado}
-277:               className="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm"
-278:             >
-279:               <span className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", color)} />
-280:               {label}
-281:             </span>
-282:           ))}
-283:         </div>
-284: 
-285:         {/* ── Estados de carga / error / vacío ───────────────────────── */}
-286:         {loading && (
-287:           <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
-288:             <Loader2 className="w-10 h-10 animate-spin text-[#26a7fc]" />
-289:             <p className="text-sm">Cargando áreas...</p>
-290:           </div>
-291:         )}
-292: 
-293:         {!loading && error && (
-294:           <Card className="border-red-200 bg-red-50/50 py-10">
-295:             <CardContent className="flex flex-col items-center gap-3 text-center">
-296:               <WifiOff className="w-10 h-10 text-red-400" />
-297:               <p className="text-red-600 font-medium">{error}</p>
-298:               <Button variant="outline" size="sm" onClick={refetch} className="mt-2">
-299:                 <RefreshCw className="w-4 h-4 mr-2" />
-300:                 Reintentar
-301:               </Button>
-302:             </CardContent>
-303:           </Card>
-304:         )}
-305: 
-306:         {!loading && !error && total === 0 && (
-307:           <div className="text-center py-20 text-gray-400">
-308:             <Armchair className="w-12 h-12 mx-auto mb-3 opacity-40" />
-309:             <p className="text-sm">No hay áreas registradas en este momento.</p>
-310:           </div>
-311:         )}
-312: 
-313:         {/* ── Grilla de áreas agrupadas por zona ─────────────────────── */}
-314:         {!loading && !error && total > 0 && (
-315:           <div className="space-y-8">
-316:             {Object.entries(zonas).map(([zona, areasDeZona]) => (
-317:               <section key={zona}>
-318:                 <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-3 pl-1">
-319:                   {zona}
-320:                 </h2>
-321:                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-322:                   {areasDeZona.map((area) => (
-323:                     <div
-324:                       key={area.id}
-325:                       className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2 hover:shadow-md transition-shadow"
-326:                     >
-327:                       {/* punto de color */}
-328:                       <span
-329:                         className={cn(
-330:                           "w-3 h-3 rounded-full flex-shrink-0",
-331:                           obtenerColorBadge(area.estado),
-332:                         )}
-333:                       />
-334:                       {/* nombre del área */}
-335:                       <span className="text-sm font-bold text-gray-800 tracking-wide">
-336:                         {area.nombre}
-337:                       </span>
-338:                       {/* badge de estado */}
-339:                       <Badge
-340:                         className={cn(
-341:                           "text-[10px] px-2 py-0.5 rounded-full text-white border-0 font-medium",
-342:                           obtenerColorBadge(area.estado),
-343:                         )}
-344:                       >
-345:                         {obtenerTextoEstado(area.estado)}
-346:                       </Badge>
-347:                     </div>
-348:                   ))}
-349:                 </div>
-350:               </section>
-351:             ))}
-352:           </div>
-353:         )}
-354: 
-355:         {/* ── Pie informativo ─────────────────────────────────────────── */}
-356:         {!loading && !error && total > 0 && (
-357:           <p className="text-center text-xs text-gray-400 mt-12">
-358:             Se actualiza automáticamente cada 30 segundos. Para reservar un
-359:             espacio acercate a recepción.
-360:           </p>
-361:         )}
-362: 
-363:       </main>
-364:     </div>
-365:   )
-366: }
-367: EOF
-368: echo "✅ app/coworking/page.tsx"
-369: 
-370: # ---------------------------------------------------------------------------
-371: # 6. Recordatorio variable de entorno
-372: # ---------------------------------------------------------------------------
-373: echo ""
-374: echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-375: echo "⚠️  VARIABLE DE ENTORNO requerida en ciudadano-front:"
-376: echo ""
-377: echo "   NEXT_PUBLIC_COWORKING_URL=https://tu-coworking-back.dominio.com"
-378: echo ""
-379: echo "   → Agregar en GitHub Secrets como NEXT_PUBLIC_COWORKING_URL"
-380: echo "   → El deploy.yml del ciudadano-front debe pasarla al build y al run"
-381: echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-382: echo ""
-383: echo "✅ Listo. Todos los archivos de coworking (solo lectura) generados."
+  3: # fix-coworking-api.sh
+  4: # Fix: restaura getAreaById + tipos completos en lib/coworking
+  5: # Ejecutar desde la raíz de ciudadano-front
+  6: # =============================================================================
+  7: set -euo pipefail
+  8: 
+  9: echo "🔧 Restaurando lib/coworking/types.ts y api.ts..."
+ 10: 
+ 11: mkdir -p lib/coworking
+ 12: 
+ 13: # ---------------------------------------------------------------------------
+ 14: # 1. types.ts — agrega Asiento y AreaCoworkingAPI que faltaban
+ 15: # ---------------------------------------------------------------------------
+ 16: cat > lib/coworking/types.ts << 'EOF'
+ 17: export type EstadoAsiento =
+ 18:   | "LIBRE"
+ 19:   | "OCUPADO"
+ 20:   | "LIMPIANDO"
+ 21:   | "FUERA_DE_SERVICIO"
+ 22:   | "PARA_COMPARTIR"
+ 23:   | "COMPARTIDO"
+ 24: 
+ 25: export type AreaBackendResponse = {
+ 26:   id: number
+ 27:   nombre: string
+ 28:   descripcion: string | null
+ 29:   estado: EstadoAsiento
+ 30:   createdAt: string
+ 31: }
+ 32: 
+ 33: export type AreaCoworkingAPI = {
+ 34:   id: number
+ 35:   nombre: string
+ 36:   tipo: string
+ 37:   capacidad: number
+ 38:   equipamiento: string[]
+ 39:   estado: EstadoAsiento
+ 40:   imagen?: string
+ 41:   descripcion?: string
+ 42:   precio?: string
+ 43:   disponible: boolean
+ 44:   servicios?: string[]
+ 45:   imagenesAdicionales?: string[]
+ 46:   detalles?: {
+ 47:     area?: string
+ 48:     iluminacion?: string
+ 49:     mobiliario?: string[]
+ 50:     tecnologia?: string[]
+ 51:     accesoHorario?: string
+ 52:   }
+ 53:   usosPrincipales?: string[]
+ 54:   caracteristicas?: string[]
+ 55: }
+ 56: 
+ 57: export type Asiento = {
+ 58:   id: string
+ 59:   numero: number
+ 60:   estado: EstadoAsiento
+ 61:   notificaciones?: number
+ 62:   imagen: string
+ 63:   nombre: string
+ 64: }
+ 65: EOF
+ 66: echo "✅ lib/coworking/types.ts"
+ 67: 
+ 68: # ---------------------------------------------------------------------------
+ 69: # 2. api.ts — getAreas + getAreaById + convertAreaToAsiento
+ 70: # ---------------------------------------------------------------------------
+ 71: cat > lib/coworking/api.ts << 'EOF'
+ 72: import type { AreaBackendResponse, AreaCoworkingAPI, Asiento } from "./types"
+ 73: 
+ 74: const BASE = (
+ 75:   process.env.NEXT_PUBLIC_COWORKING_URL ?? "http://localhost:3550"
+ 76: ).replace(/\/$/, "")
+ 77: 
+ 78: function mapArea(area: AreaBackendResponse): AreaCoworkingAPI {
+ 79:   return {
+ 80:     id: area.id,
+ 81:     nombre: area.nombre,
+ 82:     tipo: "Espacio de trabajo",
+ 83:     capacidad: 1,
+ 84:     equipamiento: ["Wi-Fi", "Escritorio ergonómico", "Silla cómoda"],
+ 85:     estado: area.estado,
+ 86:     imagen: "/modern-coworking-space.png",
+ 87:     descripcion: area.descripcion ?? undefined,
+ 88:     disponible: area.estado === "LIBRE" || area.estado === "PARA_COMPARTIR",
+ 89:     servicios: ["Wi-Fi", "Café gratis", "Impresora"],
+ 90:     imagenesAdicionales: [],
+ 91:   }
+ 92: }
+ 93: 
+ 94: export async function getAreas(): Promise<AreaCoworkingAPI[]> {
+ 95:   try {
+ 96:     const res = await fetch(`${BASE}/area`, {
+ 97:       cache: "no-store",
+ 98:       headers: { "Content-Type": "application/json" },
+ 99:     })
+100:     if (!res.ok) throw new Error(`[coworking-api] GET /area → ${res.status}`)
+101:     const data: AreaBackendResponse[] = await res.json()
+102:     return data.map(mapArea)
+103:   } catch (error) {
+104:     console.error("[coworking-api] getAreas:", error)
+105:     return []
+106:   }
+107: }
+108: 
+109: export async function getAreaById(id: number): Promise<AreaCoworkingAPI | null> {
+110:   try {
+111:     const res = await fetch(`${BASE}/area/${id}`, {
+112:       cache: "no-store",
+113:       headers: { "Content-Type": "application/json" },
+114:     })
+115:     if (res.status === 404) return null
+116:     if (!res.ok) throw new Error(`[coworking-api] GET /area/${id} → ${res.status}`)
+117:     const area: AreaBackendResponse = await res.json()
+118:     return mapArea(area)
+119:   } catch (error) {
+120:     console.error("[coworking-api] getAreaById:", error)
+121:     return null
+122:   }
+123: }
+124: 
+125: export function convertAreaToAsiento(area: AreaCoworkingAPI): Asiento {
+126:   return {
+127:     id: `asiento-${area.id}`,
+128:     numero: area.id,
+129:     estado: area.estado,
+130:     notificaciones: undefined,
+131:     imagen: area.imagen ?? "/modern-coworking-space.png",
+132:     nombre: area.nombre,
+133:   }
+134: }
+135: EOF
+136: echo "✅ lib/coworking/api.ts"
+137: 
+138: echo ""
+139: echo "✅ Fix aplicado. Ahora:"
+140: echo ""
+141: echo "   git add . && git commit -m \"fix: restaurar getAreaById y tipos en lib/coworking\" && git push origin main"
 ```
