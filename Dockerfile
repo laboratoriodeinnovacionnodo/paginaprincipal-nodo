@@ -21,6 +21,7 @@ RUN --mount=type=secret,id=NEXT_GROQ_API_KEY \
     --mount=type=secret,id=NEXT_PUBLIC_CIUDADANO_API_URL \
     --mount=type=secret,id=NEXT_PUBLIC_CURSOS_API_URL \
     --mount=type=secret,id=NEXT_PUBLIC_REGISTRO_URL \
+    --mount=type=secret,id=NOTICIAS_API_URL \
     NEXT_GROQ_API_KEY=$(cat /run/secrets/NEXT_GROQ_API_KEY) \
     NEXT_GROQ_MODEL=$(cat /run/secrets/NEXT_GROQ_MODEL) \
     NEXT_PUBLIC_FIREBASE_API_KEY=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_API_KEY) \
@@ -30,6 +31,8 @@ RUN --mount=type=secret,id=NEXT_GROQ_API_KEY \
     NEXT_PUBLIC_CIUDADANO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CIUDADANO_API_URL) \
     NEXT_PUBLIC_CURSOS_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CURSOS_API_URL) \
     NEXT_PUBLIC_REGISTRO_URL=$(cat /run/secrets/NEXT_PUBLIC_REGISTRO_URL) \
+    NOTICIAS_API_URL=$(cat /run/secrets/NOTICIAS_API_URL) \
+    
     pnpm run build
 
 # ─── Stage 3: runner ─────────────────────────────────────────

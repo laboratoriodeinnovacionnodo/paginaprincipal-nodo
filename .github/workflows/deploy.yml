@@ -40,7 +40,8 @@ jobs:
             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
-
+            NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
+            
       - name: Deploy en servidor
         uses: appleboy/ssh-action@v1
         env:
