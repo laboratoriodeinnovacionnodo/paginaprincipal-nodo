@@ -1,7 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Plus_Jakarta_Sans, Inter } from "next/font/google"
-
+import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { FooterEducacion } from "@/components/footer-educacion"
 import { Header } from "@/components/header"
@@ -103,7 +103,7 @@ export default function RootLayout({
         <FooterEducacion />
           <ChatbotWidget />
         </AuthProvider>
-
+        <Analytics />
       </body>
     </html>
   )
