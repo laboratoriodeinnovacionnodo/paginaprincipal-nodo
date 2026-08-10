@@ -1,141 +1,140 @@
 #!/usr/bin/env bash
 # =============================================================================
-# 07_ciudadano-front_fix-landing-runtime.sh
+# 09_landing-highlight-markdown.sh
+# El admin escribe el título con **texto** para marcar el highlight.
 #
-# DIAGNÓSTICO:
-#   1. NOTICIAS_API_URL está en build secrets pero NO en el docker run runtime
-#      → el contenedor arranca sin esa variable → getLandingConfig usa FALLBACK
-#   2. `next: { revalidate: 60 }` en ISR standalone no persiste entre reinicios
-#      del contenedor → siempre sirve el FALLBACK hardcodeado
+# Ejemplo en el CMS:
+#   "Conecta, Innova y **Crea el Futuro**"
+#   "hola soy agustin, **soy programador**"
+#   "**Todo el título** en azul"
 #
-# SOLUCIÓN (solo código — el deploy.yml lo editás manualmente):
-#   - lib/landing.ts: revalidate: 0 (always fresh) + logs de diagnóstico
-#   - Dockerfile: agrega NOTICIAS_API_URL como ARG/ENV en el runner stage
-#
-# CAMBIO MANUAL REQUERIDO en .github/workflows/deploy.yml (ver abajo)
+# noticias-back: sin cambios (guarda el string tal cual)
+# noticias-front: sin cambios
+# ciudadano-front: hero-section.tsx parsea ** y aplica color
 # =============================================================================
 set -euo pipefail
 
-echo "🔧 [ciudadano-front] Fix runtime NOTICIAS_API_URL..."
+echo "🔧 [ciudadano-front] Highlight con ** en el CMS..."
 
-# ─── 1. lib/landing.ts — siempre fresco, sin ISR roto ────────────────────────
-echo ""
-echo "📌 Actualizando lib/landing.ts..."
-
-cat > lib/landing.ts << 'ENDOFFILE'
+# ─── hero-section.tsx ─────────────────────────────────────────────────────────
+cat > components/home/hero-section.tsx << 'ENDOFFILE'
 /**
- * lib/landing.ts
- * Server Component — fetch siempre fresco (no ISR).
+ * components/home/hero-section.tsx
+ * Server Component.
  *
- * NOTICIAS_API_URL es una variable de entorno de SERVIDOR (sin NEXT_PUBLIC_),
- * disponible solo en runtime dentro del contenedor Docker (red_interna).
- * Valor esperado: http://noticias-back:3000
+ * El admin marca el highlight con **texto** en el CMS.
+ * Ej: "Conecta, Innova y **Crea el Futuro**"
+ *   → "Conecta, Innova y " (blanco) + "Crea el Futuro" (azul NODO)
  */
 
-const API_URL = (
-  process.env.NOTICIAS_API_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  ''
-).replace(/\/$/, '')
+import Link from "next/link"
+import { ArrowRight } from "lucide-react"
+import { Button }      from "@/components/ui/button"
+import { CounterStat } from "@/components/counter-stat"
+import { getLandingConfig } from "@/lib/landing"
 
-export interface LandingConfig {
-  titulo:      string
-  descripcion: string
-  videoUrl:    string
+/**
+ * Parsea **texto** y devuelve { before, highlight }.
+ * Si no hay **, todo queda en before (blanco) sin highlight.
+ */
+function parseTitulo(titulo: string): { before: string; highlight: string } {
+  const match = titulo.match(/^([\s\S]*?)\*([\s\S]+?)\*\s*$/)
+  if (!match) return { before: titulo, highlight: '' }
+  return { before: match[1], highlight: match[2] }
 }
 
-const FALLBACK: LandingConfig = {
-  titulo:      'Conecta, Innova y Crea el Futuro',
-  descripcion: 'El Nodo Tecnológico de Catamarca conecta innovación y Tecnología, impulsando a los jóvenes hacia las habilidades del futuro a través de cursos especializados.',
-  videoUrl:    'https://www.pexels.com/download/video/14994578/',
-}
+export async function HeroSection() {
+  const config                = await getLandingConfig()
+  const { before, highlight } = parseTitulo(config.titulo)
 
-export async function getLandingConfig(): Promise<LandingConfig> {
-  if (!API_URL) {
-    console.warn('[landing] NOTICIAS_API_URL no definida — usando fallback')
-    return FALLBACK
-  }
+  return (
+    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
 
-  try {
-    const url = `${API_URL}/api/v1/landing`
-    const res = await fetch(url, {
-      cache: 'no-store', // siempre fresco, sin ISR que se rompe en standalone
-    })
+      {/* Video de fondo */}
+      <video
+        className="absolute inset-0 w-full h-full object-cover"
+        src={config.videoUrl}
+        autoPlay loop muted playsInline
+      />
 
-    if (!res.ok) {
-      console.error(`[landing] GET ${url} → ${res.status}`)
-      return FALLBACK
-    }
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/40" />
 
-    const json = await res.json() as { data?: LandingConfig } & LandingConfig
-    const data = (json.data ?? json) as LandingConfig
+      {/* Contenido */}
+      <div className="container mx-auto px-4 py-20 relative z-10">
+        <div className="max-w-4xl mx-auto text-center">
 
-    return {
-      titulo:      data.titulo      || FALLBACK.titulo,
-      descripcion: data.descripcion || FALLBACK.descripcion,
-      videoUrl:    data.videoUrl    || FALLBACK.videoUrl,
-    }
-  } catch (err) {
-    console.error('[landing] Error al obtener config:', err)
-    return FALLBACK
-  }
+          <h1
+            className="text-5xl md:text-7xl font-bold mb-6 text-balance leading-tight text-white"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            {before}
+            {highlight && (
+              <span className="text-[#26a7fc]">{highlight}</span>
+            )}
+          </h1>
+
+          <p
+            className="text-lg md:text-xl mb-8 max-w-2xl mx-auto text-pretty text-white/80 leading-relaxed"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            {config.descripcion}
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+            <Link href="/cursos">
+              <Button
+                size="lg"
+                className="gap-2 bg-[#26a7fc] hover:bg-[#26a7fc]/90 text-white rounded-xl
+                           shadow-[0_4px_14px_rgba(38,167,252,0.35)] font-semibold px-8"
+              >
+                Ver nuestros cursos
+                <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
+              </Button>
+            </Link>
+            <Link href="/sobre-nosotros">
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-xl border-white/40 text-white hover:bg-white/10
+                           hover:border-white/60 px-8 font-semibold backdrop-blur-sm bg-transparent"
+              >
+                Sobre el Nodo
+              </Button>
+            </Link>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-8 justify-center">
+            <CounterStat end={12000} suffix="+" label="Egresados" />
+            <CounterStat end={25}    suffix="+" label="Cursos disponibles" />
+          </div>
+
+        </div>
+      </div>
+    </section>
+  )
 }
 ENDOFFILE
 
-echo "✅ lib/landing.ts actualizado (cache: no-store)"
+echo "✅ hero-section.tsx actualizado"
 
-# ─── 2. Dockerfile — pasar NOTICIAS_API_URL al runner stage ──────────────────
-echo ""
-echo "📌 Actualizando Dockerfile para incluir NOTICIAS_API_URL en runtime..."
-
-DOCKERFILE="Dockerfile"
-cp "$DOCKERFILE" "${DOCKERFILE}.bak"
-
-# Verificar si ya tiene NOTICIAS_API_URL
-if grep -q "NOTICIAS_API_URL" "$DOCKERFILE"; then
-  echo "ℹ️  Dockerfile ya tiene NOTICIAS_API_URL — verificando posición..."
-else
-  # Agregar ARG + ENV en el runner stage, después de ENV HOSTNAME=0.0.0.0
-  sed -i 's/ENV HOSTNAME=0.0.0.0/ENV HOSTNAME=0.0.0.0\n\n# Variable de servidor para conectar con noticias-back en red_interna\nARG  NOTICIAS_API_URL\nENV  NOTICIAS_API_URL=$NOTICIAS_API_URL/' "$DOCKERFILE"
-  echo "✅ NOTICIAS_API_URL agregado al runner stage del Dockerfile"
+# ─── Actualizar el placeholder del campo título en el CMS ─────────────────────
+# Reemplazar la FormDescription del campo título en noticias-front
+LANDING_PAGE="app/landing/page.tsx"
+if [ -f "$LANDING_PAGE" ]; then
+  sed -i 's/Máx. 200 caracteres · El fragmento después del último.*$/Máx. 200 caracteres · Encerrá las palabras clave entre *asteriscos* para que aparezcan en azul/' "$LANDING_PAGE"
+  sed -i 's/Máximo 200 caracteres · La parte en azul.*$/Máx. 200 caracteres · Encerrá las palabras clave entre *asteriscos* para que aparezcan en azul/' "$LANDING_PAGE"
+  sed -i 's/Máx. 200 caracteres · Encerrá.*$/Máx. 200 caracteres · Encerrá las palabras clave entre *asteriscos* para que aparezcan en azul/' "$LANDING_PAGE"
+  echo "✅ Placeholder del CMS actualizado"
 fi
 
-echo ""
-echo "════════════════════════════════════════════════════════════════"
-echo "⚠️  CAMBIOS MANUALES REQUERIDOS en .github/workflows/deploy.yml"
-echo "════════════════════════════════════════════════════════════════"
-echo ""
-echo "1️⃣  En el step 'Build y push imagen', agregar a build-args:"
-echo ""
-echo "          build-args: |"
-echo "            NEXT_PUBLIC_API_URL=\${{ secrets.NEXT_PUBLIC_API_URL }}"
-echo "            NOTICIAS_API_URL=\${{ secrets.NOTICIAS_API_URL }}"
-echo ""
-echo "2️⃣  En el step 'Deploy en servidor', agregar a envs:"
-echo ""
-echo "          envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL,NOTICIAS_API_URL"
-echo ""
-echo "3️⃣  En el script SSH, agregar al printf del .env:"
-echo ""
-echo '          printf '"'"'%s\n'"'"' \'
-echo '            "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \'
-echo '            "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \'
-echo '            "NOTICIAS_API_URL=${NOTICIAS_API_URL}" \'
-echo '            > /etc/ciudadano-front/.env'
-echo ""
-echo "════════════════════════════════════════════════════════════════"
-
-# ─── 3. Build de verificación ─────────────────────────────────────────────────
 echo ""
 echo "🔨 Verificando build..."
 pnpm build
 
 echo ""
-echo "✅ [ciudadano-front] Fix aplicado."
+echo "✅ Listo."
 echo ""
-echo "📋 Archivos modificados:"
-echo "   lib/landing.ts   ← cache: no-store (siempre fresco)"
-echo "   Dockerfile       ← NOTICIAS_API_URL en runner stage"
-echo ""
-echo "📌 Después de editar el deploy.yml y hacer push,"
-echo "   ciudadano-front leerá la config de noticias-back en cada request."
+echo "📌 En el CMS escribí el título así:"
+echo '   "Conecta, Innova y *Crea el Futuro*"'
+echo '   "hola soy agustin, *soy programador*"'
