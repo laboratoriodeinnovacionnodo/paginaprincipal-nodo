@@ -1,8 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Plus_Jakarta_Sans, Inter } from "next/font/google"
-import { Toaster } from 'sonner'
-
+import { Toaster } from '@/components/ui/sonner'
 import "./globals.css"
 import { FooterEducacion } from "@/components/footer-educacion"
 import { Header } from "@/components/header"
@@ -10,7 +9,6 @@ import { ColorSeparator } from "@/components/color-separator"
 import { StructuredData } from "@/components/seo/structured-data"
 import { ChatbotWidget } from "@/components/chatbot/chatbot-widget"
 import { AuthProvider } from "@/contexts/auth-context"
-import { Toaster } from 'sonner'
 
 const _heading = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-heading" })
 const _body = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -98,15 +96,13 @@ export default function RootLayout({
       <body className={`${_heading.variable} ${_body.variable} font-sans antialiased`}>
         <StructuredData />
         <AuthProvider>
-        <Header />
-        {children}
-        <ColorSeparator colors="w-full h-20 sm:h-32 md:h-48 bg-gradient-to-b from-blue-100 via-sky-300 to-[#26a7fc] shadow-[0_6px_15px_0_rgba(14,165,233,0.35)]" />
-
-        <FooterEducacion />
+          <Header />
+          {children}
+          <ColorSeparator colors="w-full h-20 sm:h-32 md:h-48 bg-gradient-to-b from-blue-100 via-sky-300 to-[#26a7fc] shadow-[0_6px_15px_0_rgba(14,165,233,0.35)]" />
+          <FooterEducacion />
           <ChatbotWidget />
-          <Toaster position="top-center" richColors toastOptions={{ style: { fontFamily: "var(--font-inter, Inter, sans-serif)" } }} />
+          <Toaster position="top-center" richColors />  {/* ← esta línea */}
         </AuthProvider>
-
       </body>
     </html>
   )
