@@ -2,7 +2,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,11 +13,9 @@ import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import { crearRepo } from "@/lib/catamarcaopen/api"
 
-// Regex estricta: solo URLs de github.com con owner/repo
 const GITHUB_URL_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(\/)?$/
 
 export default function NuevoProyectoCatamarcaOpenPage() {
-  const router = useRouter()
   const { user, loading, loginWithGoogle } = useAuth()
 
   const [url,         setUrl]         = useState("")
@@ -29,13 +26,12 @@ export default function NuevoProyectoCatamarcaOpenPage() {
   const [signingIn,   setSigningIn]   = useState(false)
   const [submitted,   setSubmitted]   = useState(false)
 
-  const urlValida   = GITHUB_URL_RE.test(url.trim())
-  const isValid     = urlValida && nombre.trim().length >= 2
+  const urlValida = GITHUB_URL_RE.test(url.trim())
+  const isValid   = urlValida && nombre.trim().length >= 2
 
-  // Auto-completar nombre desde la URL de GitHub
   const handleUrlBlur = () => {
     if (urlValida && !nombre.trim()) {
-      const parts = url.trim().replace(/\/$/, '').split('/')
+      const parts   = url.trim().replace(/\/$/, '').split('/')
       const repoName = parts[parts.length - 1] ?? ''
       if (repoName) setNombre(repoName)
     }
@@ -47,8 +43,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     try {
       await loginWithGoogle()
     } catch (err: unknown) {
-      const e = err as { message?: string }
-      toast.error(e?.message ?? 'Error al iniciar sesión')
+      toast.error((err as { message?: string })?.message ?? 'Error al iniciar sesión')
     } finally {
       setSigningIn(false)
     }
@@ -71,14 +66,18 @@ export default function NuevoProyectoCatamarcaOpenPage() {
       )
       setSubmitted(true)
     } catch (err: unknown) {
-      const e = err as { message?: string }
-      toast.error(e?.message ?? 'Error al publicar el proyecto')
+      const msg = (err as { message?: string })?.message ?? ''
+      // 409 — el ciudadano ya registró ese repo
+      if (msg.includes('409') || msg.toLowerCase().includes('ya registraste')) {
+        toast.error('Ya tenés ese repositorio registrado en CatamarcaOpen.')
+      } else {
+        toast.error(msg || 'Error al publicar el proyecto')
+      }
     } finally {
       setSubmitting(false)
     }
   }
 
-  // ── Loading auth ──────────────────────────────────────────────────────────
   if (loading) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center">
@@ -87,7 +86,6 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     )
   }
 
-  // ── Sin sesión ────────────────────────────────────────────────────────────
   if (!user) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
@@ -117,7 +115,6 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     )
   }
 
-  // ── Publicado con éxito ───────────────────────────────────────────────────
   if (submitted) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
@@ -135,7 +132,8 @@ export default function NuevoProyectoCatamarcaOpenPage() {
                 variant="outline"
                 className="flex-1 rounded-xl"
                 onClick={() => {
-                  setUrl(''); setNombre(''); setDescripcion(''); setRama('main'); setSubmitted(false)
+                  setUrl(''); setNombre(''); setDescripcion('')
+                  setRama('main'); setSubmitted(false)
                 }}
               >
                 Publicar otro
@@ -154,7 +152,6 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     )
   }
 
-  // ── Formulario ────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
       <div className="container mx-auto px-4 max-w-xl">
@@ -174,7 +171,6 @@ export default function NuevoProyectoCatamarcaOpenPage() {
         <Card className="border-[#26a7fc]/10">
           <CardContent className="pt-6 pb-7 space-y-5">
 
-            {/* URL del repositorio */}
             <div className="space-y-1.5">
               <Label htmlFor="url" className="text-sm font-medium text-slate-700">
                 URL del repositorio <span className="text-red-500">*</span>
@@ -200,7 +196,6 @@ export default function NuevoProyectoCatamarcaOpenPage() {
               )}
             </div>
 
-            {/* Nombre del proyecto */}
             <div className="space-y-1.5">
               <Label htmlFor="nombre" className="text-sm font-medium text-slate-700">
                 Nombre del proyecto <span className="text-red-500">*</span>
@@ -215,7 +210,6 @@ export default function NuevoProyectoCatamarcaOpenPage() {
               />
             </div>
 
-            {/* Descripción */}
             <div className="space-y-1.5">
               <Label htmlFor="descripcion" className="text-sm font-medium text-slate-700">
                 Descripción
@@ -233,7 +227,6 @@ export default function NuevoProyectoCatamarcaOpenPage() {
               <p className="text-[11px] text-slate-400 text-right">{descripcion.length}/500</p>
             </div>
 
-            {/* Rama */}
             <div className="space-y-1.5">
               <Label htmlFor="rama" className="text-sm font-medium text-slate-700">
                 Rama principal
@@ -249,7 +242,6 @@ export default function NuevoProyectoCatamarcaOpenPage() {
               />
             </div>
 
-            {/* Sesión activa */}
             <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
               <div className="h-6 w-6 rounded-full bg-[#26a7fc]/10 flex items-center justify-center shrink-0">
                 <span className="text-[10px] font-bold text-[#26a7fc]">
@@ -261,7 +253,6 @@ export default function NuevoProyectoCatamarcaOpenPage() {
               </p>
             </div>
 
-            {/* Submit */}
             <Button
               onClick={handleSubmit}
               disabled={!isValid || submitting}

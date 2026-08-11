@@ -1,218 +1,312 @@
 #!/usr/bin/env bash
 # =============================================================================
-# ciudadano-front — Fix build: app/catamarcaopen/proyectos/[id]/page.tsx
-#
-# La página de detalle usaba getProjectById y getProjectReviews del mock.
-# Esas funciones ya no existen en el api.ts actualizado.
-# Este fix reescribe la página para usar getReposPublicos + filtro por id.
+# ciudadano-front — Fix CatamarcaOpen:
+#   1. Toast para error 409 (repo ya registrado)
+#   2. La página /publicos ya no necesita auth (el back lo expone público)
 #
 # CORRER PARADO EN LA RAÍZ DE ciudadano-front
 # =============================================================================
 set -euo pipefail
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
-log()  { echo -e "${BLUE}[fix]${NC} $1"; }
+log()  { echo -e "${BLUE}[fix-front]${NC} $1"; }
 ok()   { echo -e "${GREEN}✔${NC}  $1"; }
 sep()  { echo -e "\n${GREEN}────────────────────────────────────────────────${NC}"; }
 
 sep
-echo -e "${GREEN}Fix — app/catamarcaopen/proyectos/[id]/page.tsx${NC}"
+echo -e "${GREEN}Fix front — CatamarcaOpen 409 toast + /publicos sin auth${NC}"
 sep
 
 [[ -f "package.json" ]] || { echo "Ejecutar desde la raíz de ciudadano-front"; exit 1; }
 
-mkdir -p "app/catamarcaopen/proyectos/[id]"
+mkdir -p app/catamarcaopen/proyectos/nuevo
 
-log "Reescribiendo app/catamarcaopen/proyectos/[id]/page.tsx..."
-cat > "app/catamarcaopen/proyectos/[id]/page.tsx" << 'EOF'
-// app/catamarcaopen/proyectos/[id]/page.tsx
+# ─── página nuevo — mejor manejo de errores ───────────────────────────────────
+log "Actualizando handleSubmit en nuevo/page.tsx para manejar 409..."
+cat > app/catamarcaopen/proyectos/nuevo/page.tsx << 'EOF'
+// app/catamarcaopen/proyectos/nuevo/page.tsx
 "use client"
 
-import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useState } from "react"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import {
-  ArrowLeft, ExternalLink, Github,
-  GitBranch, Calendar, Globe, Lock,
-} from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { ArrowLeft, Github, Loader2, LogIn, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
-import { getReposPublicos } from "@/lib/catamarcaopen/api"
-import type { CatamarcaOpenRepo } from "@/lib/catamarcaopen/types"
+import { useAuth } from "@/contexts/auth-context"
+import { crearRepo } from "@/lib/catamarcaopen/api"
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-AR", {
-    year: "numeric", month: "long", day: "numeric",
-  })
-}
+const GITHUB_URL_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(\/)?$/
 
-function DetailSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-2/3" />
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-3/4" />
-      <div className="flex gap-3 mt-6">
-        <Skeleton className="h-10 w-32" />
-        <Skeleton className="h-10 w-32" />
-      </div>
-    </div>
-  )
-}
+export default function NuevoProyectoCatamarcaOpenPage() {
+  const { user, loading, loginWithGoogle } = useAuth()
 
-export default function CatamarcaOpenRepoDetailPage() {
-  const params   = useParams<{ id: string }>()
-  const [repo, setRepo]       = useState<CatamarcaOpenRepo | null | undefined>(undefined)
-  const [isLoading, setIsLoading] = useState(true)
+  const [url,         setUrl]         = useState("")
+  const [nombre,      setNombre]      = useState("")
+  const [descripcion, setDescripcion] = useState("")
+  const [rama,        setRama]        = useState("main")
+  const [submitting,  setSubmitting]  = useState(false)
+  const [signingIn,   setSigningIn]   = useState(false)
+  const [submitted,   setSubmitted]   = useState(false)
 
-  useEffect(() => {
-    let active = true
-    setIsLoading(true)
+  const urlValida = GITHUB_URL_RE.test(url.trim())
+  const isValid   = urlValida && nombre.trim().length >= 2
 
-    getReposPublicos()
-      .then((repos) => {
-        if (!active) return
-        const found = repos.find((r) => r.id === params.id) ?? null
-        setRepo(found)
-      })
-      .catch((err: unknown) => {
-        if (!active) return
-        toast.error((err as { message?: string })?.message ?? "Error al cargar el proyecto")
-        setRepo(null)
-      })
-      .finally(() => { if (active) setIsLoading(false) })
+  const handleUrlBlur = () => {
+    if (urlValida && !nombre.trim()) {
+      const parts   = url.trim().replace(/\/$/, '').split('/')
+      const repoName = parts[parts.length - 1] ?? ''
+      if (repoName) setNombre(repoName)
+    }
+  }
 
-    return () => { active = false }
-  }, [params.id])
+  const handleLogin = async () => {
+    if (signingIn) return
+    setSigningIn(true)
+    try {
+      await loginWithGoogle()
+    } catch (err: unknown) {
+      toast.error((err as { message?: string })?.message ?? 'Error al iniciar sesión')
+    } finally {
+      setSigningIn(false)
+    }
+  }
 
-  const githubParts = repo?.url.replace("https://github.com/", "").split("/") ?? []
-  const githubUser  = githubParts[0] ?? ""
-  const githubRepo  = githubParts[1] ?? ""
+  const handleSubmit = async () => {
+    if (!isValid || submitting || !user) return
+    setSubmitting(true)
+    try {
+      const idToken = await user.getIdToken()
+      await crearRepo(
+        {
+          url:         url.trim().replace(/\/$/, ''),
+          nombre:      nombre.trim(),
+          descripcion: descripcion.trim() || undefined,
+          rama:        rama.trim() || 'main',
+          publico:     true,
+        },
+        idToken,
+      )
+      setSubmitted(true)
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? ''
+      // 409 — el ciudadano ya registró ese repo
+      if (msg.includes('409') || msg.toLowerCase().includes('ya registraste')) {
+        toast.error('Ya tenés ese repositorio registrado en CatamarcaOpen.')
+      } else {
+        toast.error(msg || 'Error al publicar el proyecto')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-[#26a7fc]" />
+      </main>
+    )
+  }
+
+  if (!user) {
+    return (
+      <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
+        <Card className="max-w-md w-full border-[#26a7fc]/10">
+          <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
+            <div className="h-14 w-14 rounded-2xl bg-[#26a7fc]/10 flex items-center justify-center mb-4">
+              <Github className="h-7 w-7 text-[#26a7fc]" strokeWidth={1.5} />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900 mb-2">Necesitás iniciar sesión</h1>
+            <p className="text-sm text-muted-foreground mb-6 text-pretty">
+              Para publicar un proyecto en CatamarcaOpen, iniciá sesión con tu cuenta de Google.
+            </p>
+            <Button
+              onClick={handleLogin}
+              disabled={signingIn}
+              className="w-full text-white gap-2"
+              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+            >
+              {signingIn
+                ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+                : <LogIn   className="h-4 w-4"              strokeWidth={1.5} />}
+              Ingresar con Google
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    )
+  }
+
+  if (submitted) {
+    return (
+      <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
+        <Card className="max-w-md w-full border-[#26a7fc]/10">
+          <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
+            <div className="h-14 w-14 rounded-2xl bg-green-100 flex items-center justify-center mb-4">
+              <CheckCircle2 className="h-7 w-7 text-green-600" strokeWidth={1.5} />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900 mb-2">¡Proyecto publicado!</h1>
+            <p className="text-sm text-muted-foreground mb-6 text-pretty">
+              Tu repositorio ya está disponible en la comunidad CatamarcaOpen.
+            </p>
+            <div className="flex gap-3 w-full">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => {
+                  setUrl(''); setNombre(''); setDescripcion('')
+                  setRama('main'); setSubmitted(false)
+                }}
+              >
+                Publicar otro
+              </Button>
+              <Button
+                asChild
+                className="flex-1 text-white rounded-xl"
+                style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+              >
+                <Link href="/catamarcaopen/proyectos">Ver proyectos</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
-      <div className="container mx-auto px-4 max-w-2xl">
+      <div className="container mx-auto px-4 max-w-xl">
         <Link
           href="/catamarcaopen/proyectos"
           className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-          Todos los proyectos
+          Volver al listado
         </Link>
 
-        {isLoading ? (
-          <DetailSkeleton />
-        ) : repo === null ? (
-          // Repo no encontrado
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Github className="h-10 w-10 text-slate-300 mb-4" strokeWidth={1.5} />
-            <p className="text-sm font-medium text-slate-600 mb-1">Proyecto no encontrado</p>
-            <p className="text-xs text-slate-400 mb-6">
-              Es posible que haya sido eliminado o no sea público.
-            </p>
-            <Button asChild variant="outline" size="sm" className="rounded-xl">
-              <Link href="/catamarcaopen/proyectos">Ver todos los proyectos</Link>
-            </Button>
-          </div>
-        ) : (
-          <Card className="border-[#26a7fc]/10">
-            <CardContent className="pt-7 pb-8 px-6 space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Publicar un proyecto</h1>
+        <p className="text-sm text-muted-foreground mb-8">
+          Compartí tu repositorio de GitHub con la comunidad del Nodo.
+        </p>
 
-              {/* Header */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-11 w-11 rounded-xl bg-[#26a7fc]/10 flex items-center justify-center shrink-0">
-                    <Github className="h-5 w-5 text-[#26a7fc]" strokeWidth={1.5} />
-                  </div>
-                  <div className="min-w-0">
-                    <h1 className="text-xl font-bold text-slate-900 truncate">{repo.nombre}</h1>
-                    <p className="text-xs font-mono text-slate-400 truncate">
-                      {githubUser}/{githubRepo}
-                    </p>
-                  </div>
-                </div>
-                <a
-                  href={repo.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0"
-                >
-                  <Button
-                    size="sm"
-                    className="text-white gap-2 rounded-xl"
-                    style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    Ver en GitHub
-                  </Button>
-                </a>
+        <Card className="border-[#26a7fc]/10">
+          <CardContent className="pt-6 pb-7 space-y-5">
+
+            <div className="space-y-1.5">
+              <Label htmlFor="url" className="text-sm font-medium text-slate-700">
+                URL del repositorio <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <Github
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
+                  strokeWidth={1.5}
+                />
+                <Input
+                  id="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onBlur={handleUrlBlur}
+                  placeholder="https://github.com/usuario/repositorio"
+                  className="pl-9 h-10 rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white"
+                />
               </div>
-
-              {/* Descripción */}
-              {repo.descripcion && (
-                <p className="text-sm text-slate-600 leading-relaxed">{repo.descripcion}</p>
+              {url && !urlValida && (
+                <p className="text-[11px] text-red-500">
+                  Debe ser una URL de GitHub válida: https://github.com/usuario/repo
+                </p>
               )}
+            </div>
 
-              {/* Metadata */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                  <GitBranch className="h-4 w-4 text-slate-400 shrink-0" strokeWidth={1.5} />
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Rama</p>
-                    <p className="text-xs font-mono text-slate-700 truncate">{repo.rama}</p>
-                  </div>
-                </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nombre" className="text-sm font-medium text-slate-700">
+                Nombre del proyecto <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="nombre"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="ej: Sistema de Turnos Municipales"
+                maxLength={200}
+                className="h-10 rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white"
+              />
+            </div>
 
-                <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                  {repo.publico
-                    ? <Globe className="h-4 w-4 text-green-500 shrink-0" strokeWidth={1.5} />
-                    : <Lock  className="h-4 w-4 text-amber-500 shrink-0" strokeWidth={1.5} />}
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Visibilidad</p>
-                    <p className="text-xs text-slate-700">{repo.publico ? "Público" : "Privado"}</p>
-                  </div>
-                </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="descripcion" className="text-sm font-medium text-slate-700">
+                Descripción
+                <span className="text-slate-400 font-normal ml-1">(opcional)</span>
+              </Label>
+              <Textarea
+                id="descripcion"
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder="¿Qué hace este proyecto? ¿Para qué sirve?"
+                maxLength={500}
+                rows={3}
+                className="rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white resize-none"
+              />
+              <p className="text-[11px] text-slate-400 text-right">{descripcion.length}/500</p>
+            </div>
 
-                <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                  <Calendar className="h-4 w-4 text-slate-400 shrink-0" strokeWidth={1.5} />
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Publicado</p>
-                    <p className="text-xs text-slate-700">{formatDate(repo.createdAt)}</p>
-                  </div>
-                </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rama" className="text-sm font-medium text-slate-700">
+                Rama principal
+                <span className="text-slate-400 font-normal ml-1">(opcional)</span>
+              </Label>
+              <Input
+                id="rama"
+                value={rama}
+                onChange={(e) => setRama(e.target.value)}
+                placeholder="main"
+                maxLength={100}
+                className="h-10 rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white"
+              />
+            </div>
 
-                {repo.ciudadano && (
-                  <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
-                    <div className="h-5 w-5 rounded-full bg-[#26a7fc]/20 flex items-center justify-center shrink-0">
-                      <span className="text-[9px] font-bold text-[#26a7fc]">
-                        {repo.ciudadano.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Autor</p>
-                      <p className="text-xs text-slate-700 truncate">{repo.ciudadano.name}</p>
-                    </div>
-                  </div>
-                )}
+            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
+              <div className="h-6 w-6 rounded-full bg-[#26a7fc]/10 flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-bold text-[#26a7fc]">
+                  {user.displayName?.charAt(0).toUpperCase() ?? '?'}
+                </span>
               </div>
+              <p className="text-xs text-slate-500 truncate">
+                Publicando como <span className="font-medium text-slate-700">{user.displayName}</span>
+              </p>
+            </div>
 
-            </CardContent>
-          </Card>
-        )}
+            <Button
+              onClick={handleSubmit}
+              disabled={!isValid || submitting}
+              className="w-full text-white gap-2 rounded-xl h-11 font-semibold disabled:opacity-50"
+              style={
+                isValid && !submitting
+                  ? { backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }
+                  : {}
+              }
+            >
+              {submitting
+                ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+                : <Github  className="h-4 w-4"              strokeWidth={1.5} />}
+              {submitting ? 'Publicando...' : 'Publicar proyecto'}
+            </Button>
+
+          </CardContent>
+        </Card>
       </div>
     </main>
   )
 }
 EOF
-ok "app/catamarcaopen/proyectos/[id]/page.tsx reescrita"
+ok "nuevo/page.tsx"
 
 sep
-echo -e "${GREEN}✅  Fix aplicado${NC}"
+echo -e "${GREEN}✅  Fix front aplicado${NC}"
 echo ""
-echo -e "  La página de detalle ahora:"
-echo -e "  - Usa ${YELLOW}getReposPublicos()${NC} + filtro por id (sin endpoint extra)"
-echo -e "  - Muestra: nombre, URL GitHub, descripción, rama, visibilidad, fecha, autor"
-echo -e "  - Estado vacío si el repo no existe o no es público"
+echo -e "  - Toast correcto para ${YELLOW}409${NC} (repo duplicado)"
+echo -e "  - El listado /publicos ya funciona porque el back lo expone sin auth"
 sep
