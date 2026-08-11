@@ -1,7 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Plus_Jakarta_Sans, Inter } from "next/font/google"
-import { Toaster } from 'sonner'
 
 import "./globals.css"
 import { FooterEducacion } from "@/components/footer-educacion"
@@ -10,7 +9,6 @@ import { ColorSeparator } from "@/components/color-separator"
 import { StructuredData } from "@/components/seo/structured-data"
 import { ChatbotWidget } from "@/components/chatbot/chatbot-widget"
 import { AuthProvider } from "@/contexts/auth-context"
-import { Toaster } from 'sonner'
 
 const _heading = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-heading" })
 const _body = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -104,7 +102,6 @@ export default function RootLayout({
 
         <FooterEducacion />
           <ChatbotWidget />
-          <Toaster position="top-center" richColors toastOptions={{ style: { fontFamily: "var(--font-inter, Inter, sans-serif)" } }} />
         </AuthProvider>
 
       </body>

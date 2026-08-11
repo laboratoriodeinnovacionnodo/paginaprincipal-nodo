@@ -761,105 +761,6 @@ x.sh
 36: }
 ```
 
-## File: components/chatbot/siri-frame.tsx
-```typescript
- 1: "use client"
- 2: 
- 3: /**
- 4:  * <SiriFrame>
- 5:  *
- 6:  * Glow de colores de marca pegado a los bordes de la pantalla que se va
- 7:  * perdiendo/disolviendo hacia el centro (vignette invertida), como el
- 8:  * efecto de Siri al escuchar. Cubre buena parte de la pantalla — el
- 9:  * centro queda limpio para leer, los bordes se funden en color.
-10:  *
-11:  * - CSS puro (conic-gradient + radial mask), sin WebGL ni dependencias
-12:  * - `active` agranda la zona de color, sube opacidad y acelera el giro
-13:  *   (ej: mientras el bot "piensa")
-14:  * - Respeta prefers-reduced-motion (deja el color fijo, sin girar)
-15:  */
-16: 
-17: // Usa los tokens de marca definidos en :root (globals.css) en vez de
-18: // colores hardcodeados — primary (azul NODO) + chart-4/2/5 como
-19: // secundario/terciario/acento, así el glow siempre matchea el theme.
-20: // Las variables ya vienen con oklch(...) completo en :root, por eso se
-21: // usan directo con var() sin volver a envolver en oklch().
-22: const BRAND_GRADIENT =
-23:   "conic-gradient(from 0deg at 50% 50%, var(--primary), var(--accent), var(--primary), var(--accent), var(--primary))";  "conic-gradient(from 0deg at 50% 50%, var(--primary), var(--chart-4), var(--chart-2), var(--chart-5), var(--primary))"
-24: 
-25: interface Props {
-26:   active?: boolean
-27: }
-28: 
-29: export function SiriFrame({ active = false }: Props) {
-30:   // Radio (en % del gradiente) donde arranca transparente y donde ya
-31:   // está 100% coloreado. Más chico el primero = más pantalla cubierta.
-32:   const innerStop = active ? "14%" : "22%"
-33:   const outerStop = active ? "72%" : "88%"
-34: 
-35:   const maskImage = `radial-gradient(transparent ${innerStop}, black ${outerStop})`
-36: 
-37:   return (
-38:     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-39:       {/* Capa base — tinte muy leve, da profundidad detrás del glow principal */}
-40:       <div
-41:         className="absolute inset-0 transition-opacity duration-700 ease-out"
-42:         style={{ opacity: active ? 0.06 : 0.03 }}
-43:       >
-44:         <div
-45:           className="siri-frame-spin absolute -inset-1/2 h-[200%] w-[200%]"
-46:           style={{
-47:             background: BRAND_GRADIENT,
-48:             filter: "blur(140px)",
-49:             animationDuration: active ? "12s" : "24s",
-50:           }}
-51:         />
-52:       </div>
-53: 
-54:       {/* Glow principal — pierde color hacia el centro (efecto Siri) */}
-55:       <div
-56:         className="absolute inset-0 transition-opacity duration-700 ease-out"
-57:         style={{
-58:           opacity: active ? 0.95 : 0.6,
-59:           maskImage,
-60:           WebkitMaskImage: maskImage,
-61:         }}
-62:       >
-63:         <div
-64:           className="siri-frame-spin absolute -inset-1/2 h-[200%] w-[200%]"
-65:           style={{
-66:             background: BRAND_GRADIENT,
-67:             filter: `blur(${active ? 46 : 34}px)`,
-68:             animationDuration: active ? "6s" : "15s",
-69:           }}
-70:         />
-71:       </div>
-72: 
-73:       <style jsx>{`
-74:         .siri-frame-spin {
-75:           animation-name: siri-frame-rotate;
-76:           animation-timing-function: linear;
-77:           animation-iteration-count: infinite;
-78:         }
-79:         @keyframes siri-frame-rotate {
-80:           from {
-81:             transform: rotate(0deg);
-82:           }
-83:           to {
-84:             transform: rotate(360deg);
-85:           }
-86:         }
-87:         @media (prefers-reduced-motion: reduce) {
-88:           .siri-frame-spin {
-89:             animation: none;
-90:           }
-91:         }
-92:       `}</style>
-93:     </div>
-94:   )
-95: }
-```
-
 ## File: components/contacto/contact-map.tsx
 ```typescript
  1: export function ContactMap() {
@@ -2217,96 +2118,6 @@ x.sh
 191: export { useToast, toast }
 ```
 
-## File: lib/catamarcaopen/api.ts
-```typescript
- 1: // lib/catamarcaopen/api.ts
- 2: //
- 3: // Capa de datos de CatamarcaOpen.
- 4: //
- 5: // Estado actual: MOCK (usa lib/catamarcaopen/data.ts). Cada función ya trae,
- 6: // comentado debajo, el fetch real contra catamarcaopen-back — mismo shape
- 7: // que lib/graduados/api.ts — para descomentar cuando:
- 8: //   1. catamarcaopen-back habilite CORS para el dominio de ciudadano-front.
- 9: //   2. Se defina NEXT_PUBLIC_CATAMARCAOPEN_API_URL (ver .env.local.example).
-10: //   3. Se unifique el proyecto de Firebase con el que ya valida
-11: //      catamarcaopen-back (mismo login para ambos módulos).
-12: 
-13: import type { Project, Review, NewProjectInput } from "./types"
-14: import { MOCK_PROJECTS, MOCK_REVIEWS } from "./data"
-15: 
-16: // eslint-disable-next-line @typescript-eslint/no-unused-vars
-17: const API_URL = process.env.NEXT_PUBLIC_CATAMARCAOPEN_API_URL ?? "https://api.catamarcaopen.nodo.cc.gob.ar/api/v1"
-18: 
-19: function simulateNetworkDelay(ms = 400): Promise<void> {
-20:   return new Promise((resolve) => setTimeout(resolve, ms))
-21: }
-22: 
-23: export async function getProjects(): Promise<Project[]> {
-24:   await simulateNetworkDelay()
-25:   return MOCK_PROJECTS
-26: 
-27:   // Real:
-28:   // const res = await fetch(`${API_URL}/projects`, { cache: "no-store" })
-29:   // if (!res.ok) throw new Error(`Error al obtener proyectos: ${res.status}`)
-30:   // return res.json()
-31: }
-32: 
-33: export async function getProjectById(id: string): Promise<Project | null> {
-34:   await simulateNetworkDelay()
-35:   return MOCK_PROJECTS.find((p) => p.id === id) ?? null
-36: 
-37:   // Real:
-38:   // const res = await fetch(`${API_URL}/projects/${id}`, { cache: "no-store" })
-39:   // if (res.status === 404) return null
-40:   // if (!res.ok) throw new Error(`Error al obtener el proyecto: ${res.status}`)
-41:   // return res.json()
-42: }
-43: 
-44: export async function getProjectReviews(projectId: string): Promise<Review[]> {
-45:   await simulateNetworkDelay(250)
-46:   return MOCK_REVIEWS[projectId] ?? []
-47: 
-48:   // Real:
-49:   // const res = await fetch(`${API_URL}/projects/${projectId}/reviews`, { cache: "no-store" })
-50:   // if (!res.ok) throw new Error(`Error al obtener revisiones: ${res.status}`)
-51:   // return res.json()
-52: }
-53: 
-54: export async function submitProject(input: NewProjectInput, idToken: string): Promise<Project> {
-55:   await simulateNetworkDelay(600)
-56: 
-57:   const created: Project = {
-58:     id: input.title
-59:       .toLowerCase()
-60:       .trim()
-61:       .replace(/[^a-z0-9]+/g, "-")
-62:       .replace(/(^-|-$)/g, ""),
-63:     title: input.title,
-64:     description: input.description,
-65:     stack: [],
-66:     category: input.category,
-67:     repoUrl: input.repoUrl,
-68:     status: "en_revision",
-69:     authorName: "Vos",
-70:     rating: 0,
-71:     reviewsCount: 0,
-72:     createdAt: new Date().toISOString(),
-73:   }
-74: 
-75:   MOCK_PROJECTS.unshift(created)
-76:   return created
-77: 
-78:   // Real:
-79:   // const res = await fetch(`${API_URL}/projects`, {
-80:   //   method: "POST",
-81:   //   headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-82:   //   body: JSON.stringify(input),
-83:   // })
-84:   // if (!res.ok) throw new Error(`Error al publicar el proyecto: ${res.status}`)
-85:   // return res.json()
-86: }
-```
-
 ## File: lib/catamarcaopen/data.ts
 ```typescript
  1: // lib/catamarcaopen/data.ts
@@ -2398,43 +2209,6 @@ x.sh
 87:     },
 88:   ],
 89: }
-```
-
-## File: lib/catamarcaopen/types.ts
-```typescript
- 1: // lib/catamarcaopen/types.ts
- 2: 
- 3: export type ProjectStatus = "aprobado" | "en_revision" | "rechazado"
- 4: 
- 5: export interface Project {
- 6:   id: string
- 7:   title: string
- 8:   description: string
- 9:   stack: string[]
-10:   category: string
-11:   repoUrl: string
-12:   status: ProjectStatus
-13:   authorName: string
-14:   rating: number
-15:   reviewsCount: number
-16:   createdAt: string
-17: }
-18: 
-19: export interface Review {
-20:   id: string
-21:   projectId: string
-22:   authorName: string
-23:   rating: number
-24:   comment: string
-25:   createdAt: string
-26: }
-27: 
-28: export interface NewProjectInput {
-29:   title: string
-30:   description: string
-31:   category: string
-32:   repoUrl: string
-33: }
 ```
 
 ## File: lib/coworking/data.ts
@@ -3161,492 +2935,6 @@ x.sh
 121:     </div>
 122:   )
 123: }
-```
-
-## File: app/catamarcaopen/proyectos/[id]/page.tsx
-```typescript
-  1: "use client"
-  2: 
-  3: import { useEffect, useState } from "react"
-  4: import { useParams } from "next/navigation"
-  5: import Link from "next/link"
-  6: import { Card, CardContent } from "@/components/ui/card"
-  7: import { Button } from "@/components/ui/button"
-  8: import { Skeleton } from "@/components/ui/skeleton"
-  9: import { ArrowLeft, ExternalLink, Star, Github } from "lucide-react"
- 10: import { getProjectById, getProjectReviews } from "@/lib/catamarcaopen/api"
- 11: import type { Project, Review } from "@/lib/catamarcaopen/types"
- 12: 
- 13: const STATUS_MAP = {
- 14:   aprobado: { label: "Aprobado", className: "bg-green-100 text-green-800" },
- 15:   en_revision: { label: "En revisión", className: "bg-amber-100 text-amber-800" },
- 16:   rechazado: { label: "Rechazado", className: "bg-red-100 text-red-800" },
- 17: } as const
- 18: 
- 19: function StatusBadge({ status }: { status: Project["status"] }) {
- 20:   const { label, className } = STATUS_MAP[status]
- 21:   return <span className={`text-[10px] font-medium px-2 py-1 rounded-full ${className}`}>{label}</span>
- 22: }
- 23: 
- 24: function Stars({ rating, size = "h-3.5 w-3.5" }: { rating: number; size?: string }) {
- 25:   const full = Math.round(rating)
- 26:   return (
- 27:     <div className="flex items-center gap-0.5">
- 28:       {Array.from({ length: 5 }).map((_, i) => (
- 29:         <Star key={i} className={`${size} ${i < full ? "fill-amber-400 text-amber-400" : "text-gray-200"}`} />
- 30:       ))}
- 31:     </div>
- 32:   )
- 33: }
- 34: 
- 35: function initials(name: string) {
- 36:   return name
- 37:     .split(" ")
- 38:     .map((p) => p.charAt(0))
- 39:     .join("")
- 40:     .slice(0, 2)
- 41:     .toUpperCase()
- 42: }
- 43: 
- 44: export default function CatamarcaOpenProyectoDetailPage() {
- 45:   const params = useParams<{ id: string }>()
- 46:   const [project, setProject] = useState<Project | null | undefined>(undefined)
- 47:   const [reviews, setReviews] = useState<Review[]>([])
- 48: 
- 49:   useEffect(() => {
- 50:     let active = true
- 51:     getProjectById(params.id).then((data) => {
- 52:       if (!active) return
- 53:       setProject(data)
- 54:       if (data) {
- 55:         getProjectReviews(data.id).then((r) => {
- 56:           if (active) setReviews(r)
- 57:         })
- 58:       }
- 59:     })
- 60:     return () => {
- 61:       active = false
- 62:     }
- 63:   }, [params.id])
- 64: 
- 65:   if (project === undefined) {
- 66:     return (
- 67:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
- 68:         <div className="container mx-auto px-4 max-w-2xl space-y-4">
- 69:           <Skeleton className="h-5 w-24" />
- 70:           <Skeleton className="h-8 w-full" />
- 71:           <Skeleton className="h-24 w-full rounded-xl" />
- 72:           <Skeleton className="h-40 w-full rounded-xl" />
- 73:         </div>
- 74:       </main>
- 75:     )
- 76:   }
- 77: 
- 78:   if (project === null) {
- 79:     return (
- 80:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
- 81:         <div className="text-center">
- 82:           <p className="text-lg font-semibold text-gray-900 mb-2">No encontramos ese proyecto</p>
- 83:           <Button asChild variant="outline">
- 84:             <Link href="/catamarcaopen/proyectos">Volver al listado</Link>
- 85:           </Button>
- 86:         </div>
- 87:       </main>
- 88:     )
- 89:   }
- 90: 
- 91:   return (
- 92:     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
- 93:       <div className="container mx-auto px-4 max-w-2xl">
- 94:         <Link
- 95:           href="/catamarcaopen/proyectos"
- 96:           className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
- 97:         >
- 98:           <ArrowLeft className="h-4 w-4" />
- 99:           Volver al listado
-100:         </Link>
-101: 
-102:         <div className="flex items-center gap-2 mb-3">
-103:           <StatusBadge status={project.status} />
-104:           <span className="text-xs text-muted-foreground">{project.stack.join(" · ")}</span>
-105:         </div>
-106: 
-107:         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 text-balance">{project.title}</h1>
-108: 
-109:         <div className="flex items-center gap-2 mb-6">
-110:           <div
-111:             className="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
-112:             style={{ backgroundImage: "linear-gradient(135deg, #26a7fc, #1c8fe0)" }}
-113:           >
-114:             {initials(project.authorName)}
-115:           </div>
-116:           <span className="text-sm text-gray-700">{project.authorName}</span>
-117:           <span className="text-xs text-gray-300">·</span>
-118:           <Stars rating={project.rating} />
-119:           <span className="text-xs text-muted-foreground">({project.reviewsCount})</span>
-120:         </div>
-121: 
-122:         <p className="text-sm text-gray-700 leading-relaxed mb-6 text-pretty">{project.description}</p>
-123: 
-124:         <a
-125:           href={project.repoUrl}
-126:           target="_blank"
-127:           rel="noopener noreferrer"
-128:           className="inline-flex items-center gap-2 text-sm font-semibold text-[#1c8fe0] hover:text-cyan-800 mb-8"
-129:         >
-130:           <Github className="h-4 w-4" />
-131:           Ver repositorio
-132:           <ExternalLink className="h-3.5 w-3.5" />
-133:         </a>
-134: 
-135:         <Card className="border-[#26a7fc]/10">
-136:           <CardContent className="pt-6">
-137:             <h2 className="text-sm font-semibold text-gray-900 mb-4">Revisiones ({reviews.length})</h2>
-138:             {reviews.length === 0 ? (
-139:               <p className="text-xs text-muted-foreground">Todavía no tiene revisiones.</p>
-140:             ) : (
-141:               <div className="divide-y divide-gray-100">
-142:                 {reviews.map((review) => (
-143:                   <div key={review.id} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-144:                     <div
-145:                       className="h-7 w-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
-146:                       style={{ backgroundImage: "linear-gradient(135deg, #26a7fc, #1c8fe0)" }}
-147:                     >
-148:                       {initials(review.authorName)}
-149:                     </div>
-150:                     <div className="flex-1 min-w-0">
-151:                       <div className="flex items-center gap-2">
-152:                         <span className="text-xs font-semibold text-gray-900">{review.authorName}</span>
-153:                         <Stars rating={review.rating} size="h-3 w-3" />
-154:                       </div>
-155:                       <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{review.comment}</p>
-156:                     </div>
-157:                   </div>
-158:                 ))}
-159:               </div>
-160:             )}
-161:           </CardContent>
-162:         </Card>
-163:       </div>
-164:     </main>
-165:   )
-166: }
-```
-
-## File: app/catamarcaopen/proyectos/nuevo/page.tsx
-```typescript
-  1: "use client"
-  2: 
-  3: import { useState } from "react"
-  4: import Link from "next/link"
-  5: import { Card, CardContent } from "@/components/ui/card"
-  6: import { Button } from "@/components/ui/button"
-  7: import { Input } from "@/components/ui/input"
-  8: import { Textarea } from "@/components/ui/textarea"
-  9: import { Loader2, LogIn, CheckCircle2 } from "lucide-react"
- 10: import { useAuth } from "@/contexts/auth-context"
- 11: import { submitProject } from "@/lib/catamarcaopen/api"
- 12: 
- 13: const CATEGORIES = ["Trámites digitales", "Medio ambiente", "Infraestructura", "Educación", "Salud", "Otro"]
- 14: 
- 15: export default function NuevoProyectoCatamarcaOpenPage() {
- 16:   const { user, loading, loginWithGoogle } = useAuth()
- 17: 
- 18:   const [title, setTitle] = useState("")
- 19:   const [description, setDescription] = useState("")
- 20:   const [category, setCategory] = useState(CATEGORIES[0])
- 21:   const [repoUrl, setRepoUrl] = useState("")
- 22:   const [submitting, setSubmitting] = useState(false)
- 23:   const [submitted, setSubmitted] = useState(false)
- 24:   const [signingIn, setSigningIn] = useState(false)
- 25: 
- 26:   const handleLogin = async () => {
- 27:     if (signingIn) return
- 28:     setSigningIn(true)
- 29:     try {
- 30:       await loginWithGoogle()
- 31:     } catch (error) {
- 32:       console.error("[catamarcaopen/proyectos/nuevo] Error al iniciar sesión:", error)
- 33:     } finally {
- 34:       setSigningIn(false)
- 35:     }
- 36:   }
- 37: 
- 38:   const isValid =
- 39:     title.trim().length >= 4 && description.trim().length >= 10 && /^https?:\/\/.+/.test(repoUrl.trim())
- 40: 
- 41:   const handleSubmit = async () => {
- 42:     if (!isValid || submitting || !user) return
- 43:     setSubmitting(true)
- 44:     try {
- 45:       const idToken = await user.getIdToken()
- 46:       await submitProject({ title, description, category, repoUrl }, idToken)
- 47:       setSubmitted(true)
- 48:     } catch (error) {
- 49:       console.error("[catamarcaopen/proyectos/nuevo] Error al publicar el proyecto:", error)
- 50:     } finally {
- 51:       setSubmitting(false)
- 52:     }
- 53:   }
- 54: 
- 55:   if (loading) {
- 56:     return (
- 57:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center">
- 58:         <Loader2 className="h-6 w-6 animate-spin text-[#26a7fc]" />
- 59:       </main>
- 60:     )
- 61:   }
- 62: 
- 63:   if (!user) {
- 64:     return (
- 65:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
- 66:         <Card className="max-w-md w-full border-[#26a7fc]/10">
- 67:           <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
- 68:             <h1 className="text-xl font-bold text-gray-900 mb-2">Necesitás iniciar sesión</h1>
- 69:             <p className="text-sm text-muted-foreground mb-6 text-pretty">
- 70:               Para publicar un proyecto en CatamarcaOpen, iniciá sesión con tu cuenta de Google.
- 71:             </p>
- 72:             <Button
- 73:               onClick={handleLogin}
- 74:               disabled={signingIn}
- 75:               className="w-full text-white"
- 76:               style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
- 77:             >
- 78:               {signingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
- 79:               Ingresar con Google
- 80:             </Button>
- 81:           </CardContent>
- 82:         </Card>
- 83:       </main>
- 84:     )
- 85:   }
- 86: 
- 87:   if (submitted) {
- 88:     return (
- 89:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
- 90:         <Card className="max-w-md w-full border-[#26a7fc]/10">
- 91:           <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
- 92:             <div className="h-14 w-14 rounded-2xl bg-green-100 flex items-center justify-center mb-4">
- 93:               <CheckCircle2 className="h-7 w-7 text-green-600" />
- 94:             </div>
- 95:             <h1 className="text-xl font-bold text-gray-900 mb-2">¡Proyecto enviado!</h1>
- 96:             <p className="text-sm text-muted-foreground mb-6 text-pretty">
- 97:               Tu proyecto quedó en revisión. Te vamos a avisar cuando el equipo lo apruebe.
- 98:             </p>
- 99:             <Button asChild variant="outline">
-100:               <Link href="/catamarcaopen/proyectos">Volver al listado</Link>
-101:             </Button>
-102:           </CardContent>
-103:         </Card>
-104:       </main>
-105:     )
-106:   }
-107: 
-108:   return (
-109:     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
-110:       <div className="container mx-auto px-4 max-w-xl">
-111:         <Link
-112:           href="/catamarcaopen/proyectos"
-113:           className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
-114:         >
-115:           Volver al listado
-116:         </Link>
-117: 
-118:         <h1 className="text-2xl font-bold text-gray-900 mb-2">Publicar un proyecto</h1>
-119:         <p className="text-sm text-muted-foreground mb-8">
-120:           Tu proyecto pasa por revisión de la comunidad antes de publicarse.
-121:         </p>
-122: 
-123:         <Card className="border-[#26a7fc]/10">
-124:           <CardContent className="pt-6 flex flex-col gap-5">
-125:             <div className="flex flex-col gap-1.5">
-126:               <label className="text-xs font-semibold text-gray-700">Título</label>
-127:               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nombre de tu proyecto" />
-128:             </div>
-129: 
-130:             <div className="flex flex-col gap-1.5">
-131:               <label className="text-xs font-semibold text-gray-700">Descripción</label>
-132:               <Textarea
-133:                 value={description}
-134:                 onChange={(e) => setDescription(e.target.value)}
-135:                 placeholder="Qué problema resuelve y cómo funciona"
-136:                 rows={4}
-137:               />
-138:             </div>
-139: 
-140:             <div className="flex flex-col gap-1.5">
-141:               <label className="text-xs font-semibold text-gray-700">Categoría</label>
-142:               <select
-143:                 value={category}
-144:                 onChange={(e) => setCategory(e.target.value)}
-145:                 className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-146:               >
-147:                 {CATEGORIES.map((c) => (
-148:                   <option key={c} value={c}>
-149:                     {c}
-150:                   </option>
-151:                 ))}
-152:               </select>
-153:             </div>
-154: 
-155:             <div className="flex flex-col gap-1.5">
-156:               <label className="text-xs font-semibold text-gray-700">URL del repositorio</label>
-157:               <Input
-158:                 value={repoUrl}
-159:                 onChange={(e) => setRepoUrl(e.target.value)}
-160:                 placeholder="https://github.com/usuario/proyecto"
-161:               />
-162:             </div>
-163: 
-164:             <Button
-165:               onClick={handleSubmit}
-166:               disabled={!isValid || submitting}
-167:               className="text-white"
-168:               style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-169:             >
-170:               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-171:               {submitting ? "Enviando..." : "Enviar para revisión"}
-172:             </Button>
-173:           </CardContent>
-174:         </Card>
-175:       </div>
-176:     </main>
-177:   )
-178: }
-```
-
-## File: app/catamarcaopen/proyectos/page.tsx
-```typescript
-  1: "use client"
-  2: 
-  3: import { useEffect, useState } from "react"
-  4: import Link from "next/link"
-  5: import { Card, CardContent } from "@/components/ui/card"
-  6: import { Button } from "@/components/ui/button"
-  7: import { Skeleton } from "@/components/ui/skeleton"
-  8: import { ArrowLeft, Star, Plus } from "lucide-react"
-  9: import { getProjects } from "@/lib/catamarcaopen/api"
- 10: import type { Project } from "@/lib/catamarcaopen/types"
- 11: 
- 12: const STATUS_MAP = {
- 13:   aprobado: { label: "Aprobado", className: "bg-green-100 text-green-800" },
- 14:   en_revision: { label: "En revisión", className: "bg-amber-100 text-amber-800" },
- 15:   rechazado: { label: "Rechazado", className: "bg-red-100 text-red-800" },
- 16: } as const
- 17: 
- 18: function StatusBadge({ status }: { status: Project["status"] }) {
- 19:   const { label, className } = STATUS_MAP[status]
- 20:   return <span className={`text-[10px] font-medium px-2 py-1 rounded-full ${className}`}>{label}</span>
- 21: }
- 22: 
- 23: function Stars({ rating }: { rating: number }) {
- 24:   const full = Math.round(rating)
- 25:   return (
- 26:     <div className="flex items-center gap-0.5">
- 27:       {Array.from({ length: 5 }).map((_, i) => (
- 28:         <Star key={i} className={`h-3.5 w-3.5 ${i < full ? "fill-amber-400 text-amber-400" : "text-gray-200"}`} />
- 29:       ))}
- 30:     </div>
- 31:   )
- 32: }
- 33: 
- 34: function initials(name: string) {
- 35:   return name
- 36:     .split(" ")
- 37:     .map((p) => p.charAt(0))
- 38:     .join("")
- 39:     .slice(0, 2)
- 40:     .toUpperCase()
- 41: }
- 42: 
- 43: export default function CatamarcaOpenProyectosPage() {
- 44:   const [projects, setProjects] = useState<Project[] | null>(null)
- 45: 
- 46:   useEffect(() => {
- 47:     let active = true
- 48:     getProjects().then((data) => {
- 49:       if (active) setProjects(data)
- 50:     })
- 51:     return () => {
- 52:       active = false
- 53:     }
- 54:   }, [])
- 55: 
- 56:   return (
- 57:     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
- 58:       <div className="container mx-auto px-4 max-w-5xl">
- 59:         <Link
- 60:           href="/catamarcaopen"
- 61:           className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
- 62:         >
- 63:           <ArrowLeft className="h-4 w-4" />
- 64:           CatamarcaOpen
- 65:         </Link>
- 66: 
- 67:         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
- 68:           <div>
- 69:             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 text-balance">
- 70:               Proyectos de la comunidad
- 71:             </h1>
- 72:             <p className="text-sm text-muted-foreground max-w-xl text-pretty">
- 73:               Explorá los proyectos de código abierto publicados por vecinos y colaboradores del Nodo.
- 74:             </p>
- 75:           </div>
- 76:           <Button
- 77:             asChild
- 78:             className="text-white shrink-0"
- 79:             style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
- 80:           >
- 81:             <Link href="/catamarcaopen/proyectos/nuevo">
- 82:               <Plus className="mr-2 h-4 w-4" />
- 83:               Publicar proyecto
- 84:             </Link>
- 85:           </Button>
- 86:         </div>
- 87: 
- 88:         {!projects ? (
- 89:           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
- 90:             {Array.from({ length: 3 }).map((_, i) => (
- 91:               <Skeleton key={i} className="h-52 w-full rounded-xl" />
- 92:             ))}
- 93:           </div>
- 94:         ) : (
- 95:           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
- 96:             {projects.map((project) => (
- 97:               <Link key={project.id} href={`/catamarcaopen/proyectos/${project.id}`}>
- 98:                 <Card className="h-full border-[#26a7fc]/10 hover:border-[#26a7fc]/30 transition-colors">
- 99:                   <CardContent className="pt-5 flex flex-col gap-3 h-full">
-100:                     <div className="flex items-center justify-between">
-101:                       <StatusBadge status={project.status} />
-102:                       <span className="text-[10px] text-muted-foreground">{project.stack.join(" · ")}</span>
-103:                     </div>
-104:                     <h3 className="font-semibold text-gray-900 leading-snug">{project.title}</h3>
-105:                     <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
-106:                       {project.description}
-107:                     </p>
-108:                     <div className="flex items-center gap-2 mt-auto pt-2">
-109:                       <div
-110:                         className="h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
-111:                         style={{ backgroundImage: "linear-gradient(135deg, #26a7fc, #1c8fe0)" }}
-112:                       >
-113:                         {initials(project.authorName)}
-114:                       </div>
-115:                       <span className="text-xs text-gray-700">{project.authorName}</span>
-116:                     </div>
-117:                     <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
-118:                       <Stars rating={project.rating} />
-119:                       <span className="text-[11px] text-muted-foreground">({project.reviewsCount})</span>
-120:                     </div>
-121:                   </CardContent>
-122:                 </Card>
-123:               </Link>
-124:             ))}
-125:           </div>
-126:         )}
-127:       </div>
-128:     </main>
-129:   )
-130: }
 ```
 
 ## File: app/catamarcaopen/page.tsx
@@ -5279,6 +4567,221 @@ x.sh
 155:     </div>
 156:   )
 157: }
+```
+
+## File: components/chatbot/siri-frame.tsx
+```typescript
+  1: "use client"
+  2: 
+  3: /**
+  4:  * <SiriFrame>
+  5:  *
+  6:  * Marco de colores de marca pegado a los bordes de la pantalla:
+  7:  * - Glow de fondo (radial vignette)
+  8:  * - Anillo inset animado (orbit + pulse), controlado 100% por CSS variables
+  9:  *   inyectadas desde JS — sin @keyframes dinámicos (evita errores de styled-jsx).
+ 10:  *
+ 11:  * Estados:
+ 12:  *  - idle      → reposo suave, azul NODO
+ 13:  *  - thinking  → más intenso, orbit rápido (mientras espera la API)
+ 14:  *  - speaking  → pulso corto y rápido, distinto de "thinking" (streaming de texto)
+ 15:  *  - error     → mismo anillo pero en --destructive, pulsos rápidos y vuelve a idle
+ 16:  *  - greeting  → pulso breve e intenso al abrir (400ms) y cae a idle
+ 17:  */
+ 18: 
+ 19: export type SiriFrameState = "idle" | "thinking" | "speaking" | "error" | "greeting"
+ 20: 
+ 21: const BRAND_GRADIENT =
+ 22:   "conic-gradient(from 0deg at 50% 50%, var(--primary), var(--accent), var(--primary), var(--accent), var(--primary))"
+ 23: 
+ 24: interface Props {
+ 25:   state?: SiriFrameState
+ 26: }
+ 27: 
+ 28: type RingConfig = {
+ 29:   color: string
+ 30:   spread: number
+ 31:   blurMid: number
+ 32:   spreadMid: number
+ 33:   blurOuter: number
+ 34:   spreadOuter: number
+ 35:   orbitDur: string
+ 36:   pulseDur: string
+ 37:   pulseMin: number
+ 38:   pulseMax: number
+ 39:   opacity: number
+ 40:   iterations: string
+ 41: }
+ 42: 
+ 43: type RingConfigMap = Record<SiriFrameState, RingConfig>
+ 44: 
+ 45: const RING_CONFIG: RingConfigMap = {
+ 46:   idle: {
+ 47:     color: "var(--primary)",
+ 48:     spread: 5, blurMid: 36, spreadMid: 14, blurOuter: 65, spreadOuter: 24,
+ 49:     orbitDur: "12s", pulseDur: "5s", pulseMin: 0.85, pulseMax: 1.15,
+ 50:     opacity: 0.85, iterations: "infinite",
+ 51:   },
+ 52:   thinking: {
+ 53:     color: "var(--primary)",
+ 54:     spread: 10, blurMid: 50, spreadMid: 20, blurOuter: 85, spreadOuter: 34,
+ 55:     orbitDur: "6s", pulseDur: "3s", pulseMin: 0.85, pulseMax: 1.25,
+ 56:     opacity: 1, iterations: "infinite",
+ 57:   },
+ 58:   speaking: {
+ 59:     color: "var(--primary)",
+ 60:     spread: 8, blurMid: 40, spreadMid: 16, blurOuter: 70, spreadOuter: 26,
+ 61:     orbitDur: "9s", pulseDur: "0.9s", pulseMin: 0.9, pulseMax: 1.35,
+ 62:     opacity: 1, iterations: "infinite",
+ 63:   },
+ 64:   error: {
+ 65:     color: "var(--destructive)",
+ 66:     spread: 10, blurMid: 50, spreadMid: 20, blurOuter: 85, spreadOuter: 34,
+ 67:     orbitDur: "3s", pulseDur: "0.6s", pulseMin: 0.7, pulseMax: 1.3,
+ 68:     opacity: 1, iterations: "3",
+ 69:   },
+ 70:   greeting: {
+ 71:     color: "var(--primary)",
+ 72:     spread: 14, blurMid: 60, spreadMid: 26, blurOuter: 100, spreadOuter: 40,
+ 73:     orbitDur: "4s", pulseDur: "0.4s", pulseMin: 1, pulseMax: 1.4,
+ 74:     opacity: 1, iterations: "1",
+ 75:   },
+ 76: }
+ 77: 
+ 78: export function SiriFrame({ state = "idle" }: Props) {
+ 79:   const isThinking = state === "thinking"
+ 80:   const isGreeting = state === "greeting"
+ 81:   const innerStop = isThinking ? "14%" : "22%"
+ 82:   const outerStop = isThinking ? "72%" : "88%"
+ 83:   const maskImage = `radial-gradient(transparent ${innerStop}, black ${outerStop})`
+ 84: 
+ 85:   const c = RING_CONFIG[state]
+ 86:   const blur = isThinking || isGreeting ? 24 : 20
+ 87:   const orbitOffset = isThinking || isGreeting ? 14 : 8
+ 88:   const orbitOffsetMid = isThinking || isGreeting ? 30 : 18
+ 89:   const orbitOffsetOuter = isThinking || isGreeting ? 50 : 30
+ 90: 
+ 91:   const ringVars = {
+ 92:     "--ring-color": c.color,
+ 93:     "--ring-blur": `${blur}px`,
+ 94:     "--ring-spread": `${c.spread}px`,
+ 95:     "--ring-blur-mid": `${c.blurMid}px`,
+ 96:     "--ring-spread-mid": `${c.spreadMid}px`,
+ 97:     "--ring-blur-outer": `${c.blurOuter}px`,
+ 98:     "--ring-spread-outer": `${c.spreadOuter}px`,
+ 99:     "--ring-orbit-offset": `${orbitOffset}px`,
+100:     "--ring-orbit-offset-mid": `${orbitOffsetMid}px`,
+101:     "--ring-orbit-offset-outer": `${orbitOffsetOuter}px`,
+102:     "--ring-orbit-dur": c.orbitDur,
+103:     "--ring-pulse-dur": c.pulseDur,
+104:     "--ring-pulse-min": c.pulseMin,
+105:     "--ring-pulse-max": c.pulseMax,
+106:     "--ring-opacity": c.opacity,
+107:     "--ring-iterations": c.iterations,
+108:   } as React.CSSProperties
+109: 
+110:   return (
+111:     <div className="pointer-events-none absolute inset-0 overflow-hidden">
+112:       {/* Capa base */}
+113:       <div
+114:         className="absolute inset-0 transition-opacity duration-700 ease-out"
+115:         style={{ opacity: isThinking ? 0.06 : 0.03 }}
+116:       >
+117:         <div
+118:           className="siri-frame-spin absolute -inset-1/2 h-[200%] w-[200%]"
+119:           style={{
+120:             background: BRAND_GRADIENT,
+121:             filter: "blur(140px)",
+122:             animationDuration: isThinking ? "12s" : "24s",
+123:           }}
+124:         />
+125:       </div>
+126: 
+127:       {/* Glow principal */}
+128:       <div
+129:         className="absolute inset-0 transition-opacity duration-700 ease-out"
+130:         style={{
+131:           opacity: isThinking ? 0.95 : 0.6,
+132:           maskImage,
+133:           WebkitMaskImage: maskImage,
+134:         }}
+135:       >
+136:         <div
+137:           className="siri-frame-spin absolute -inset-1/2 h-[200%] w-[200%]"
+138:           style={{
+139:             background: BRAND_GRADIENT,
+140:             filter: `blur(${isThinking ? 46 : 34}px)`,
+141:             animationDuration: isThinking ? "6s" : "15s",
+142:           }}
+143:         />
+144:       </div>
+145: 
+146:       {/* Anillo inset — todos los valores vienen de CSS variables */}
+147:       <div className="siri-frame-ring absolute inset-0" style={ringVars} />
+148: 
+149:       <style jsx>{`
+150:         .siri-frame-spin {
+151:           animation-name: siri-frame-rotate;
+152:           animation-timing-function: linear;
+153:           animation-iteration-count: infinite;
+154:         }
+155:         .siri-frame-ring {
+156:           opacity: var(--ring-opacity);
+157:           animation-name: siri-frame-orbit, siri-frame-pulse;
+158:           animation-timing-function: ease-in-out, ease-in-out;
+159:           animation-duration: var(--ring-orbit-dur), var(--ring-pulse-dur);
+160:           animation-iteration-count: var(--ring-iterations), var(--ring-iterations);
+161:           transition: opacity 0.5s ease-out;
+162:         }
+163:         @keyframes siri-frame-rotate {
+164:           from { transform: rotate(0deg); }
+165:           to { transform: rotate(360deg); }
+166:         }
+167:         @keyframes siri-frame-pulse {
+168:           0%, 100% { filter: brightness(var(--ring-pulse-min)) saturate(1); }
+169:           50% { filter: brightness(var(--ring-pulse-max)) saturate(1.3); }
+170:         }
+171:         @keyframes siri-frame-orbit {
+172:           0% {
+173:             box-shadow:
+174:               inset 0 calc(var(--ring-orbit-offset) * -1) var(--ring-blur) var(--ring-spread) var(--ring-color),
+175:               inset 0 calc(var(--ring-orbit-offset-mid) * -1) var(--ring-blur-mid) var(--ring-spread-mid) color-mix(in oklch, var(--ring-color), black 20%),
+176:               inset 0 calc(var(--ring-orbit-offset-outer) * -1) var(--ring-blur-outer) var(--ring-spread-outer) color-mix(in oklch, var(--ring-color), black 40%);
+177:           }
+178:           25% {
+179:             box-shadow:
+180:               inset calc(var(--ring-orbit-offset) * -1) 0 var(--ring-blur) var(--ring-spread) var(--ring-color),
+181:               inset calc(var(--ring-orbit-offset-mid) * -1) 0 var(--ring-blur-mid) var(--ring-spread-mid) color-mix(in oklch, var(--ring-color), black 20%),
+182:               inset calc(var(--ring-orbit-offset-outer) * -1) 0 var(--ring-blur-outer) var(--ring-spread-outer) color-mix(in oklch, var(--ring-color), black 40%);
+183:           }
+184:           50% {
+185:             box-shadow:
+186:               inset 0 var(--ring-orbit-offset) var(--ring-blur) var(--ring-spread) var(--ring-color),
+187:               inset 0 var(--ring-orbit-offset-mid) var(--ring-blur-mid) var(--ring-spread-mid) color-mix(in oklch, var(--ring-color), black 20%),
+188:               inset 0 var(--ring-orbit-offset-outer) var(--ring-blur-outer) var(--ring-spread-outer) color-mix(in oklch, var(--ring-color), black 40%);
+189:           }
+190:           75% {
+191:             box-shadow:
+192:               inset var(--ring-orbit-offset) 0 var(--ring-blur) var(--ring-spread) var(--ring-color),
+193:               inset var(--ring-orbit-offset-mid) 0 var(--ring-blur-mid) var(--ring-spread-mid) color-mix(in oklch, var(--ring-color), black 20%),
+194:               inset var(--ring-orbit-offset-outer) 0 var(--ring-blur-outer) var(--ring-spread-outer) color-mix(in oklch, var(--ring-color), black 40%);
+195:           }
+196:           100% {
+197:             box-shadow:
+198:               inset 0 calc(var(--ring-orbit-offset) * -1) var(--ring-blur) var(--ring-spread) var(--ring-color),
+199:               inset 0 calc(var(--ring-orbit-offset-mid) * -1) var(--ring-blur-mid) var(--ring-spread-mid) color-mix(in oklch, var(--ring-color), black 20%),
+200:               inset 0 calc(var(--ring-orbit-offset-outer) * -1) var(--ring-blur-outer) var(--ring-spread-outer) color-mix(in oklch, var(--ring-color), black 40%);
+201:           }
+202:         }
+203:         @media (prefers-reduced-motion: reduce) {
+204:           .siri-frame-spin, .siri-frame-ring {
+205:             animation: none !important;
+206:           }
+207:         }
+208:       `}</style>
+209:     </div>
+210:   )
+211: }
 ```
 
 ## File: components/contacto/contact-form.tsx
@@ -6975,6 +6478,49 @@ x.sh
 103: }
 ```
 
+## File: lib/catamarcaopen/types.ts
+```typescript
+ 1: // lib/catamarcaopen/types.ts
+ 2: // Shape real que devuelve ciudadano-back /api/v1/catamarcaopen
+ 3: 
+ 4: export interface CatamarcaOpenRepo {
+ 5:   id:          string
+ 6:   ciudadanoId: string
+ 7:   url:         string
+ 8:   nombre:      string
+ 9:   descripcion: string | null
+10:   proveedor:   'GITHUB'
+11:   rama:        string
+12:   publico:     boolean
+13:   metadata:    Record<string, unknown>
+14:   createdAt:   string
+15:   updatedAt:   string
+16:   // incluido en /publicos
+17:   ciudadano?: {
+18:     id:      string
+19:     googleId: string
+20:     name:    string
+21:     email:   string
+22:     picture: string | null
+23:   }
+24: }
+25: 
+26: export interface CreateRepoInput {
+27:   url:         string
+28:   nombre:      string
+29:   descripcion?: string
+30:   rama?:       string
+31:   publico?:    boolean
+32: }
+33: 
+34: export interface UpdateRepoInput {
+35:   nombre?:      string
+36:   descripcion?: string
+37:   rama?:        string
+38:   publico?:     boolean
+39: }
+```
+
 ## File: lib/cursos/api.ts
 ```typescript
  1: // lib/cursos/api.ts
@@ -7654,6 +7200,340 @@ x.sh
 16: export default nextConfig;
 ```
 
+## File: app/catamarcaopen/proyectos/[id]/page.tsx
+```typescript
+  1: // app/catamarcaopen/proyectos/[id]/page.tsx
+  2: "use client"
+  3: 
+  4: import { useEffect, useState } from "react"
+  5: import { useParams } from "next/navigation"
+  6: import Link from "next/link"
+  7: import { Card, CardContent } from "@/components/ui/card"
+  8: import { Button } from "@/components/ui/button"
+  9: import { Skeleton } from "@/components/ui/skeleton"
+ 10: import {
+ 11:   ArrowLeft, ExternalLink, Github,
+ 12:   GitBranch, Calendar, Globe, Lock,
+ 13: } from "lucide-react"
+ 14: import { toast } from "sonner"
+ 15: import { getReposPublicos } from "@/lib/catamarcaopen/api"
+ 16: import type { CatamarcaOpenRepo } from "@/lib/catamarcaopen/types"
+ 17: 
+ 18: function formatDate(iso: string) {
+ 19:   return new Date(iso).toLocaleDateString("es-AR", {
+ 20:     year: "numeric", month: "long", day: "numeric",
+ 21:   })
+ 22: }
+ 23: 
+ 24: function DetailSkeleton() {
+ 25:   return (
+ 26:     <div className="space-y-4">
+ 27:       <Skeleton className="h-8 w-2/3" />
+ 28:       <Skeleton className="h-4 w-full" />
+ 29:       <Skeleton className="h-4 w-3/4" />
+ 30:       <div className="flex gap-3 mt-6">
+ 31:         <Skeleton className="h-10 w-32" />
+ 32:         <Skeleton className="h-10 w-32" />
+ 33:       </div>
+ 34:     </div>
+ 35:   )
+ 36: }
+ 37: 
+ 38: export default function CatamarcaOpenRepoDetailPage() {
+ 39:   const params   = useParams<{ id: string }>()
+ 40:   const [repo, setRepo]       = useState<CatamarcaOpenRepo | null | undefined>(undefined)
+ 41:   const [isLoading, setIsLoading] = useState(true)
+ 42: 
+ 43:   useEffect(() => {
+ 44:     let active = true
+ 45:     setIsLoading(true)
+ 46: 
+ 47:     getReposPublicos()
+ 48:       .then((repos) => {
+ 49:         if (!active) return
+ 50:         const found = repos.find((r) => r.id === params.id) ?? null
+ 51:         setRepo(found)
+ 52:       })
+ 53:       .catch((err: unknown) => {
+ 54:         if (!active) return
+ 55:         toast.error((err as { message?: string })?.message ?? "Error al cargar el proyecto")
+ 56:         setRepo(null)
+ 57:       })
+ 58:       .finally(() => { if (active) setIsLoading(false) })
+ 59: 
+ 60:     return () => { active = false }
+ 61:   }, [params.id])
+ 62: 
+ 63:   const githubParts = repo?.url.replace("https://github.com/", "").split("/") ?? []
+ 64:   const githubUser  = githubParts[0] ?? ""
+ 65:   const githubRepo  = githubParts[1] ?? ""
+ 66: 
+ 67:   return (
+ 68:     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
+ 69:       <div className="container mx-auto px-4 max-w-2xl">
+ 70:         <Link
+ 71:           href="/catamarcaopen/proyectos"
+ 72:           className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
+ 73:         >
+ 74:           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+ 75:           Todos los proyectos
+ 76:         </Link>
+ 77: 
+ 78:         {isLoading ? (
+ 79:           <DetailSkeleton />
+ 80:         ) : repo === null ? (
+ 81:           // Repo no encontrado
+ 82:           <div className="flex flex-col items-center justify-center py-20 text-center">
+ 83:             <Github className="h-10 w-10 text-slate-300 mb-4" strokeWidth={1.5} />
+ 84:             <p className="text-sm font-medium text-slate-600 mb-1">Proyecto no encontrado</p>
+ 85:             <p className="text-xs text-slate-400 mb-6">
+ 86:               Es posible que haya sido eliminado o no sea público.
+ 87:             </p>
+ 88:             <Button asChild variant="outline" size="sm" className="rounded-xl">
+ 89:               <Link href="/catamarcaopen/proyectos">Ver todos los proyectos</Link>
+ 90:             </Button>
+ 91:           </div>
+ 92:         ) : (
+ 93:           <Card className="border-[#26a7fc]/10">
+ 94:             <CardContent className="pt-7 pb-8 px-6 space-y-6">
+ 95: 
+ 96:               {/* Header */}
+ 97:               <div className="flex items-start justify-between gap-4">
+ 98:                 <div className="flex items-center gap-3 min-w-0">
+ 99:                   <div className="h-11 w-11 rounded-xl bg-[#26a7fc]/10 flex items-center justify-center shrink-0">
+100:                     <Github className="h-5 w-5 text-[#26a7fc]" strokeWidth={1.5} />
+101:                   </div>
+102:                   <div className="min-w-0">
+103:                     <h1 className="text-xl font-bold text-slate-900 truncate">{repo.nombre}</h1>
+104:                     <p className="text-xs font-mono text-slate-400 truncate">
+105:                       {githubUser}/{githubRepo}
+106:                     </p>
+107:                   </div>
+108:                 </div>
+109:                 <a
+110:                   href={repo.url}
+111:                   target="_blank"
+112:                   rel="noopener noreferrer"
+113:                   className="shrink-0"
+114:                 >
+115:                   <Button
+116:                     size="sm"
+117:                     className="text-white gap-2 rounded-xl"
+118:                     style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+119:                   >
+120:                     <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
+121:                     Ver en GitHub
+122:                   </Button>
+123:                 </a>
+124:               </div>
+125: 
+126:               {/* Descripción */}
+127:               {repo.descripcion && (
+128:                 <p className="text-sm text-slate-600 leading-relaxed">{repo.descripcion}</p>
+129:               )}
+130: 
+131:               {/* Metadata */}
+132:               <div className="grid grid-cols-2 gap-3">
+133:                 <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
+134:                   <GitBranch className="h-4 w-4 text-slate-400 shrink-0" strokeWidth={1.5} />
+135:                   <div className="min-w-0">
+136:                     <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Rama</p>
+137:                     <p className="text-xs font-mono text-slate-700 truncate">{repo.rama}</p>
+138:                   </div>
+139:                 </div>
+140: 
+141:                 <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
+142:                   {repo.publico
+143:                     ? <Globe className="h-4 w-4 text-green-500 shrink-0" strokeWidth={1.5} />
+144:                     : <Lock  className="h-4 w-4 text-amber-500 shrink-0" strokeWidth={1.5} />}
+145:                   <div>
+146:                     <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Visibilidad</p>
+147:                     <p className="text-xs text-slate-700">{repo.publico ? "Público" : "Privado"}</p>
+148:                   </div>
+149:                 </div>
+150: 
+151:                 <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
+152:                   <Calendar className="h-4 w-4 text-slate-400 shrink-0" strokeWidth={1.5} />
+153:                   <div className="min-w-0">
+154:                     <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Publicado</p>
+155:                     <p className="text-xs text-slate-700">{formatDate(repo.createdAt)}</p>
+156:                   </div>
+157:                 </div>
+158: 
+159:                 {repo.ciudadano && (
+160:                   <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5">
+161:                     <div className="h-5 w-5 rounded-full bg-[#26a7fc]/20 flex items-center justify-center shrink-0">
+162:                       <span className="text-[9px] font-bold text-[#26a7fc]">
+163:                         {repo.ciudadano.name.charAt(0).toUpperCase()}
+164:                       </span>
+165:                     </div>
+166:                     <div className="min-w-0">
+167:                       <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Autor</p>
+168:                       <p className="text-xs text-slate-700 truncate">{repo.ciudadano.name}</p>
+169:                     </div>
+170:                   </div>
+171:                 )}
+172:               </div>
+173: 
+174:             </CardContent>
+175:           </Card>
+176:         )}
+177:       </div>
+178:     </main>
+179:   )
+180: }
+```
+
+## File: app/catamarcaopen/proyectos/page.tsx
+```typescript
+  1: // app/catamarcaopen/proyectos/page.tsx
+  2: "use client"
+  3: 
+  4: import { useEffect, useState } from "react"
+  5: import Link from "next/link"
+  6: import { Card, CardContent } from "@/components/ui/card"
+  7: import { Button } from "@/components/ui/button"
+  8: import { Skeleton } from "@/components/ui/skeleton"
+  9: import { ArrowLeft, Plus, ExternalLink, Github, Loader2 } from "lucide-react"
+ 10: import { toast } from "sonner"
+ 11: import { getReposPublicos } from "@/lib/catamarcaopen/api"
+ 12: import type { CatamarcaOpenRepo } from "@/lib/catamarcaopen/types"
+ 13: 
+ 14: function RepoSkeleton() {
+ 15:   return (
+ 16:     <Card className="border-[#26a7fc]/10">
+ 17:       <CardContent className="p-5 space-y-3">
+ 18:         <Skeleton className="h-4 w-2/3" />
+ 19:         <Skeleton className="h-3 w-full" />
+ 20:         <Skeleton className="h-3 w-1/3" />
+ 21:       </CardContent>
+ 22:     </Card>
+ 23:   )
+ 24: }
+ 25: 
+ 26: function RepoCard({ repo }: { repo: CatamarcaOpenRepo }) {
+ 27:   const githubUser = repo.url.replace('https://github.com/', '').split('/')[0]
+ 28:   const repoSlug   = repo.url.replace('https://github.com/', '').split('/')[1] ?? ''
+ 29: 
+ 30:   return (
+ 31:     <Card className="border-[#26a7fc]/10 hover:border-[#26a7fc]/30 hover:shadow-md transition-all duration-200">
+ 32:       <CardContent className="p-5">
+ 33:         <div className="flex items-start justify-between gap-3 mb-2">
+ 34:           <div className="flex items-center gap-2 min-w-0">
+ 35:             <Github className="h-4 w-4 text-slate-400 shrink-0" strokeWidth={1.5} />
+ 36:             <h3 className="text-sm font-semibold text-slate-900 truncate">{repo.nombre}</h3>
+ 37:           </div>
+ 38:           <a
+ 39:             href={repo.url}
+ 40:             target="_blank"
+ 41:             rel="noopener noreferrer"
+ 42:             className="shrink-0 text-[#26a7fc] hover:text-[#1c8fe0]"
+ 43:           >
+ 44:             <ExternalLink className="h-4 w-4" strokeWidth={1.5} />
+ 45:           </a>
+ 46:         </div>
+ 47: 
+ 48:         {repo.descripcion && (
+ 49:           <p className="text-xs text-slate-500 leading-relaxed mb-3 line-clamp-2">
+ 50:             {repo.descripcion}
+ 51:           </p>
+ 52:         )}
+ 53: 
+ 54:         <div className="flex items-center justify-between gap-2 mt-3">
+ 55:           <span className="text-[10px] font-mono text-slate-400 truncate">
+ 56:             {githubUser}/{repoSlug}
+ 57:           </span>
+ 58:           {repo.ciudadano && (
+ 59:             <span className="text-[10px] text-slate-400 shrink-0">
+ 60:               por {repo.ciudadano.name.split(' ')[0]}
+ 61:             </span>
+ 62:           )}
+ 63:         </div>
+ 64:       </CardContent>
+ 65:     </Card>
+ 66:   )
+ 67: }
+ 68: 
+ 69: export default function CatamarcaOpenProyectosPage() {
+ 70:   const [repos, setRepos] = useState<CatamarcaOpenRepo[] | null>(null)
+ 71:   const [isLoading, setIsLoading] = useState(true)
+ 72: 
+ 73:   useEffect(() => {
+ 74:     let active = true
+ 75:     setIsLoading(true)
+ 76:     getReposPublicos()
+ 77:       .then((data) => { if (active) setRepos(data) })
+ 78:       .catch((err: unknown) => {
+ 79:         if (active) toast.error((err as { message?: string })?.message ?? 'Error al cargar proyectos')
+ 80:       })
+ 81:       .finally(() => { if (active) setIsLoading(false) })
+ 82:     return () => { active = false }
+ 83:   }, [])
+ 84: 
+ 85:   return (
+ 86:     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
+ 87:       <div className="container mx-auto px-4 max-w-5xl">
+ 88:         <Link
+ 89:           href="/catamarcaopen"
+ 90:           className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
+ 91:         >
+ 92:           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+ 93:           CatamarcaOpen
+ 94:         </Link>
+ 95: 
+ 96:         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
+ 97:           <div>
+ 98:             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 text-balance">
+ 99:               Proyectos de la comunidad
+100:             </h1>
+101:             <p className="text-sm text-muted-foreground max-w-xl text-pretty">
+102:               Repositorios de código abierto publicados por vecinos y colaboradores del Nodo.
+103:             </p>
+104:           </div>
+105:           <Button
+106:             asChild
+107:             className="text-white shrink-0 gap-2"
+108:             style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+109:           >
+110:             <Link href="/catamarcaopen/proyectos/nuevo">
+111:               <Plus className="h-4 w-4" strokeWidth={1.5} />
+112:               Publicar proyecto
+113:             </Link>
+114:           </Button>
+115:         </div>
+116: 
+117:         {isLoading ? (
+118:           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+119:             {Array.from({ length: 6 }).map((_, i) => <RepoSkeleton key={i} />)}
+120:           </div>
+121:         ) : !repos || repos.length === 0 ? (
+122:           <div className="flex flex-col items-center justify-center py-20 text-center">
+123:             <Github className="h-10 w-10 text-slate-300 mb-4" strokeWidth={1.5} />
+124:             <p className="text-sm font-medium text-slate-600 mb-1">Todavía no hay proyectos publicados</p>
+125:             <p className="text-xs text-slate-400 mb-6">¡Sé el primero en compartir tu repositorio!</p>
+126:             <Button
+127:               asChild
+128:               size="sm"
+129:               className="text-white gap-2"
+130:               style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+131:             >
+132:               <Link href="/catamarcaopen/proyectos/nuevo">
+133:                 <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+134:                 Publicar proyecto
+135:               </Link>
+136:             </Button>
+137:           </div>
+138:         ) : (
+139:           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+140:             {repos.map((repo) => <RepoCard key={repo.id} repo={repo} />)}
+141:           </div>
+142:         )}
+143:       </div>
+144:     </main>
+145:   )
+146: }
+```
+
 ## File: app/coworking/[id]/page.tsx
 ```typescript
   1: "use client"
@@ -8322,6 +8202,107 @@ x.sh
 40: 
 41:   return { areas, loading, error, ultimaActualizacion, refetch: cargar }
 42: }
+```
+
+## File: lib/catamarcaopen/api.ts
+```typescript
+ 1: // lib/catamarcaopen/api.ts
+ 2: import type { CatamarcaOpenRepo, CreateRepoInput, UpdateRepoInput } from './types'
+ 3: 
+ 4: const BASE = (process.env.NEXT_PUBLIC_CIUDADANO_API_URL ?? '').replace(/\/$/, '') + '/api/v1'
+ 5: 
+ 6: // Error tipado que incluye el status HTTP
+ 7: export class ApiError extends Error {
+ 8:   constructor(
+ 9:     public readonly statusCode: number,
+10:     message: string,
+11:   ) {
+12:     super(message)
+13:     this.name = 'ApiError'
+14:   }
+15: }
+16: 
+17: async function apiFetch<T>(
+18:   path: string,
+19:   idToken: string,
+20:   options: RequestInit = {},
+21: ): Promise<T> {
+22:   if (!BASE || BASE === '/api/v1') {
+23:     throw new ApiError(0, '[catamarcaopen-api] NEXT_PUBLIC_CIUDADANO_API_URL no está configurada')
+24:   }
+25: 
+26:   const res = await fetch(`${BASE}${path}`, {
+27:     ...options,
+28:     headers: {
+29:       'Content-Type': 'application/json',
+30:       Authorization: `Bearer ${idToken}`,
+31:       ...(options.headers ?? {}),
+32:     },
+33:   })
+34: 
+35:   if (!res.ok) {
+36:     // Intentar leer el mensaje del body JSON que devuelve ciudadano-back
+37:     let message = res.statusText
+38:     try {
+39:       const body = await res.json()
+40:       message = body?.message ?? body?.error ?? message
+41:     } catch {
+42:       // body no es JSON, usar statusText
+43:     }
+44:     throw new ApiError(res.status, message)
+45:   }
+46: 
+47:   const json = await res.json()
+48:   return (json?.data ?? json) as T
+49: }
+50: 
+51: // ── Endpoints públicos ────────────────────────────────────────────────────────
+52: 
+53: export async function getReposPublicos(): Promise<CatamarcaOpenRepo[]> {
+54:   const url = `${BASE}/catamarcaopen/publicos`
+55:   const res = await fetch(url, { cache: 'no-store' })
+56:   if (!res.ok) {
+57:     let message = res.statusText
+58:     try { const b = await res.json(); message = b?.message ?? message } catch { /* noop */ }
+59:     throw new ApiError(res.status, message)
+60:   }
+61:   const json = await res.json()
+62:   return (json?.data ?? json) as CatamarcaOpenRepo[]
+63: }
+64: 
+65: // ── Endpoints autenticados ────────────────────────────────────────────────────
+66: 
+67: export async function getMisRepos(idToken: string): Promise<CatamarcaOpenRepo[]> {
+68:   return apiFetch<CatamarcaOpenRepo[]>('/catamarcaopen/me', idToken)
+69: }
+70: 
+71: export async function crearRepo(
+72:   input: CreateRepoInput,
+73:   idToken: string,
+74: ): Promise<CatamarcaOpenRepo> {
+75:   return apiFetch<CatamarcaOpenRepo>('/catamarcaopen', idToken, {
+76:     method: 'POST',
+77:     body:   JSON.stringify(input),
+78:   })
+79: }
+80: 
+81: export async function editarRepo(
+82:   id: string,
+83:   input: UpdateRepoInput,
+84:   idToken: string,
+85: ): Promise<CatamarcaOpenRepo> {
+86:   return apiFetch<CatamarcaOpenRepo>(`/catamarcaopen/${id}`, idToken, {
+87:     method: 'PATCH',
+88:     body:   JSON.stringify(input),
+89:   })
+90: }
+91: 
+92: export async function eliminarRepo(
+93:   id: string,
+94:   idToken: string,
+95: ): Promise<{ id: string; deleted: boolean }> {
+96:   return apiFetch(`/catamarcaopen/${id}`, idToken, { method: 'DELETE' })
+97: }
 ```
 
 ## File: lib/coworking/utils.ts
@@ -9318,6 +9299,290 @@ x.sh
 42: }
 ```
 
+## File: app/catamarcaopen/proyectos/nuevo/page.tsx
+```typescript
+  1: // app/catamarcaopen/proyectos/nuevo/page.tsx
+  2: "use client"
+  3: 
+  4: import { useState } from "react"
+  5: import Link from "next/link"
+  6: import { Card, CardContent } from "@/components/ui/card"
+  7: import { Button } from "@/components/ui/button"
+  8: import { Input } from "@/components/ui/input"
+  9: import { Label } from "@/components/ui/label"
+ 10: import { Textarea } from "@/components/ui/textarea"
+ 11: import { ArrowLeft, Github, Loader2, LogIn, CheckCircle2 } from "lucide-react"
+ 12: import { toast } from "sonner"
+ 13: import { useAuth } from "@/contexts/auth-context"
+ 14: import { crearRepo, ApiError } from "@/lib/catamarcaopen/api"
+ 15: 
+ 16: const GITHUB_URL_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(\/)?$/
+ 17: 
+ 18: export default function NuevoProyectoCatamarcaOpenPage() {
+ 19:   const { user, loading, loginWithGoogle } = useAuth()
+ 20: 
+ 21:   const [url,         setUrl]         = useState("")
+ 22:   const [nombre,      setNombre]      = useState("")
+ 23:   const [descripcion, setDescripcion] = useState("")
+ 24:   const [rama,        setRama]        = useState("main")
+ 25:   const [submitting,  setSubmitting]  = useState(false)
+ 26:   const [signingIn,   setSigningIn]   = useState(false)
+ 27:   const [submitted,   setSubmitted]   = useState(false)
+ 28: 
+ 29:   const urlValida = GITHUB_URL_RE.test(url.trim())
+ 30:   const isValid   = urlValida && nombre.trim().length >= 2
+ 31: 
+ 32:   const handleUrlBlur = () => {
+ 33:     if (urlValida && !nombre.trim()) {
+ 34:       const parts    = url.trim().replace(/\/$/, '').split('/')
+ 35:       const repoName = parts[parts.length - 1] ?? ''
+ 36:       if (repoName) setNombre(repoName)
+ 37:     }
+ 38:   }
+ 39: 
+ 40:   const handleLogin = async () => {
+ 41:     if (signingIn) return
+ 42:     setSigningIn(true)
+ 43:     try {
+ 44:       await loginWithGoogle()
+ 45:     } catch (err: unknown) {
+ 46:       toast.error((err as { message?: string })?.message ?? 'Error al iniciar sesión')
+ 47:     } finally {
+ 48:       setSigningIn(false)
+ 49:     }
+ 50:   }
+ 51: 
+ 52:   const handleSubmit = async () => {
+ 53:     if (!isValid || submitting || !user) return
+ 54:     setSubmitting(true)
+ 55:     try {
+ 56:       const idToken = await user.getIdToken()
+ 57:       await crearRepo(
+ 58:         {
+ 59:           url:         url.trim().replace(/\/$/, ''),
+ 60:           nombre:      nombre.trim(),
+ 61:           descripcion: descripcion.trim() || undefined,
+ 62:           rama:        rama.trim() || 'main',
+ 63:           publico:     true,
+ 64:         },
+ 65:         idToken,
+ 66:       )
+ 67:       setSubmitted(true)
+ 68:     } catch (err: unknown) {
+ 69:       if (err instanceof ApiError && err.statusCode === 409) {
+ 70:         toast.error('Este repositorio ya fue cargado en CatamarcaOpen.')
+ 71:       } else {
+ 72:         const msg = err instanceof Error ? err.message : 'Error al publicar el proyecto'
+ 73:         toast.error(msg)
+ 74:       }
+ 75:     } finally {
+ 76:       setSubmitting(false)
+ 77:     }
+ 78:   }
+ 79: 
+ 80:   // ── Loading auth ──────────────────────────────────────────────────────────
+ 81:   if (loading) {
+ 82:     return (
+ 83:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center">
+ 84:         <Loader2 className="h-6 w-6 animate-spin text-[#26a7fc]" />
+ 85:       </main>
+ 86:     )
+ 87:   }
+ 88: 
+ 89:   // ── Sin sesión ────────────────────────────────────────────────────────────
+ 90:   if (!user) {
+ 91:     return (
+ 92:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
+ 93:         <Card className="max-w-md w-full border-[#26a7fc]/10">
+ 94:           <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
+ 95:             <div className="h-14 w-14 rounded-2xl bg-[#26a7fc]/10 flex items-center justify-center mb-4">
+ 96:               <Github className="h-7 w-7 text-[#26a7fc]" strokeWidth={1.5} />
+ 97:             </div>
+ 98:             <h1 className="text-xl font-bold text-gray-900 mb-2">Necesitás iniciar sesión</h1>
+ 99:             <p className="text-sm text-muted-foreground mb-6 text-pretty">
+100:               Para publicar un proyecto en CatamarcaOpen, iniciá sesión con tu cuenta de Google.
+101:             </p>
+102:             <Button
+103:               onClick={handleLogin}
+104:               disabled={signingIn}
+105:               className="w-full text-white gap-2"
+106:               style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+107:             >
+108:               {signingIn
+109:                 ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+110:                 : <LogIn   className="h-4 w-4"              strokeWidth={1.5} />}
+111:               Ingresar con Google
+112:             </Button>
+113:           </CardContent>
+114:         </Card>
+115:       </main>
+116:     )
+117:   }
+118: 
+119:   // ── Publicado con éxito ───────────────────────────────────────────────────
+120:   if (submitted) {
+121:     return (
+122:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
+123:         <Card className="max-w-md w-full border-[#26a7fc]/10">
+124:           <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
+125:             <div className="h-14 w-14 rounded-2xl bg-green-100 flex items-center justify-center mb-4">
+126:               <CheckCircle2 className="h-7 w-7 text-green-600" strokeWidth={1.5} />
+127:             </div>
+128:             <h1 className="text-xl font-bold text-gray-900 mb-2">¡Proyecto publicado!</h1>
+129:             <p className="text-sm text-muted-foreground mb-6 text-pretty">
+130:               Tu repositorio ya está disponible en la comunidad CatamarcaOpen.
+131:             </p>
+132:             <div className="flex gap-3 w-full">
+133:               <Button
+134:                 variant="outline"
+135:                 className="flex-1 rounded-xl"
+136:                 onClick={() => {
+137:                   setUrl(''); setNombre(''); setDescripcion('')
+138:                   setRama('main'); setSubmitted(false)
+139:                 }}
+140:               >
+141:                 Publicar otro
+142:               </Button>
+143:               <Button
+144:                 asChild
+145:                 className="flex-1 text-white rounded-xl"
+146:                 style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+147:               >
+148:                 <Link href="/catamarcaopen/proyectos">Ver proyectos</Link>
+149:               </Button>
+150:             </div>
+151:           </CardContent>
+152:         </Card>
+153:       </main>
+154:     )
+155:   }
+156: 
+157:   // ── Formulario ────────────────────────────────────────────────────────────
+158:   return (
+159:     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
+160:       <div className="container mx-auto px-4 max-w-xl">
+161:         <Link
+162:           href="/catamarcaopen/proyectos"
+163:           className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
+164:         >
+165:           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+166:           Volver al listado
+167:         </Link>
+168: 
+169:         <h1 className="text-2xl font-bold text-gray-900 mb-1">Publicar un proyecto</h1>
+170:         <p className="text-sm text-muted-foreground mb-8">
+171:           Compartí tu repositorio de GitHub con la comunidad del Nodo.
+172:         </p>
+173: 
+174:         <Card className="border-[#26a7fc]/10">
+175:           <CardContent className="pt-6 pb-7 space-y-5">
+176: 
+177:             <div className="space-y-1.5">
+178:               <Label htmlFor="url" className="text-sm font-medium text-slate-700">
+179:                 URL del repositorio <span className="text-red-500">*</span>
+180:               </Label>
+181:               <div className="relative">
+182:                 <Github
+183:                   className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
+184:                   strokeWidth={1.5}
+185:                 />
+186:                 <Input
+187:                   id="url"
+188:                   value={url}
+189:                   onChange={(e) => setUrl(e.target.value)}
+190:                   onBlur={handleUrlBlur}
+191:                   placeholder="https://github.com/usuario/repositorio"
+192:                   className="pl-9 h-10 rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white"
+193:                 />
+194:               </div>
+195:               {url && !urlValida && (
+196:                 <p className="text-[11px] text-red-500">
+197:                   Debe ser una URL de GitHub válida: https://github.com/usuario/repo
+198:                 </p>
+199:               )}
+200:             </div>
+201: 
+202:             <div className="space-y-1.5">
+203:               <Label htmlFor="nombre" className="text-sm font-medium text-slate-700">
+204:                 Nombre del proyecto <span className="text-red-500">*</span>
+205:               </Label>
+206:               <Input
+207:                 id="nombre"
+208:                 value={nombre}
+209:                 onChange={(e) => setNombre(e.target.value)}
+210:                 placeholder="ej: Sistema de Turnos Municipales"
+211:                 maxLength={200}
+212:                 className="h-10 rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white"
+213:               />
+214:             </div>
+215: 
+216:             <div className="space-y-1.5">
+217:               <Label htmlFor="descripcion" className="text-sm font-medium text-slate-700">
+218:                 Descripción
+219:                 <span className="text-slate-400 font-normal ml-1">(opcional)</span>
+220:               </Label>
+221:               <Textarea
+222:                 id="descripcion"
+223:                 value={descripcion}
+224:                 onChange={(e) => setDescripcion(e.target.value)}
+225:                 placeholder="¿Qué hace este proyecto? ¿Para qué sirve?"
+226:                 maxLength={500}
+227:                 rows={3}
+228:                 className="rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white resize-none"
+229:               />
+230:               <p className="text-[11px] text-slate-400 text-right">{descripcion.length}/500</p>
+231:             </div>
+232: 
+233:             <div className="space-y-1.5">
+234:               <Label htmlFor="rama" className="text-sm font-medium text-slate-700">
+235:                 Rama principal
+236:                 <span className="text-slate-400 font-normal ml-1">(opcional)</span>
+237:               </Label>
+238:               <Input
+239:                 id="rama"
+240:                 value={rama}
+241:                 onChange={(e) => setRama(e.target.value)}
+242:                 placeholder="main"
+243:                 maxLength={100}
+244:                 className="h-10 rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white"
+245:               />
+246:             </div>
+247: 
+248:             <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
+249:               <div className="h-6 w-6 rounded-full bg-[#26a7fc]/10 flex items-center justify-center shrink-0">
+250:                 <span className="text-[10px] font-bold text-[#26a7fc]">
+251:                   {user.displayName?.charAt(0).toUpperCase() ?? '?'}
+252:                 </span>
+253:               </div>
+254:               <p className="text-xs text-slate-500 truncate">
+255:                 Publicando como <span className="font-medium text-slate-700">{user.displayName}</span>
+256:               </p>
+257:             </div>
+258: 
+259:             <Button
+260:               onClick={handleSubmit}
+261:               disabled={!isValid || submitting}
+262:               className="w-full text-white gap-2 rounded-xl h-11 font-semibold disabled:opacity-50"
+263:               style={
+264:                 isValid && !submitting
+265:                   ? { backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }
+266:                   : {}
+267:               }
+268:             >
+269:               {submitting
+270:                 ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+271:                 : <Github  className="h-4 w-4"              strokeWidth={1.5} />}
+272:               {submitting ? 'Publicando...' : 'Publicar proyecto'}
+273:             </Button>
+274: 
+275:           </CardContent>
+276:         </Card>
+277:       </div>
+278:     </main>
+279:   )
+280: }
+```
+
 ## File: app/noticias/[id]/page.tsx
 ```typescript
   1: /**
@@ -9537,342 +9802,6 @@ x.sh
 13: export default function CursosPage() {
 14:   return <CursosClient />
 15: }
-```
-
-## File: components/chatbot/chatbot-widget.tsx
-```typescript
-  1: "use client"
-  2: 
-  3: import { useState, useEffect, useRef } from "react"
-  4: import { Bot, Send, X } from "lucide-react"
-  5: import Image from "next/image"
-  6: import { Button } from "@/components/ui/button"
-  7: import { Input } from "@/components/ui/input"
-  8: import { ScrollArea } from "@/components/ui/scroll-area"
-  9: import { SiriFrame } from "@/components/chatbot/siri-frame"
- 10: 
- 11: interface Message {
- 12:   id: string
- 13:   text: string
- 14:   sender: "user" | "bot"
- 15:   timestamp: Date
- 16: }
- 17: 
- 18: interface GroqMessage {
- 19:   role: "user" | "assistant"
- 20:   content: string
- 21: }
- 22: 
- 23: const SUGGESTIONS = [
- 24:   "¿Qué cursos tienen disponibles?",
- 25:   "Contame sobre el Nodo Tecnológico",
- 26:   "¿Cómo me inscribo a un curso?",
- 27: ]
- 28: 
- 29: function WelcomeIntro({ onPick }: { onPick: (text: string) => void }) {
- 30:   return (
- 31:     <div className="flex h-full flex-col items-center justify-center gap-6 px-2 text-center animate-in fade-in zoom-in-95 duration-500">
- 32:       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 shadow-lg backdrop-blur-md">
- 33:         <Bot className="h-8 w-8 text-primary" />
- 34:       </div>
- 35: 
- 36:       <div className="space-y-2">
- 37:         <h3 className="text-xl font-semibold text-balance text-white">
- 38:           ¡Hola! Soy el asistente virtual del Nodo Tecnológico
- 39:         </h3>
- 40:         <p className="text-sm text-white/70">¿En qué puedo ayudarte hoy?</p>
- 41:       </div>
- 42: 
- 43:       <div className="flex w-full max-w-xs flex-col gap-2">
- 44:         {SUGGESTIONS.map((suggestion) => (
- 45:           <button
- 46:             key={suggestion}
- 47:             type="button"
- 48:             onClick={() => onPick(suggestion)}
- 49:             className="rounded-full bg-card px-4 py-2.5 text-sm font-medium text-card-foreground shadow-lg transition-colors hover:bg-card/90"
- 50:           >
- 51:             {suggestion}
- 52:           </button>
- 53:         ))}
- 54:       </div>
- 55:     </div>
- 56:   )
- 57: }
- 58: 
- 59: export function ChatbotWidget() {
- 60:   const [isOpen, setIsOpen] = useState(false)
- 61:   const [messages, setMessages] = useState<Message[]>([])
- 62:   const [conversationHistory, setConversationHistory] = useState<GroqMessage[]>([])
- 63:   const [inputValue, setInputValue] = useState("")
- 64:   const [isLoading, setIsLoading] = useState(false)
- 65:   const messagesEndRef = useRef<HTMLDivElement>(null)
- 66:   const inputRef = useRef<HTMLInputElement>(null)
- 67: 
- 68:   const hasStarted = messages.length > 0
- 69: 
- 70:   useEffect(() => {
- 71:     const handleOpenChatbot = () => setIsOpen(true)
- 72:     window.addEventListener("open-chatbot", handleOpenChatbot)
- 73:     return () => window.removeEventListener("open-chatbot", handleOpenChatbot)
- 74:   }, [])
- 75: 
- 76:   useEffect(() => {
- 77:     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
- 78:   }, [messages])
- 79: 
- 80:   // Bloquear scroll del body mientras el overlay está abierto
- 81:   useEffect(() => {
- 82:     if (!isOpen) return
- 83:     const original = document.body.style.overflow
- 84:     document.body.style.overflow = "hidden"
- 85:     const id = setTimeout(() => inputRef.current?.focus(), 350)
- 86:     return () => {
- 87:       document.body.style.overflow = original
- 88:       clearTimeout(id)
- 89:     }
- 90:   }, [isOpen])
- 91: 
- 92:   // Cerrar con Escape
- 93:   useEffect(() => {
- 94:     if (!isOpen) return
- 95:     const handleKeyDown = (e: KeyboardEvent) => {
- 96:       if (e.key === "Escape") setIsOpen(false)
- 97:     }
- 98:     window.addEventListener("keydown", handleKeyDown)
- 99:     return () => window.removeEventListener("keydown", handleKeyDown)
-100:   }, [isOpen])
-101: 
-102:   const sendMessage = async (rawText: string) => {
-103:     const userText = rawText.trim()
-104:     if (!userText || isLoading) return
-105: 
-106:     const userMessage: Message = {
-107:       id: Date.now().toString(),
-108:       text: userText,
-109:       sender: "user",
-110:       timestamp: new Date(),
-111:     }
-112: 
-113:     const newHistory: GroqMessage[] = [
-114:       ...conversationHistory,
-115:       { role: "user", content: userText },
-116:     ]
-117: 
-118:     setMessages((prev) => [...prev, userMessage])
-119:     setInputValue("")
-120:     setIsLoading(true)
-121: 
-122:     try {
-123:       const res = await fetch("/api/chat", {
-124:         method: "POST",
-125:         headers: { "Content-Type": "application/json" },
-126:         body: JSON.stringify({ messages: newHistory }),
-127:       })
-128: 
-129:       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-130: 
-131:       const data = await res.json()
-132: 
-133:       if (data.response) {
-134:         const botMessage: Message = {
-135:           id: (Date.now() + 1).toString(),
-136:           text: data.response,
-137:           sender: "bot",
-138:           timestamp: new Date(),
-139:         }
-140: 
-141:         setMessages((prev) => [...prev, botMessage])
-142:         setConversationHistory([
-143:           ...newHistory,
-144:           { role: "assistant", content: data.response },
-145:         ])
-146:       } else {
-147:         throw new Error("Respuesta inválida")
-148:       }
-149:     } catch (error) {
-150:       console.error("Error:", error)
-151:       const errorMessage: Message = {
-152:         id: (Date.now() + 1).toString(),
-153:         text: "Lo siento, hubo un error al procesar tu mensaje. Por favor, intentá nuevamente.",
-154:         sender: "bot",
-155:         timestamp: new Date(),
-156:       }
-157:       setMessages((prev) => [...prev, errorMessage])
-158:     } finally {
-159:       setIsLoading(false)
-160:     }
-161:   }
-162: 
-163:   const handleSendMessage = () => sendMessage(inputValue)
-164: 
-165:   return (
-166:     <>
-167:       {/* Botón original — comentado para probar excited.png
-168:       <Button
-169:         onClick={() => setIsOpen(true)}
-170:         className="fixed bottom-6 right-6 h-12 w-12 rounded-xl bg-[#26a7fc] shadow-lg hover:shadow-xl hover:bg-[#1c8fe0] transition-all duration-300 z-50 cursor-pointer"
-171:         size="icon"
-172:       >
-173:         <Bot className="text-white" style={{ width: "75%", height: "75%" }} />
-174:       </Button>
-175:       */}
-176: 
-177:       <button
-178:         type="button"
-179:         onClick={() => setIsOpen(true)}
-180:         aria-label="Abrir asistente virtual"
-181:         className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer overflow-hidden bg-transparent border-0 p-0"
-182:       >
-183:         <Image
-184:           src="/excited.png"
-185:           alt="Asistente virtual"
-186:           width={64}
-187:           height={64}
-188:           className="h-full w-full object-contain"
-189:           priority
-190:         />
-191:       </button>
-192: 
-193:       {/* Overlay full-screen — fondo Siri de pared a pared, chat flotando SIN card */}
-194:       {isOpen && (
-195:         <div
-196:           role="dialog"
-197:           aria-modal="true"
-198:           aria-label="Asistente Virtual del Nodo Tecnológico"
-199:           className="fixed inset-0 z-[100] flex flex-col"
-200:         >
-201:           {/* Fondo 100% transparente — se ve la página de atrás sin blur.
-202:               El único color viene del glow tipo Siri. */}
-203:           <div className="absolute inset-0">
-204:             <SiriFrame active={isLoading} />
-205:           </div>
-206: 
-207:           {/* Vidrio esmerilado — cubre TODA la pantalla parejo, un
-208:               blur/tinte leve sobre la página y el glow de Siri */}
-209:           <div className="pointer-events-none absolute inset-0 bg-white/10 backdrop-blur-sm" />
-210: 
-211:           {/* Click afuera del área de contenido para cerrar */}
-212:           <button
-213:             type="button"
-214:             aria-label="Cerrar asistente virtual"
-215:             onClick={() => setIsOpen(false)}
-216:             className="absolute inset-0 cursor-default"
-217:           />
-218: 
-219:           {/* Botón cerrar — esquina superior derecha */}
-220:           <button
-221:             type="button"
-222:             onClick={() => setIsOpen(false)}
-223:             aria-label="Cerrar"
-224:             className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center transition-colors"
-225:           >
-226:             <X className="h-5 w-5 text-white" />
-227:           </button>
-228: 
-229:           {/* Título flotante — solo una vez que arrancó la conversación */}
-230:           {hasStarted && (
-231:             <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
-232:               <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center">
-233:                 <Bot className="h-4.5 w-4.5 text-white" />
-234:               </div>
-235:               <div>
-236:                 <h2 className="text-white text-base font-semibold leading-tight">Asistente Virtual</h2>
-237:                 <p className="text-xs text-white/60 leading-tight">Nodo Tecnológico</p>
-238:               </div>
-239:             </div>
-240:           )}
-241: 
-242:           {/* Contenido central: presentación (antes del primer mensaje) o mensajes */}
-243:           <div className="relative z-10 flex-1 min-h-0 mx-auto w-full max-w-xl px-4 sm:px-6">
-244:             {!hasStarted ? (
-245:               <WelcomeIntro onPick={(text) => sendMessage(text)} />
-246:             ) : (
-247:               <ScrollArea className="h-full">
-248:                 <div className="space-y-4 py-6">
-249:                   {messages.map((message) => (
-250:                     <div
-251:                       key={message.id}
-252:                       className={`flex animate-in fade-in slide-in-from-bottom-2 duration-300 ${
-253:                         message.sender === "user" ? "justify-end" : "justify-start"
-254:                       }`}
-255:                     >
-256:                       <div
-257:                         className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-lg ${
-258:                           message.sender === "user"
-259:                             ? "bg-primary text-primary-foreground rounded-br-sm"
-260:                             : "bg-card text-card-foreground border border-black/5 rounded-bl-sm"
-261:                         }`}
-262:                       >
-263:                         <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-264:                           {message.text}
-265:                         </p>
-266:                         <p
-267:                           className={`text-xs mt-1 ${
-268:                             message.sender === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
-269:                           }`}
-270:                         >
-271:                           {message.timestamp.toLocaleTimeString("es-AR", {
-272:                             hour: "2-digit",
-273:                             minute: "2-digit",
-274:                           })}
-275:                         </p>
-276:                       </div>
-277:                     </div>
-278:                   ))}
-279: 
-280:                   {isLoading && (
-281:                     <div className="flex justify-start">
-282:                       <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-card border border-black/5 rounded-bl-sm">
-283:                         <div className="flex items-center gap-1">
-284:                           {[0, 150, 300].map((delay) => (
-285:                             <span
-286:                               key={delay}
-287:                               className="w-2 h-2 bg-primary/70 rounded-full animate-bounce"
-288:                               style={{ animationDelay: `${delay}ms` }}
-289:                             />
-290:                           ))}
-291:                         </div>
-292:                       </div>
-293:                     </div>
-294:                   )}
-295:                   <div ref={messagesEndRef} />
-296:                 </div>
-297:               </ScrollArea>
-298:             )}
-299:           </div>
-300: 
-301:           {/* Input — pill flotante, sin card, pegado abajo */}
-302:           <div className="relative z-10 mx-auto w-full max-w-xl px-4 sm:px-6 pb-6 sm:pb-10 shrink-0">
-303:             <form
-304:               onSubmit={(e) => {
-305:                 e.preventDefault()
-306:                 handleSendMessage()
-307:               }}
-308:               className="flex gap-3"
-309:             >
-310:               <Input
-311:                 ref={inputRef}
-312:                 value={inputValue}
-313:                 onChange={(e) => setInputValue(e.target.value)}
-314:                 placeholder={isLoading ? "Esperando respuesta..." : "Escribe tu mensaje..."}
-315:                 disabled={isLoading}
-316:                 className="flex-1 h-12 bg-white border border-black/10 text-foreground placeholder:text-muted-foreground rounded-full px-5 shadow-lg focus-visible:ring-2 focus-visible:ring-primary transition-all disabled:opacity-50"
-317:               />
-318:               <Button
-319:                 type="submit"
-320:                 size="icon"
-321:                 disabled={!inputValue.trim() || isLoading}
-322:                 className="h-12 w-12 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full disabled:opacity-50 shadow-lg"
-323:               >
-324:                 <Send className="h-4 w-4" />
-325:               </Button>
-326:             </form>
-327:           </div>
-328:         </div>
-329:       )}
-330:     </>
-331:   )
-332: }
 ```
 
 ## File: app/cursos/[id]/page.tsx
@@ -10132,6 +10061,338 @@ x.sh
 110: }
 ```
 
+## File: components/chatbot/chatbot-widget.tsx
+```typescript
+  1: "use client"
+  2: 
+  3: import { useState, useEffect, useRef } from "react"
+  4: import { Bot, X } from "lucide-react"
+  5: import Image from "next/image"
+  6: import { SiriFrame, type SiriFrameState } from "@/components/chatbot/siri-frame"
+  7: 
+  8: // interface Message {
+  9: //   id: string
+ 10: //   text: string
+ 11: //   sender: "user" | "bot"
+ 12: //   timestamp: Date
+ 13: // }
+ 14: 
+ 15: // interface GroqMessage {
+ 16: //   role: "user" | "assistant"
+ 17: //   content: string
+ 18: // }
+ 19: 
+ 20: // const SUGGESTIONS = [
+ 21: //   "¿Qué cursos tienen disponibles?",
+ 22: //   "Contame sobre el Nodo Tecnológico",
+ 23: //   "¿Cómo me inscribo a un curso?",
+ 24: // ]
+ 25: 
+ 26: // function WelcomeIntro({ onPick }: { onPick: (text: string) => void }) {
+ 27: //   return (
+ 28: //     <div className="flex h-full flex-col items-center justify-center gap-6 px-2 text-center animate-in fade-in zoom-in-95 duration-500">
+ 29: //       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 shadow-lg backdrop-blur-md">
+ 30: //         <Bot className="h-8 w-8 text-primary" />
+ 31: //       </div>
+ 32: 
+ 33: //       <div className="space-y-2">
+ 34: //         <h3 className="text-xl font-semibold text-balance text-white">
+ 35: //           ¡Hola! Soy el asistente virtual del Nodo Tecnológico
+ 36: //         </h3>
+ 37: //         <p className="text-sm text-white/70">¿En qué puedo ayudarte hoy?</p>
+ 38: //       </div>
+ 39: 
+ 40: //       <div className="flex w-full max-w-xs flex-col gap-2">
+ 41: //         {SUGGESTIONS.map((suggestion) => (
+ 42: //           <button
+ 43: //             key={suggestion}
+ 44: //             type="button"
+ 45: //             onClick={() => onPick(suggestion)}
+ 46: //             className="rounded-full bg-card px-4 py-2.5 text-sm font-medium text-card-foreground shadow-lg transition-colors hover:bg-card/90"
+ 47: //           >
+ 48: //             {suggestion}
+ 49: //           </button>
+ 50: //         ))}
+ 51: //       </div>
+ 52: //     </div>
+ 53: //   )
+ 54: // }
+ 55: 
+ 56: // ── Botonera de prueba — dispara cada estado del SiriFrame manualmente ──────
+ 57: const STATE_OPTIONS: { key: SiriFrameState; label: string }[] = [
+ 58:   { key: "idle", label: "Idle" },
+ 59:   { key: "thinking", label: "Pensando" },
+ 60:   { key: "speaking", label: "Hablando" },
+ 61:   { key: "error", label: "Error" },
+ 62:   { key: "greeting", label: "Saludo" },
+ 63: ]
+ 64: 
+ 65: function StateDebugPanel({
+ 66:   current,
+ 67:   onSelect,
+ 68: }: {
+ 69:   current: SiriFrameState
+ 70:   onSelect: (state: SiriFrameState) => void
+ 71: }) {
+ 72:   return (
+ 73:     <div className="flex flex-col items-center gap-4">
+ 74:       <p className="text-xs uppercase tracking-widest text-white/50">
+ 75:         Estado actual: <span className="text-white font-semibold">{current}</span>
+ 76:       </p>
+ 77:       <div className="flex flex-wrap items-center justify-center gap-2">
+ 78:         {STATE_OPTIONS.map((opt) => (
+ 79:           <button
+ 80:             key={opt.key}
+ 81:             type="button"
+ 82:             onClick={() => onSelect(opt.key)}
+ 83:             className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+ 84:               current === opt.key
+ 85:                 ? "bg-white text-slate-900"
+ 86:                 : "bg-white/10 text-white hover:bg-white/20"
+ 87:             }`}
+ 88:           >
+ 89:             {opt.label}
+ 90:           </button>
+ 91:         ))}
+ 92:       </div>
+ 93:     </div>
+ 94:   )
+ 95: }
+ 96: 
+ 97: export function ChatbotWidget() {
+ 98:   const [isOpen, setIsOpen] = useState(false)
+ 99:   // const [messages, setMessages] = useState<Message[]>([])
+100:   // const [conversationHistory, setConversationHistory] = useState<GroqMessage[]>([])
+101:   // const [inputValue, setInputValue] = useState("")
+102:   // const [isLoading, setIsLoading] = useState(false)
+103:   const [frameState, setFrameState] = useState<SiriFrameState>("idle")
+104:   // const messagesEndRef = useRef<HTMLDivElement>(null)
+105:   // const inputRef = useRef<HTMLInputElement>(null)
+106:   // const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+107:   // const greetingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+108: 
+109:   // const hasStarted = messages.length > 0
+110: 
+111:   useEffect(() => {
+112:     const handleOpenChatbot = () => setIsOpen(true)
+113:     window.addEventListener("open-chatbot", handleOpenChatbot)
+114:     return () => window.removeEventListener("open-chatbot", handleOpenChatbot)
+115:   }, [])
+116: 
+117:   // useEffect(() => {
+118:   //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+119:   // }, [messages])
+120: 
+121:   // Bloquear scroll del body mientras el overlay está abierto
+122:   useEffect(() => {
+123:     if (!isOpen) return
+124:     const original = document.body.style.overflow
+125:     document.body.style.overflow = "hidden"
+126:     return () => {
+127:       document.body.style.overflow = original
+128:     }
+129:   }, [isOpen])
+130: 
+131:   // Cerrar con Escape
+132:   useEffect(() => {
+133:     if (!isOpen) return
+134:     const handleKeyDown = (e: KeyboardEvent) => {
+135:       if (e.key === "Escape") setIsOpen(false)
+136:     }
+137:     window.addEventListener("keydown", handleKeyDown)
+138:     return () => window.removeEventListener("keydown", handleKeyDown)
+139:   }, [isOpen])
+140: 
+141:   // ── Lógica real del chatbot — comentada mientras probamos los estados ──
+142:   // useEffect(() => {
+143:   //   if (!isOpen) return
+144:   //   setFrameState("greeting")
+145:   //   greetingTimeoutRef.current = setTimeout(() => {
+146:   //     setFrameState((current) => (current === "greeting" ? "idle" : current))
+147:   //   }, 400)
+148:   //   return () => {
+149:   //     if (greetingTimeoutRef.current) clearTimeout(greetingTimeoutRef.current)
+150:   //   }
+151:   // }, [isOpen])
+152: 
+153:   // useEffect(() => {
+154:   //   if (isLoading) {
+155:   //     setFrameState("thinking")
+156:   //   } else {
+157:   //     setFrameState((current) => (current === "thinking" ? "idle" : current))
+158:   //   }
+159:   // }, [isLoading])
+160: 
+161:   // useEffect(() => {
+162:   //   return () => {
+163:   //     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current)
+164:   //     if (greetingTimeoutRef.current) clearTimeout(greetingTimeoutRef.current)
+165:   //   }
+166:   // }, [])
+167: 
+168:   // const sendMessage = async (rawText: string) => {
+169:   //   const userText = rawText.trim()
+170:   //   if (!userText || isLoading) return
+171: 
+172:   //   const userMessage: Message = {
+173:   //     id: Date.now().toString(),
+174:   //     text: userText,
+175:   //     sender: "user",
+176:   //     timestamp: new Date(),
+177:   //   }
+178: 
+179:   //   const newHistory: GroqMessage[] = [
+180:   //     ...conversationHistory,
+181:   //     { role: "user", content: userText },
+182:   //   ]
+183: 
+184:   //   setMessages((prev) => [...prev, userMessage])
+185:   //   setInputValue("")
+186:   //   setIsLoading(true)
+187: 
+188:   //   try {
+189:   //     const res = await fetch("/api/chat", {
+190:   //       method: "POST",
+191:   //       headers: { "Content-Type": "application/json" },
+192:   //       body: JSON.stringify({ messages: newHistory }),
+193:   //     })
+194: 
+195:   //     if (!res.ok) throw new Error(`HTTP ${res.status}`)
+196: 
+197:   //     const data = await res.json()
+198: 
+199:   //     if (data.response) {
+200:   //       const botMessage: Message = {
+201:   //         id: (Date.now() + 1).toString(),
+202:   //         text: data.response,
+203:   //         sender: "bot",
+204:   //         timestamp: new Date(),
+205:   //       }
+206: 
+207:   //       setMessages((prev) => [...prev, botMessage])
+208:   //       setConversationHistory([
+209:   //         ...newHistory,
+210:   //         { role: "assistant", content: data.response },
+211:   //       ])
+212:   //     } else {
+213:   //       throw new Error("Respuesta inválida")
+214:   //     }
+215:   //   } catch (error) {
+216:   //     console.error("Error:", error)
+217:   //     const errorMessage: Message = {
+218:   //       id: (Date.now() + 1).toString(),
+219:   //       text: "Lo siento, hubo un error al procesar tu mensaje. Por favor, intentá nuevamente.",
+220:   //       sender: "bot",
+221:   //       timestamp: new Date(),
+222:   //     }
+223:   //     setMessages((prev) => [...prev, errorMessage])
+224: 
+225:   //     setFrameState("error")
+226:   //     errorTimeoutRef.current = setTimeout(() => {
+227:   //       setFrameState((current) => (current === "error" ? "idle" : current))
+228:   //     }, 1800)
+229:   //   } finally {
+230:   //     setIsLoading(false)
+231:   //   }
+232:   // }
+233: 
+234:   // const handleSendMessage = () => sendMessage(inputValue)
+235: 
+236:   return (
+237:     <>
+238:       <button
+239:         type="button"
+240:         onClick={() => setIsOpen(true)}
+241:         aria-label="Abrir asistente virtual"
+242:         className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer overflow-hidden bg-transparent border-0 p-0"
+243:       >
+244:         <Image
+245:           src="/excited.png"
+246:           alt="Asistente virtual"
+247:           width={64}
+248:           height={64}
+249:           className="h-full w-full object-contain"
+250:           priority
+251:         />
+252:       </button>
+253: 
+254:       {/* Overlay full-screen — fondo Siri de pared a pared, chat flotando SIN card */}
+255:       {isOpen && (
+256:         <div
+257:           role="dialog"
+258:           aria-modal="true"
+259:           aria-label="Asistente Virtual del Nodo Tecnológico — modo prueba de estados"
+260:           className="fixed inset-0 z-[100] flex flex-col"
+261:         >
+262:           {/* Fondo 100% transparente — se ve la página de atrás sin blur.
+263:               El único color viene del glow tipo Siri. */}
+264:           <div className="absolute inset-0">
+265:             <SiriFrame state={frameState} />
+266:           </div>
+267: 
+268:           {/* Vidrio esmerilado — cubre TODA la pantalla parejo, un
+269:               blur/tinte leve sobre la página y el glow de Siri */}
+270:           <div className="pointer-events-none absolute inset-0 bg-white/10 backdrop-blur-sm" />
+271: 
+272:           {/* Click afuera del área de contenido para cerrar */}
+273:           <button
+274:             type="button"
+275:             aria-label="Cerrar asistente virtual"
+276:             onClick={() => setIsOpen(false)}
+277:             className="absolute inset-0 cursor-default"
+278:           />
+279: 
+280:           {/* Botón cerrar — esquina superior derecha */}
+281:           <button
+282:             type="button"
+283:             onClick={() => setIsOpen(false)}
+284:             aria-label="Cerrar"
+285:             className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center transition-colors"
+286:           >
+287:             <X className="h-5 w-5 text-white" />
+288:           </button>
+289: 
+290:           {/* Título flotante */}
+291:           <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
+292:             <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center">
+293:               <Bot className="h-4.5 w-4.5 text-white" />
+294:             </div>
+295:             <div>
+296:               <h2 className="text-white text-base font-semibold leading-tight">Modo prueba — SiriFrame</h2>
+297:               <p className="text-xs text-white/60 leading-tight">Tocá un botón para cambiar de estado</p>
+298:             </div>
+299:           </div>
+300: 
+301:           {/* ── Solo la botonera de estados, sin chat ── */}
+302:           <div className="relative z-10 flex-1 flex items-center justify-center px-4">
+303:             <StateDebugPanel current={frameState} onSelect={setFrameState} />
+304:           </div>
+305: 
+306:           {/* ── Contenido real del chat — comentado ──
+307:           <div className="relative z-10 flex-1 min-h-0 mx-auto w-full max-w-xl px-4 sm:px-6">
+308:             {!hasStarted ? (
+309:               <WelcomeIntro onPick={(text) => sendMessage(text)} />
+310:             ) : (
+311:               <ScrollArea className="h-full">
+312:                 ...
+313:               </ScrollArea>
+314:             )}
+315:           </div>
+316: 
+317:           <div className="relative z-10 mx-auto w-full max-w-xl px-4 sm:px-6 pb-6 sm:pb-10 shrink-0">
+318:             <form onSubmit={(e) => { e.preventDefault(); handleSendMessage() }} className="flex gap-3">
+319:               <Input ... />
+320:               <Button ... />
+321:             </form>
+322:           </div>
+323:           */}
+324:         </div>
+325:       )}
+326:     </>
+327:   )
+328: }
+```
+
 ## File: package.json
 ```json
  1: {
@@ -10382,143 +10643,417 @@ x.sh
 ```bash
   1: #!/usr/bin/env bash
   2: # =============================================================================
-  3: # fix-coworking-api.sh
-  4: # Fix: restaura getAreaById + tipos completos en lib/coworking
-  5: # Ejecutar desde la raíz de ciudadano-front
-  6: # =============================================================================
-  7: set -euo pipefail
-  8: 
-  9: echo "🔧 Restaurando lib/coworking/types.ts y api.ts..."
- 10: 
- 11: mkdir -p lib/coworking
- 12: 
- 13: # ---------------------------------------------------------------------------
- 14: # 1. types.ts — agrega Asiento y AreaCoworkingAPI que faltaban
- 15: # ---------------------------------------------------------------------------
- 16: cat > lib/coworking/types.ts << 'EOF'
- 17: export type EstadoAsiento =
- 18:   | "LIBRE"
- 19:   | "OCUPADO"
- 20:   | "LIMPIANDO"
- 21:   | "FUERA_DE_SERVICIO"
- 22:   | "PARA_COMPARTIR"
- 23:   | "COMPARTIDO"
- 24: 
- 25: export type AreaBackendResponse = {
- 26:   id: number
- 27:   nombre: string
- 28:   descripcion: string | null
- 29:   estado: EstadoAsiento
- 30:   createdAt: string
- 31: }
- 32: 
- 33: export type AreaCoworkingAPI = {
- 34:   id: number
- 35:   nombre: string
- 36:   tipo: string
- 37:   capacidad: number
- 38:   equipamiento: string[]
- 39:   estado: EstadoAsiento
- 40:   imagen?: string
- 41:   descripcion?: string
- 42:   precio?: string
- 43:   disponible: boolean
- 44:   servicios?: string[]
- 45:   imagenesAdicionales?: string[]
- 46:   detalles?: {
- 47:     area?: string
- 48:     iluminacion?: string
- 49:     mobiliario?: string[]
- 50:     tecnologia?: string[]
- 51:     accesoHorario?: string
- 52:   }
- 53:   usosPrincipales?: string[]
- 54:   caracteristicas?: string[]
- 55: }
- 56: 
- 57: export type Asiento = {
- 58:   id: string
- 59:   numero: number
- 60:   estado: EstadoAsiento
- 61:   notificaciones?: number
- 62:   imagen: string
- 63:   nombre: string
- 64: }
- 65: EOF
- 66: echo "✅ lib/coworking/types.ts"
- 67: 
- 68: # ---------------------------------------------------------------------------
- 69: # 2. api.ts — getAreas + getAreaById + convertAreaToAsiento
- 70: # ---------------------------------------------------------------------------
- 71: cat > lib/coworking/api.ts << 'EOF'
- 72: import type { AreaBackendResponse, AreaCoworkingAPI, Asiento } from "./types"
+  3: # ciudadano-front — Fix toast 409 CatamarcaOpen
+  4: # El apiFetch lanza error sin status code → el catch no detecta el 409.
+  5: # Fix: clase ApiError con statusCode + catch tipado en la página.
+  6: # CORRER PARADO EN LA RAÍZ DE ciudadano-front
+  7: # =============================================================================
+  8: set -euo pipefail
+  9: 
+ 10: GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+ 11: log()  { echo -e "${BLUE}[fix]${NC} $1"; }
+ 12: ok()   { echo -e "${GREEN}✔${NC}  $1"; }
+ 13: sep()  { echo -e "\n${GREEN}────────────────────────────────────────────────${NC}"; }
+ 14: 
+ 15: sep
+ 16: echo -e "${GREEN}Fix — toast 409 CatamarcaOpen${NC}"
+ 17: sep
+ 18: 
+ 19: [[ -f "package.json" ]] || { echo "Ejecutar desde la raíz de ciudadano-front"; exit 1; }
+ 20: 
+ 21: # ─── 1. api.ts — ApiError con statusCode ──────────────────────────────────────
+ 22: log "Actualizando lib/catamarcaopen/api.ts..."
+ 23: cat > lib/catamarcaopen/api.ts << 'EOF'
+ 24: // lib/catamarcaopen/api.ts
+ 25: import type { CatamarcaOpenRepo, CreateRepoInput, UpdateRepoInput } from './types'
+ 26: 
+ 27: const BASE = (process.env.NEXT_PUBLIC_CIUDADANO_API_URL ?? '').replace(/\/$/, '') + '/api/v1'
+ 28: 
+ 29: // Error tipado que incluye el status HTTP
+ 30: export class ApiError extends Error {
+ 31:   constructor(
+ 32:     public readonly statusCode: number,
+ 33:     message: string,
+ 34:   ) {
+ 35:     super(message)
+ 36:     this.name = 'ApiError'
+ 37:   }
+ 38: }
+ 39: 
+ 40: async function apiFetch<T>(
+ 41:   path: string,
+ 42:   idToken: string,
+ 43:   options: RequestInit = {},
+ 44: ): Promise<T> {
+ 45:   if (!BASE || BASE === '/api/v1') {
+ 46:     throw new ApiError(0, '[catamarcaopen-api] NEXT_PUBLIC_CIUDADANO_API_URL no está configurada')
+ 47:   }
+ 48: 
+ 49:   const res = await fetch(`${BASE}${path}`, {
+ 50:     ...options,
+ 51:     headers: {
+ 52:       'Content-Type': 'application/json',
+ 53:       Authorization: `Bearer ${idToken}`,
+ 54:       ...(options.headers ?? {}),
+ 55:     },
+ 56:   })
+ 57: 
+ 58:   if (!res.ok) {
+ 59:     // Intentar leer el mensaje del body JSON que devuelve ciudadano-back
+ 60:     let message = res.statusText
+ 61:     try {
+ 62:       const body = await res.json()
+ 63:       message = body?.message ?? body?.error ?? message
+ 64:     } catch {
+ 65:       // body no es JSON, usar statusText
+ 66:     }
+ 67:     throw new ApiError(res.status, message)
+ 68:   }
+ 69: 
+ 70:   const json = await res.json()
+ 71:   return (json?.data ?? json) as T
+ 72: }
  73: 
- 74: const BASE = (
- 75:   process.env.NEXT_PUBLIC_COWORKING_URL ?? "http://localhost:3550"
- 76: ).replace(/\/$/, "")
- 77: 
- 78: function mapArea(area: AreaBackendResponse): AreaCoworkingAPI {
- 79:   return {
- 80:     id: area.id,
- 81:     nombre: area.nombre,
- 82:     tipo: "Espacio de trabajo",
- 83:     capacidad: 1,
- 84:     equipamiento: ["Wi-Fi", "Escritorio ergonómico", "Silla cómoda"],
- 85:     estado: area.estado,
- 86:     imagen: "/modern-coworking-space.png",
- 87:     descripcion: area.descripcion ?? undefined,
- 88:     disponible: area.estado === "LIBRE" || area.estado === "PARA_COMPARTIR",
- 89:     servicios: ["Wi-Fi", "Café gratis", "Impresora"],
- 90:     imagenesAdicionales: [],
- 91:   }
+ 74: // ── Endpoints públicos ────────────────────────────────────────────────────────
+ 75: 
+ 76: export async function getReposPublicos(): Promise<CatamarcaOpenRepo[]> {
+ 77:   const url = `${BASE}/catamarcaopen/publicos`
+ 78:   const res = await fetch(url, { cache: 'no-store' })
+ 79:   if (!res.ok) {
+ 80:     let message = res.statusText
+ 81:     try { const b = await res.json(); message = b?.message ?? message } catch { /* noop */ }
+ 82:     throw new ApiError(res.status, message)
+ 83:   }
+ 84:   const json = await res.json()
+ 85:   return (json?.data ?? json) as CatamarcaOpenRepo[]
+ 86: }
+ 87: 
+ 88: // ── Endpoints autenticados ────────────────────────────────────────────────────
+ 89: 
+ 90: export async function getMisRepos(idToken: string): Promise<CatamarcaOpenRepo[]> {
+ 91:   return apiFetch<CatamarcaOpenRepo[]>('/catamarcaopen/me', idToken)
  92: }
  93: 
- 94: export async function getAreas(): Promise<AreaCoworkingAPI[]> {
- 95:   try {
- 96:     const res = await fetch(`${BASE}/area`, {
- 97:       cache: "no-store",
- 98:       headers: { "Content-Type": "application/json" },
- 99:     })
-100:     if (!res.ok) throw new Error(`[coworking-api] GET /area → ${res.status}`)
-101:     const data: AreaBackendResponse[] = await res.json()
-102:     return data.map(mapArea)
-103:   } catch (error) {
-104:     console.error("[coworking-api] getAreas:", error)
-105:     return []
-106:   }
-107: }
-108: 
-109: export async function getAreaById(id: number): Promise<AreaCoworkingAPI | null> {
-110:   try {
-111:     const res = await fetch(`${BASE}/area/${id}`, {
-112:       cache: "no-store",
-113:       headers: { "Content-Type": "application/json" },
-114:     })
-115:     if (res.status === 404) return null
-116:     if (!res.ok) throw new Error(`[coworking-api] GET /area/${id} → ${res.status}`)
-117:     const area: AreaBackendResponse = await res.json()
-118:     return mapArea(area)
-119:   } catch (error) {
-120:     console.error("[coworking-api] getAreaById:", error)
-121:     return null
-122:   }
-123: }
-124: 
-125: export function convertAreaToAsiento(area: AreaCoworkingAPI): Asiento {
-126:   return {
-127:     id: `asiento-${area.id}`,
-128:     numero: area.id,
-129:     estado: area.estado,
-130:     notificaciones: undefined,
-131:     imagen: area.imagen ?? "/modern-coworking-space.png",
-132:     nombre: area.nombre,
-133:   }
-134: }
-135: EOF
-136: echo "✅ lib/coworking/api.ts"
-137: 
-138: echo ""
-139: echo "✅ Fix aplicado. Ahora:"
-140: echo ""
-141: echo "   git add . && git commit -m \"fix: restaurar getAreaById y tipos en lib/coworking\" && git push origin main"
+ 94: export async function crearRepo(
+ 95:   input: CreateRepoInput,
+ 96:   idToken: string,
+ 97: ): Promise<CatamarcaOpenRepo> {
+ 98:   return apiFetch<CatamarcaOpenRepo>('/catamarcaopen', idToken, {
+ 99:     method: 'POST',
+100:     body:   JSON.stringify(input),
+101:   })
+102: }
+103: 
+104: export async function editarRepo(
+105:   id: string,
+106:   input: UpdateRepoInput,
+107:   idToken: string,
+108: ): Promise<CatamarcaOpenRepo> {
+109:   return apiFetch<CatamarcaOpenRepo>(`/catamarcaopen/${id}`, idToken, {
+110:     method: 'PATCH',
+111:     body:   JSON.stringify(input),
+112:   })
+113: }
+114: 
+115: export async function eliminarRepo(
+116:   id: string,
+117:   idToken: string,
+118: ): Promise<{ id: string; deleted: boolean }> {
+119:   return apiFetch(`/catamarcaopen/${id}`, idToken, { method: 'DELETE' })
+120: }
+121: EOF
+122: ok "lib/catamarcaopen/api.ts"
+123: 
+124: # ─── 2. nuevo/page.tsx — catch con ApiError ───────────────────────────────────
+125: log "Actualizando app/catamarcaopen/proyectos/nuevo/page.tsx..."
+126: cat > app/catamarcaopen/proyectos/nuevo/page.tsx << 'EOF'
+127: // app/catamarcaopen/proyectos/nuevo/page.tsx
+128: "use client"
+129: 
+130: import { useState } from "react"
+131: import Link from "next/link"
+132: import { Card, CardContent } from "@/components/ui/card"
+133: import { Button } from "@/components/ui/button"
+134: import { Input } from "@/components/ui/input"
+135: import { Label } from "@/components/ui/label"
+136: import { Textarea } from "@/components/ui/textarea"
+137: import { ArrowLeft, Github, Loader2, LogIn, CheckCircle2 } from "lucide-react"
+138: import { toast } from "sonner"
+139: import { useAuth } from "@/contexts/auth-context"
+140: import { crearRepo, ApiError } from "@/lib/catamarcaopen/api"
+141: 
+142: const GITHUB_URL_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(\/)?$/
+143: 
+144: export default function NuevoProyectoCatamarcaOpenPage() {
+145:   const { user, loading, loginWithGoogle } = useAuth()
+146: 
+147:   const [url,         setUrl]         = useState("")
+148:   const [nombre,      setNombre]      = useState("")
+149:   const [descripcion, setDescripcion] = useState("")
+150:   const [rama,        setRama]        = useState("main")
+151:   const [submitting,  setSubmitting]  = useState(false)
+152:   const [signingIn,   setSigningIn]   = useState(false)
+153:   const [submitted,   setSubmitted]   = useState(false)
+154: 
+155:   const urlValida = GITHUB_URL_RE.test(url.trim())
+156:   const isValid   = urlValida && nombre.trim().length >= 2
+157: 
+158:   const handleUrlBlur = () => {
+159:     if (urlValida && !nombre.trim()) {
+160:       const parts    = url.trim().replace(/\/$/, '').split('/')
+161:       const repoName = parts[parts.length - 1] ?? ''
+162:       if (repoName) setNombre(repoName)
+163:     }
+164:   }
+165: 
+166:   const handleLogin = async () => {
+167:     if (signingIn) return
+168:     setSigningIn(true)
+169:     try {
+170:       await loginWithGoogle()
+171:     } catch (err: unknown) {
+172:       toast.error((err as { message?: string })?.message ?? 'Error al iniciar sesión')
+173:     } finally {
+174:       setSigningIn(false)
+175:     }
+176:   }
+177: 
+178:   const handleSubmit = async () => {
+179:     if (!isValid || submitting || !user) return
+180:     setSubmitting(true)
+181:     try {
+182:       const idToken = await user.getIdToken()
+183:       await crearRepo(
+184:         {
+185:           url:         url.trim().replace(/\/$/, ''),
+186:           nombre:      nombre.trim(),
+187:           descripcion: descripcion.trim() || undefined,
+188:           rama:        rama.trim() || 'main',
+189:           publico:     true,
+190:         },
+191:         idToken,
+192:       )
+193:       setSubmitted(true)
+194:     } catch (err: unknown) {
+195:       if (err instanceof ApiError && err.statusCode === 409) {
+196:         toast.error('Este repositorio ya fue cargado en CatamarcaOpen.')
+197:       } else {
+198:         const msg = err instanceof Error ? err.message : 'Error al publicar el proyecto'
+199:         toast.error(msg)
+200:       }
+201:     } finally {
+202:       setSubmitting(false)
+203:     }
+204:   }
+205: 
+206:   // ── Loading auth ──────────────────────────────────────────────────────────
+207:   if (loading) {
+208:     return (
+209:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center">
+210:         <Loader2 className="h-6 w-6 animate-spin text-[#26a7fc]" />
+211:       </main>
+212:     )
+213:   }
+214: 
+215:   // ── Sin sesión ────────────────────────────────────────────────────────────
+216:   if (!user) {
+217:     return (
+218:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
+219:         <Card className="max-w-md w-full border-[#26a7fc]/10">
+220:           <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
+221:             <div className="h-14 w-14 rounded-2xl bg-[#26a7fc]/10 flex items-center justify-center mb-4">
+222:               <Github className="h-7 w-7 text-[#26a7fc]" strokeWidth={1.5} />
+223:             </div>
+224:             <h1 className="text-xl font-bold text-gray-900 mb-2">Necesitás iniciar sesión</h1>
+225:             <p className="text-sm text-muted-foreground mb-6 text-pretty">
+226:               Para publicar un proyecto en CatamarcaOpen, iniciá sesión con tu cuenta de Google.
+227:             </p>
+228:             <Button
+229:               onClick={handleLogin}
+230:               disabled={signingIn}
+231:               className="w-full text-white gap-2"
+232:               style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+233:             >
+234:               {signingIn
+235:                 ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+236:                 : <LogIn   className="h-4 w-4"              strokeWidth={1.5} />}
+237:               Ingresar con Google
+238:             </Button>
+239:           </CardContent>
+240:         </Card>
+241:       </main>
+242:     )
+243:   }
+244: 
+245:   // ── Publicado con éxito ───────────────────────────────────────────────────
+246:   if (submitted) {
+247:     return (
+248:       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
+249:         <Card className="max-w-md w-full border-[#26a7fc]/10">
+250:           <CardContent className="pt-10 pb-8 flex flex-col items-center text-center">
+251:             <div className="h-14 w-14 rounded-2xl bg-green-100 flex items-center justify-center mb-4">
+252:               <CheckCircle2 className="h-7 w-7 text-green-600" strokeWidth={1.5} />
+253:             </div>
+254:             <h1 className="text-xl font-bold text-gray-900 mb-2">¡Proyecto publicado!</h1>
+255:             <p className="text-sm text-muted-foreground mb-6 text-pretty">
+256:               Tu repositorio ya está disponible en la comunidad CatamarcaOpen.
+257:             </p>
+258:             <div className="flex gap-3 w-full">
+259:               <Button
+260:                 variant="outline"
+261:                 className="flex-1 rounded-xl"
+262:                 onClick={() => {
+263:                   setUrl(''); setNombre(''); setDescripcion('')
+264:                   setRama('main'); setSubmitted(false)
+265:                 }}
+266:               >
+267:                 Publicar otro
+268:               </Button>
+269:               <Button
+270:                 asChild
+271:                 className="flex-1 text-white rounded-xl"
+272:                 style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+273:               >
+274:                 <Link href="/catamarcaopen/proyectos">Ver proyectos</Link>
+275:               </Button>
+276:             </div>
+277:           </CardContent>
+278:         </Card>
+279:       </main>
+280:     )
+281:   }
+282: 
+283:   // ── Formulario ────────────────────────────────────────────────────────────
+284:   return (
+285:     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
+286:       <div className="container mx-auto px-4 max-w-xl">
+287:         <Link
+288:           href="/catamarcaopen/proyectos"
+289:           className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
+290:         >
+291:           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+292:           Volver al listado
+293:         </Link>
+294: 
+295:         <h1 className="text-2xl font-bold text-gray-900 mb-1">Publicar un proyecto</h1>
+296:         <p className="text-sm text-muted-foreground mb-8">
+297:           Compartí tu repositorio de GitHub con la comunidad del Nodo.
+298:         </p>
+299: 
+300:         <Card className="border-[#26a7fc]/10">
+301:           <CardContent className="pt-6 pb-7 space-y-5">
+302: 
+303:             <div className="space-y-1.5">
+304:               <Label htmlFor="url" className="text-sm font-medium text-slate-700">
+305:                 URL del repositorio <span className="text-red-500">*</span>
+306:               </Label>
+307:               <div className="relative">
+308:                 <Github
+309:                   className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
+310:                   strokeWidth={1.5}
+311:                 />
+312:                 <Input
+313:                   id="url"
+314:                   value={url}
+315:                   onChange={(e) => setUrl(e.target.value)}
+316:                   onBlur={handleUrlBlur}
+317:                   placeholder="https://github.com/usuario/repositorio"
+318:                   className="pl-9 h-10 rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white"
+319:                 />
+320:               </div>
+321:               {url && !urlValida && (
+322:                 <p className="text-[11px] text-red-500">
+323:                   Debe ser una URL de GitHub válida: https://github.com/usuario/repo
+324:                 </p>
+325:               )}
+326:             </div>
+327: 
+328:             <div className="space-y-1.5">
+329:               <Label htmlFor="nombre" className="text-sm font-medium text-slate-700">
+330:                 Nombre del proyecto <span className="text-red-500">*</span>
+331:               </Label>
+332:               <Input
+333:                 id="nombre"
+334:                 value={nombre}
+335:                 onChange={(e) => setNombre(e.target.value)}
+336:                 placeholder="ej: Sistema de Turnos Municipales"
+337:                 maxLength={200}
+338:                 className="h-10 rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white"
+339:               />
+340:             </div>
+341: 
+342:             <div className="space-y-1.5">
+343:               <Label htmlFor="descripcion" className="text-sm font-medium text-slate-700">
+344:                 Descripción
+345:                 <span className="text-slate-400 font-normal ml-1">(opcional)</span>
+346:               </Label>
+347:               <Textarea
+348:                 id="descripcion"
+349:                 value={descripcion}
+350:                 onChange={(e) => setDescripcion(e.target.value)}
+351:                 placeholder="¿Qué hace este proyecto? ¿Para qué sirve?"
+352:                 maxLength={500}
+353:                 rows={3}
+354:                 className="rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white resize-none"
+355:               />
+356:               <p className="text-[11px] text-slate-400 text-right">{descripcion.length}/500</p>
+357:             </div>
+358: 
+359:             <div className="space-y-1.5">
+360:               <Label htmlFor="rama" className="text-sm font-medium text-slate-700">
+361:                 Rama principal
+362:                 <span className="text-slate-400 font-normal ml-1">(opcional)</span>
+363:               </Label>
+364:               <Input
+365:                 id="rama"
+366:                 value={rama}
+367:                 onChange={(e) => setRama(e.target.value)}
+368:                 placeholder="main"
+369:                 maxLength={100}
+370:                 className="h-10 rounded-xl border-slate-200 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20 bg-white"
+371:               />
+372:             </div>
+373: 
+374:             <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
+375:               <div className="h-6 w-6 rounded-full bg-[#26a7fc]/10 flex items-center justify-center shrink-0">
+376:                 <span className="text-[10px] font-bold text-[#26a7fc]">
+377:                   {user.displayName?.charAt(0).toUpperCase() ?? '?'}
+378:                 </span>
+379:               </div>
+380:               <p className="text-xs text-slate-500 truncate">
+381:                 Publicando como <span className="font-medium text-slate-700">{user.displayName}</span>
+382:               </p>
+383:             </div>
+384: 
+385:             <Button
+386:               onClick={handleSubmit}
+387:               disabled={!isValid || submitting}
+388:               className="w-full text-white gap-2 rounded-xl h-11 font-semibold disabled:opacity-50"
+389:               style={
+390:                 isValid && !submitting
+391:                   ? { backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }
+392:                   : {}
+393:               }
+394:             >
+395:               {submitting
+396:                 ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+397:                 : <Github  className="h-4 w-4"              strokeWidth={1.5} />}
+398:               {submitting ? 'Publicando...' : 'Publicar proyecto'}
+399:             </Button>
+400: 
+401:           </CardContent>
+402:         </Card>
+403:       </div>
+404:     </main>
+405:   )
+406: }
+407: EOF
+408: ok "nuevo/page.tsx"
+409: 
+410: sep
+411: echo -e "${GREEN}✅  Fix aplicado${NC}"
+412: echo ""
+413: echo -e "  El catch ahora detecta ${YELLOW}ApiError.statusCode === 409${NC}"
+414: echo -e "  y muestra: ${YELLOW}'Este repositorio ya fue cargado en CatamarcaOpen.'${NC}"
+415: sep
 ```
