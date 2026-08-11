@@ -1,33 +1,39 @@
 // lib/catamarcaopen/types.ts
+// Shape real que devuelve ciudadano-back /api/v1/catamarcaopen
 
-export type ProjectStatus = "aprobado" | "en_revision" | "rechazado"
-
-export interface Project {
-  id: string
-  title: string
-  description: string
-  stack: string[]
-  category: string
-  repoUrl: string
-  status: ProjectStatus
-  authorName: string
-  rating: number
-  reviewsCount: number
-  createdAt: string
+export interface CatamarcaOpenRepo {
+  id:          string
+  ciudadanoId: string
+  url:         string
+  nombre:      string
+  descripcion: string | null
+  proveedor:   'GITHUB'
+  rama:        string
+  publico:     boolean
+  metadata:    Record<string, unknown>
+  createdAt:   string
+  updatedAt:   string
+  // incluido en /publicos
+  ciudadano?: {
+    id:      string
+    googleId: string
+    name:    string
+    email:   string
+    picture: string | null
+  }
 }
 
-export interface Review {
-  id: string
-  projectId: string
-  authorName: string
-  rating: number
-  comment: string
-  createdAt: string
+export interface CreateRepoInput {
+  url:         string
+  nombre:      string
+  descripcion?: string
+  rama?:       string
+  publico?:    boolean
 }
 
-export interface NewProjectInput {
-  title: string
-  description: string
-  category: string
-  repoUrl: string
+export interface UpdateRepoInput {
+  nombre?:      string
+  descripcion?: string
+  rama?:        string
+  publico?:     boolean
 }
