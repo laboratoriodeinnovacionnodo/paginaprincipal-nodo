@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Github, Loader2, LogIn, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
-import { crearRepo } from "@/lib/catamarcaopen/api"
+import { crearRepo, ApiError } from "@/lib/catamarcaopen/api"
 
 const GITHUB_URL_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(\/)?$/
 
@@ -31,7 +31,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
 
   const handleUrlBlur = () => {
     if (urlValida && !nombre.trim()) {
-      const parts   = url.trim().replace(/\/$/, '').split('/')
+      const parts    = url.trim().replace(/\/$/, '').split('/')
       const repoName = parts[parts.length - 1] ?? ''
       if (repoName) setNombre(repoName)
     }
@@ -66,18 +66,18 @@ export default function NuevoProyectoCatamarcaOpenPage() {
       )
       setSubmitted(true)
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? ''
-      // 409 — el ciudadano ya registró ese repo
-      if (msg.includes('409') || msg.toLowerCase().includes('ya registraste')) {
-        toast.error('Ya tenés ese repositorio registrado en CatamarcaOpen.')
+      if (err instanceof ApiError && err.statusCode === 409) {
+        toast.error('Este repositorio ya fue cargado en CatamarcaOpen.')
       } else {
-        toast.error(msg || 'Error al publicar el proyecto')
+        const msg = err instanceof Error ? err.message : 'Error al publicar el proyecto'
+        toast.error(msg)
       }
     } finally {
       setSubmitting(false)
     }
   }
 
+  // ── Loading auth ──────────────────────────────────────────────────────────
   if (loading) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center">
@@ -86,6 +86,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     )
   }
 
+  // ── Sin sesión ────────────────────────────────────────────────────────────
   if (!user) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
@@ -115,6 +116,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     )
   }
 
+  // ── Publicado con éxito ───────────────────────────────────────────────────
   if (submitted) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
@@ -152,6 +154,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     )
   }
 
+  // ── Formulario ────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
       <div className="container mx-auto px-4 max-w-xl">

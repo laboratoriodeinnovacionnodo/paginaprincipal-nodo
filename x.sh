@@ -1,28 +1,128 @@
 #!/usr/bin/env bash
 # =============================================================================
-# ciudadano-front — Fix CatamarcaOpen:
-#   1. Toast para error 409 (repo ya registrado)
-#   2. La página /publicos ya no necesita auth (el back lo expone público)
-#
+# ciudadano-front — Fix toast 409 CatamarcaOpen
+# El apiFetch lanza error sin status code → el catch no detecta el 409.
+# Fix: clase ApiError con statusCode + catch tipado en la página.
 # CORRER PARADO EN LA RAÍZ DE ciudadano-front
 # =============================================================================
 set -euo pipefail
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
-log()  { echo -e "${BLUE}[fix-front]${NC} $1"; }
+log()  { echo -e "${BLUE}[fix]${NC} $1"; }
 ok()   { echo -e "${GREEN}✔${NC}  $1"; }
 sep()  { echo -e "\n${GREEN}────────────────────────────────────────────────${NC}"; }
 
 sep
-echo -e "${GREEN}Fix front — CatamarcaOpen 409 toast + /publicos sin auth${NC}"
+echo -e "${GREEN}Fix — toast 409 CatamarcaOpen${NC}"
 sep
 
 [[ -f "package.json" ]] || { echo "Ejecutar desde la raíz de ciudadano-front"; exit 1; }
 
-mkdir -p app/catamarcaopen/proyectos/nuevo
+# ─── 1. api.ts — ApiError con statusCode ──────────────────────────────────────
+log "Actualizando lib/catamarcaopen/api.ts..."
+cat > lib/catamarcaopen/api.ts << 'EOF'
+// lib/catamarcaopen/api.ts
+import type { CatamarcaOpenRepo, CreateRepoInput, UpdateRepoInput } from './types'
 
-# ─── página nuevo — mejor manejo de errores ───────────────────────────────────
-log "Actualizando handleSubmit en nuevo/page.tsx para manejar 409..."
+const BASE = (process.env.NEXT_PUBLIC_CIUDADANO_API_URL ?? '').replace(/\/$/, '') + '/api/v1'
+
+// Error tipado que incluye el status HTTP
+export class ApiError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+async function apiFetch<T>(
+  path: string,
+  idToken: string,
+  options: RequestInit = {},
+): Promise<T> {
+  if (!BASE || BASE === '/api/v1') {
+    throw new ApiError(0, '[catamarcaopen-api] NEXT_PUBLIC_CIUDADANO_API_URL no está configurada')
+  }
+
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+      ...(options.headers ?? {}),
+    },
+  })
+
+  if (!res.ok) {
+    // Intentar leer el mensaje del body JSON que devuelve ciudadano-back
+    let message = res.statusText
+    try {
+      const body = await res.json()
+      message = body?.message ?? body?.error ?? message
+    } catch {
+      // body no es JSON, usar statusText
+    }
+    throw new ApiError(res.status, message)
+  }
+
+  const json = await res.json()
+  return (json?.data ?? json) as T
+}
+
+// ── Endpoints públicos ────────────────────────────────────────────────────────
+
+export async function getReposPublicos(): Promise<CatamarcaOpenRepo[]> {
+  const url = `${BASE}/catamarcaopen/publicos`
+  const res = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) {
+    let message = res.statusText
+    try { const b = await res.json(); message = b?.message ?? message } catch { /* noop */ }
+    throw new ApiError(res.status, message)
+  }
+  const json = await res.json()
+  return (json?.data ?? json) as CatamarcaOpenRepo[]
+}
+
+// ── Endpoints autenticados ────────────────────────────────────────────────────
+
+export async function getMisRepos(idToken: string): Promise<CatamarcaOpenRepo[]> {
+  return apiFetch<CatamarcaOpenRepo[]>('/catamarcaopen/me', idToken)
+}
+
+export async function crearRepo(
+  input: CreateRepoInput,
+  idToken: string,
+): Promise<CatamarcaOpenRepo> {
+  return apiFetch<CatamarcaOpenRepo>('/catamarcaopen', idToken, {
+    method: 'POST',
+    body:   JSON.stringify(input),
+  })
+}
+
+export async function editarRepo(
+  id: string,
+  input: UpdateRepoInput,
+  idToken: string,
+): Promise<CatamarcaOpenRepo> {
+  return apiFetch<CatamarcaOpenRepo>(`/catamarcaopen/${id}`, idToken, {
+    method: 'PATCH',
+    body:   JSON.stringify(input),
+  })
+}
+
+export async function eliminarRepo(
+  id: string,
+  idToken: string,
+): Promise<{ id: string; deleted: boolean }> {
+  return apiFetch(`/catamarcaopen/${id}`, idToken, { method: 'DELETE' })
+}
+EOF
+ok "lib/catamarcaopen/api.ts"
+
+# ─── 2. nuevo/page.tsx — catch con ApiError ───────────────────────────────────
+log "Actualizando app/catamarcaopen/proyectos/nuevo/page.tsx..."
 cat > app/catamarcaopen/proyectos/nuevo/page.tsx << 'EOF'
 // app/catamarcaopen/proyectos/nuevo/page.tsx
 "use client"
@@ -37,7 +137,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Github, Loader2, LogIn, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
-import { crearRepo } from "@/lib/catamarcaopen/api"
+import { crearRepo, ApiError } from "@/lib/catamarcaopen/api"
 
 const GITHUB_URL_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(\/)?$/
 
@@ -57,7 +157,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
 
   const handleUrlBlur = () => {
     if (urlValida && !nombre.trim()) {
-      const parts   = url.trim().replace(/\/$/, '').split('/')
+      const parts    = url.trim().replace(/\/$/, '').split('/')
       const repoName = parts[parts.length - 1] ?? ''
       if (repoName) setNombre(repoName)
     }
@@ -92,18 +192,18 @@ export default function NuevoProyectoCatamarcaOpenPage() {
       )
       setSubmitted(true)
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? ''
-      // 409 — el ciudadano ya registró ese repo
-      if (msg.includes('409') || msg.toLowerCase().includes('ya registraste')) {
-        toast.error('Ya tenés ese repositorio registrado en CatamarcaOpen.')
+      if (err instanceof ApiError && err.statusCode === 409) {
+        toast.error('Este repositorio ya fue cargado en CatamarcaOpen.')
       } else {
-        toast.error(msg || 'Error al publicar el proyecto')
+        const msg = err instanceof Error ? err.message : 'Error al publicar el proyecto'
+        toast.error(msg)
       }
     } finally {
       setSubmitting(false)
     }
   }
 
+  // ── Loading auth ──────────────────────────────────────────────────────────
   if (loading) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center">
@@ -112,6 +212,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     )
   }
 
+  // ── Sin sesión ────────────────────────────────────────────────────────────
   if (!user) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
@@ -141,6 +242,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     )
   }
 
+  // ── Publicado con éxito ───────────────────────────────────────────────────
   if (submitted) {
     return (
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center px-4">
@@ -178,6 +280,7 @@ export default function NuevoProyectoCatamarcaOpenPage() {
     )
   }
 
+  // ── Formulario ────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
       <div className="container mx-auto px-4 max-w-xl">
@@ -305,8 +408,8 @@ EOF
 ok "nuevo/page.tsx"
 
 sep
-echo -e "${GREEN}✅  Fix front aplicado${NC}"
+echo -e "${GREEN}✅  Fix aplicado${NC}"
 echo ""
-echo -e "  - Toast correcto para ${YELLOW}409${NC} (repo duplicado)"
-echo -e "  - El listado /publicos ya funciona porque el back lo expone sin auth"
+echo -e "  El catch ahora detecta ${YELLOW}ApiError.statusCode === 409${NC}"
+echo -e "  y muestra: ${YELLOW}'Este repositorio ya fue cargado en CatamarcaOpen.'${NC}"
 sep
