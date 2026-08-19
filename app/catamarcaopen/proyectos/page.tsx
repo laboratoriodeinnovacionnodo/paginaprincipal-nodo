@@ -6,10 +6,11 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowLeft, Plus, ExternalLink, Github, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus, ExternalLink, Github } from "lucide-react"
 import { toast } from "sonner"
 import { getReposPublicos } from "@/lib/catamarcaopen/api"
 import type { CatamarcaOpenRepo } from "@/lib/catamarcaopen/types"
+import { AlertaTematica } from "@/components/catamarcaopen/alerta-tematica"
 
 function RepoSkeleton() {
   return (
@@ -24,59 +25,45 @@ function RepoSkeleton() {
 }
 
 function RepoCard({ repo }: { repo: CatamarcaOpenRepo }) {
-  const githubUser = repo.url.replace('https://github.com/', '').split('/')[0]
-  const repoSlug   = repo.url.replace('https://github.com/', '').split('/')[1] ?? ''
+  const githubUser = repo.url.replace("https://github.com/", "").split("/")[0]
+  const repoSlug   = repo.url.replace("https://github.com/", "").split("/")[1] ?? ""
 
   return (
-    <Card className="border-[#26a7fc]/10 hover:border-[#26a7fc]/30 hover:shadow-md transition-all duration-200">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Github className="h-4 w-4 text-slate-400 shrink-0" strokeWidth={1.5} />
-            <h3 className="text-sm font-semibold text-slate-900 truncate">{repo.nombre}</h3>
+    <Link href={`/catamarcaopen/proyectos/${repo.id}`}>
+      <Card className="h-full border-[#26a7fc]/10 hover:border-[#26a7fc]/40 transition-colors cursor-pointer">
+        <CardContent className="p-5 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Github className="h-4 w-4 text-gray-500 shrink-0" strokeWidth={1.5} />
+              <span className="font-semibold text-gray-900 text-sm truncate">{repo.nombre}</span>
+            </div>
+            <ExternalLink className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" strokeWidth={1.5} />
           </div>
-          <a
-            href={repo.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 text-[#26a7fc] hover:text-[#1c8fe0]"
-          >
-            <ExternalLink className="h-4 w-4" strokeWidth={1.5} />
-          </a>
-        </div>
-
-        {repo.descripcion && (
-          <p className="text-xs text-slate-500 leading-relaxed mb-3 line-clamp-2">
-            {repo.descripcion}
-          </p>
-        )}
-
-        <div className="flex items-center justify-between gap-2 mt-3">
-          <span className="text-[10px] font-mono text-slate-400 truncate">
-            {githubUser}/{repoSlug}
-          </span>
-          {repo.ciudadano && (
-            <span className="text-[10px] text-slate-400 shrink-0">
-              por {repo.ciudadano.name.split(' ')[0]}
-            </span>
+          {repo.descripcion && (
+            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+              {repo.descripcion}
+            </p>
           )}
-        </div>
-      </CardContent>
-    </Card>
+          <p className="text-[10px] text-slate-400 font-mono truncate">
+            {githubUser}/{repoSlug}
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }
 
 export default function CatamarcaOpenProyectosPage() {
-  const [repos, setRepos] = useState<CatamarcaOpenRepo[] | null>(null)
+  const [repos, setRepos]         = useState<CatamarcaOpenRepo[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     let active = true
-    setIsLoading(true)
     getReposPublicos()
       .then((data) => { if (active) setRepos(data) })
-      .catch((err: unknown) => {
-        if (active) toast.error((err as { message?: string })?.message ?? 'Error al cargar proyectos')
+      .catch((err) => {
+        if (!active) return
+        toast.error((err as { message?: string })?.message ?? "Error al cargar proyectos")
       })
       .finally(() => { if (active) setIsLoading(false) })
     return () => { active = false }
@@ -102,42 +89,47 @@ export default function CatamarcaOpenProyectosPage() {
               Repositorios de código abierto publicados por vecinos y colaboradores del Nodo.
             </p>
           </div>
-          <Button
-            asChild
-            className="text-white shrink-0 gap-2"
-            style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-          >
-            <Link href="/catamarcaopen/proyectos/nuevo">
+
+          <AlertaTematica destino="/catamarcaopen/proyectos/nuevo" labelConfirmar="Publicar proyecto">
+            <Button
+              className="text-white shrink-0 gap-2 cursor-pointer"
+              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+            >
               <Plus className="h-4 w-4" strokeWidth={1.5} />
               Publicar proyecto
-            </Link>
-          </Button>
+            </Button>
+          </AlertaTematica>
         </div>
 
         {isLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => <RepoSkeleton key={i} />)}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <RepoSkeleton key={i} />
+            ))}
           </div>
         ) : !repos || repos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Github className="h-10 w-10 text-slate-300 mb-4" strokeWidth={1.5} />
-            <p className="text-sm font-medium text-slate-600 mb-1">Todavía no hay proyectos publicados</p>
-            <p className="text-xs text-slate-400 mb-6">¡Sé el primero en compartir tu repositorio!</p>
-            <Button
-              asChild
-              size="sm"
-              className="text-white gap-2"
-              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-            >
-              <Link href="/catamarcaopen/proyectos/nuevo">
-                <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+          <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
+            <div className="h-16 w-16 rounded-2xl bg-[#26a7fc]/10 flex items-center justify-center">
+              <Github className="h-8 w-8 text-[#26a7fc]" strokeWidth={1.5} />
+            </div>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Todavía no hay proyectos publicados. ¡Sé el primero en compartir tu repositorio!
+            </p>
+            <AlertaTematica destino="/catamarcaopen/proyectos/nuevo" labelConfirmar="Publicar proyecto">
+              <Button
+                className="text-white gap-2 cursor-pointer"
+                style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+              >
+                <Plus className="h-4 w-4" strokeWidth={1.5} />
                 Publicar proyecto
-              </Link>
-            </Button>
+              </Button>
+            </AlertaTematica>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {repos.map((repo) => <RepoCard key={repo.id} repo={repo} />)}
+            {repos.map((repo) => (
+              <RepoCard key={repo.id} repo={repo} />
+            ))}
           </div>
         )}
       </div>

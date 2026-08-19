@@ -1,11 +1,11 @@
 "use client"
 
-
+// app/catamarcaopen/page.tsx
 import { CodeTitle } from "@/components/shared/code-title"
-import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Code2, ShieldCheck, GitMerge, ArrowRight } from "lucide-react"
+import { AlertaTematica } from "@/components/catamarcaopen/alerta-tematica"
 
 const features = [
   {
@@ -48,20 +48,22 @@ export default function CatamarcaOpenLandingPage() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button
-            asChild
-            size="lg"
-            className="text-white gap-2"
-            style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-          >
-            <Link href="/catamarcaopen/proyectos">
+          <AlertaTematica destino="/catamarcaopen/proyectos" labelConfirmar="Ver proyectos">
+            <Button
+              size="lg"
+              className="text-white gap-2 cursor-pointer"
+              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+            >
               Ver proyectos
               <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <Link href="/catamarcaopen/proyectos/nuevo">Publicar un proyecto</Link>
-          </Button>
+            </Button>
+          </AlertaTematica>
+
+          <AlertaTematica destino="/catamarcaopen/proyectos/nuevo" labelConfirmar="Publicar proyecto">
+            <Button size="lg" variant="outline" className="cursor-pointer">
+              Publicar un proyecto
+            </Button>
+          </AlertaTematica>
         </div>
       </section>
 
@@ -103,17 +105,16 @@ export default function CatamarcaOpenLandingPage() {
               Explorá proyectos, dejá tu revisión o proponé el tuyo con tu misma cuenta de Google del
               Nodo.
             </p>
-            <Button
-              asChild
-              size="lg"
-              className="text-white gap-2"
-              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-            >
-              <Link href="/catamarcaopen/proyectos">
+            <AlertaTematica destino="/catamarcaopen/proyectos" labelConfirmar="Ver proyectos">
+              <Button
+                size="lg"
+                className="text-white gap-2 cursor-pointer"
+                style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+              >
                 Ver proyectos
                 <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+              </Button>
+            </AlertaTematica>
           </CardContent>
         </Card>
       </section>
