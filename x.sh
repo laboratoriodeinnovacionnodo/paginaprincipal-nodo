@@ -1,448 +1,441 @@
 #!/usr/bin/env bash
 # ============================================================
-#  v1-alerta-tematica.sh
-#  Agrega el modal de temática (medioambiente / educación /
-#  tecnología) en CatamarcaOpen — ciudadano-front (Next 16 / TS)
-#
-#  Ejecutar desde la raíz del repo:
-#    bash v1-alerta-tematica.sh
+# fix-noticias-filtros.sh — v1.0.0
+# Mejora los filtros de la sección pública de noticias:
+#   1. hooks/noticias/use-noticias-filter.ts → agrega categoriaActiva
+#   2. lib/noticias/filters.ts               → filtra por categoría + tags
+#   3. components/noticias/noticias-content.tsx → UI con filtro cascada
 # ============================================================
 set -euo pipefail
 
-RESET='\033[0m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; RED='\033[0;31m'
-log()  { echo -e "${CYAN}[v1]${RESET} $*"; }
-ok()   { echo -e "${GREEN}[ok]${RESET} $*"; }
-err()  { echo -e "${RED}[!!]${RESET} $*" >&2; exit 1; }
+BOLD="\033[1m"; RESET="\033[0m"; GREEN="\033[32m"; RED="\033[31m"; YELLOW="\033[33m"
+log()  { echo -e "${BOLD}${GREEN}[OK]${RESET} $*"; }
+warn() { echo -e "${BOLD}${YELLOW}[→]${RESET}  $*"; }
+err()  { echo -e "${BOLD}${RED}[ERR]${RESET} $*"; exit 1; }
 
-# ── Verificar que estamos en la raíz del proyecto ────────────
-[[ -f "package.json" ]] || err "Ejecutá este script desde la raíz del repo."
+[[ -f "package.json" ]] || err "Corré desde la raíz del frontend ciudadano"
 
-# ── 1. Crear directorio del componente ───────────────────────
-log "Creando components/catamarcaopen/ ..."
-mkdir -p components/catamarcaopen
+# ─── 1. hooks/noticias/use-noticias-filter.ts ────────────────────────────────
+warn "Actualizando hooks/noticias/use-noticias-filter.ts ..."
+mkdir -p hooks/noticias
 
-# ── 2. Componente AlertaTematica ─────────────────────────────
-log "Escribiendo components/catamarcaopen/alerta-tematica.tsx ..."
-cat > components/catamarcaopen/alerta-tematica.tsx << 'COMPONENT'
+cat > hooks/noticias/use-noticias-filter.ts << 'TS'
 "use client"
 
-// components/catamarcaopen/alerta-tematica.tsx
-// Modal informativo que se muestra antes de navegar a "Ver proyectos" o "Publicar proyecto".
-// Solo es una maqueta — no bloquea el flujo real, cierra y navega al confirmar.
-
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Leaf, GraduationCap, Cpu } from "lucide-react"
 
-const CATEGORIAS = [
-  {
-    icon: Leaf,
-    label: "Medioambiente",
-    color: "#22c55e",
-    bg: "#22c55e1a",
-    ejemplos: "reciclaje, energía solar, monitoreo ambiental…",
-  },
-  {
-    icon: GraduationCap,
-    label: "Educación",
-    color: "#f59e0b",
-    bg: "#f59e0b1a",
-    ejemplos: "plataformas de aprendizaje, acceso educativo…",
-  },
-  {
-    icon: Cpu,
-    label: "Tecnología",
-    color: "#26a7fc",
-    bg: "#26a7fc1a",
-    ejemplos: "software cívico, infraestructura digital…",
-  },
-]
+export const useNoticiasFilter = () => {
+  const [categoriaActiva, setCategoriaActiva] = useState<string>("todas")
+  const [tagsSeleccionados, setTagsSeleccionados] = useState<string[]>([])
+  const [busqueda, setBusqueda] = useState("")
+  const [paginaActual, setPaginaActual] = useState(1)
 
-interface AlertaTematicaProps {
-  destino: string
-  labelConfirmar?: string
-  children: React.ReactNode
+  const setCategoria = (slug: string) => {
+    setCategoriaActiva(slug)
+    setTagsSeleccionados([])   // resetear tags al cambiar categoría
+    setPaginaActual(1)
+  }
+
+  const toggleTag = (tag: string) => {
+    setTagsSeleccionados((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    )
+    setPaginaActual(1)
+  }
+
+  const limpiarFiltros = () => {
+    setCategoriaActiva("todas")
+    setTagsSeleccionados([])
+    setBusqueda("")
+    setPaginaActual(1)
+  }
+
+  return {
+    categoriaActiva,
+    tagsSeleccionados,
+    busqueda,
+    paginaActual,
+    setCategoria,
+    toggleTag,
+    setBusqueda,
+    setPaginaActual,
+    limpiarFiltros,
+  }
+}
+TS
+log "use-noticias-filter.ts ✓"
+
+# ─── 2. lib/noticias/filters.ts ──────────────────────────────────────────────
+warn "Actualizando lib/noticias/filters.ts ..."
+mkdir -p lib/noticias
+
+cat > lib/noticias/filters.ts << 'TS'
+import type { Noticia } from './types'
+
+export function filterNoticias(
+  noticias: Noticia[],
+  categoriaActiva: string,
+  tags: string[],
+  busqueda: string,
+): Noticia[] {
+  return noticias.filter((n) => {
+    // 1. Filtro por categoría
+    const matchCategoria =
+      categoriaActiva === "todas" ||
+      n.categoria?.slug === categoriaActiva
+
+    // 2. Filtro por tags (dentro de la categoría activa)
+    const matchTags =
+      tags.length === 0 ||
+      n.tags.some((t) => tags.includes(t.nombre))
+
+    // 3. Búsqueda libre
+    const q = busqueda.toLowerCase()
+    const matchBusqueda =
+      busqueda === '' ||
+      n.titulo.toLowerCase().includes(q) ||
+      (n.resumen ?? '').toLowerCase().includes(q) ||
+      n.categoria?.nombre.toLowerCase().includes(q) ||
+      n.tags.some((t) => t.nombre.toLowerCase().includes(q))
+
+    return matchCategoria && matchTags && matchBusqueda
+  })
 }
 
-export function AlertaTematica({
-  destino,
-  labelConfirmar = "Entendido, continuar",
-  children,
-}: AlertaTematicaProps) {
-  const router = useRouter()
-  const [open, setOpen] = useState(false)
+/**
+ * Devuelve los tags únicos de las noticias que pertenecen
+ * a la categoría activa (o de todas si es "todas").
+ */
+export function getTagsParaCategoria(
+  noticias: Noticia[],
+  categoriaActiva: string,
+): string[] {
+  const filtradas = categoriaActiva === "todas"
+    ? noticias
+    : noticias.filter((n) => n.categoria?.slug === categoriaActiva)
 
-  function handleConfirm() {
-    setOpen(false)
-    router.push(destino)
-  }
+  return Array.from(
+    new Set(filtradas.flatMap((n) => n.tags?.map((t) => t.nombre) ?? []))
+  ).sort()
+}
+
+export function getCategoriaColor(color?: string): string {
+  return color ?? '#26a7fc'
+}
+TS
+log "filters.ts ✓"
+
+# ─── 3. components/noticias/noticias-content.tsx ─────────────────────────────
+warn "Actualizando components/noticias/noticias-content.tsx ..."
+mkdir -p components/noticias
+
+cat > components/noticias/noticias-content.tsx << 'TSX'
+"use client"
+
+import Link from "next/link"
+import Image from "next/image"
+import {
+  Card, CardContent, CardDescription,
+  CardFooter, CardHeader, CardTitle,
+} from "@/components/ui/card"
+import { Badge }  from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input }  from "@/components/ui/input"
+import { Calendar, Search, ArrowRight, ImageOff, X } from "lucide-react"
+import { filterNoticias, getTagsParaCategoria } from "@/lib/noticias/filters"
+import { useNoticiasFilter } from "@/hooks/noticias/use-noticias-filter"
+import { Paginacion } from "@/components/shared/paginacion"
+import type { Noticia, NoticiaCategoria } from "@/lib/noticias/types"
+
+interface NoticiasContentProps {
+  noticias?: Noticia[] | null
+}
+
+export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
+  const noticias: Noticia[] = Array.isArray(raw) ? raw : []
+
+  const {
+    categoriaActiva, tagsSeleccionados, busqueda, paginaActual,
+    setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
+  } = useNoticiasFilter()
+
+  // ── Categorías únicas de todas las noticias ──────────────────────────────
+  const categorias: NoticiaCategoria[] = Array.from(
+    new Map(
+      noticias
+        .filter((n) => n.categoria)
+        .map((n) => [n.categoria.id, n.categoria])
+    ).values()
+  ).sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+  // ── Tags disponibles según la categoría activa ───────────────────────────
+  const tagsDisponibles = getTagsParaCategoria(noticias, categoriaActiva)
+
+  // ── Aplicar filtros ───────────────────────────────────────────────────────
+  const noticiasFiltradas = filterNoticias(
+    noticias, categoriaActiva, tagsSeleccionados, busqueda
+  )
+
+  const itemsPorPagina    = 6
+  const totalPaginas      = Math.ceil(noticiasFiltradas.length / itemsPorPagina)
+  const indiceInicio      = (paginaActual - 1) * itemsPorPagina
+  const noticiasPaginadas = noticiasFiltradas.slice(indiceInicio, indiceInicio + itemsPorPagina)
+
+  const hayFiltrosActivos =
+    categoriaActiva !== "todas" ||
+    tagsSeleccionados.length > 0 ||
+    busqueda !== ""
+
+  const formatFecha = (iso: string) =>
+    new Date(iso).toLocaleDateString("es-AR", {
+      day: "numeric", month: "long", year: "numeric",
+    })
 
   return (
     <>
-      <span
-        onClick={(e) => {
-          e.preventDefault()
-          setOpen(true)
-        }}
-        className="contents"
-      >
-        {children}
-      </span>
+      {/* ── Filtros ─────────────────────────────────────────────────────── */}
+      <section className="pb-6">
+        <div className="container mx-auto px-4 flex flex-col gap-5">
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden gap-0">
-          <div
-            className="px-6 pt-7 pb-5"
-            style={{ background: "linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%)" }}
-          >
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-gray-900 leading-snug text-balance">
-                ¿Tu proyecto está orientado a alguna de estas áreas?
-              </DialogTitle>
-              <DialogDescription className="mt-2 text-sm text-muted-foreground text-pretty">
-                CatamarcaOpen prioriza repositorios con impacto en la comunidad.
-                Los proyectos deben estar enfocados en al menos una de las
-                siguientes temáticas:
-              </DialogDescription>
-            </DialogHeader>
+          {/* Buscador */}
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Buscar noticias..."
+              value={busqueda}
+              onChange={(e) => { setBusqueda(e.target.value); setPaginaActual(1) }}
+              className="pl-9 bg-white/70 backdrop-blur-sm rounded-xl border-[#26a7fc]/20 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20"
+            />
           </div>
 
-          <div className="px-6 py-5 space-y-3">
-            {CATEGORIAS.map(({ icon: Icon, label, color, bg, ejemplos }) => (
-              <div
-                key={label}
-                className="flex items-start gap-3 rounded-xl px-4 py-3"
-                style={{ backgroundColor: bg }}
-              >
-                <div
-                  className="mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: `${color}33` }}
+          {/* Filtro por Categoría */}
+          {categorias.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Categoría
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {/* Botón "Todas" */}
+                <button
+                  onClick={() => setCategoria("todas")}
+                  className={[
+                    "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
+                    categoriaActiva === "todas"
+                      ? "bg-slate-800 text-white border-slate-800"
+                      : "bg-white/70 text-slate-600 border-slate-200 hover:border-slate-400",
+                  ].join(" ")}
                 >
-                  <Icon className="h-4 w-4" style={{ color }} strokeWidth={1.75} />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm text-gray-900">{label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{ejemplos}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+                  Todas
+                </button>
 
-          <div className="px-6 pb-6 flex flex-col gap-2">
-            <Button
-              onClick={handleConfirm}
-              className="w-full text-white rounded-xl"
-              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
+                {categorias.map((cat) => {
+                  const color  = cat.color ?? "#26a7fc"
+                  const active = categoriaActiva === cat.slug
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setCategoria(cat.slug)}
+                      style={active
+                        ? { backgroundColor: color, borderColor: color, color: "#fff" }
+                        : { borderColor: `${color}40`, color }
+                      }
+                      className={[
+                        "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
+                        active
+                          ? "shadow-sm"
+                          : "bg-white/70 hover:opacity-80",
+                      ].join(" ")}
+                    >
+                      {cat.nombre}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Filtro por Tags (sólo si hay tags en la categoría activa) */}
+          {tagsDisponibles.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Tags
+                {categoriaActiva !== "todas" && (
+                  <span className="ml-1 font-normal normal-case text-slate-400">
+                    — filtrando por categoría
+                  </span>
+                )}
+              </p>
+              <div className="flex flex-wrap gap-2 items-center">
+                {tagsDisponibles.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant={tagsSeleccionados.includes(tag) ? "default" : "outline"}
+                    className={[
+                      "cursor-pointer transition-colors text-xs select-none",
+                      tagsSeleccionados.includes(tag)
+                        ? "bg-[#26a7fc] hover:bg-[#1c8fe0] border-transparent text-white"
+                        : "bg-white/70 backdrop-blur-sm hover:bg-[#26a7fc]/10 border-[#26a7fc]/20",
+                    ].join(" ")}
+                    onClick={() => { toggleTag(tag); setPaginaActual(1) }}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Limpiar filtros */}
+          {hayFiltrosActivos && (
+            <button
+              onClick={limpiarFiltros}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#26a7fc] w-fit underline underline-offset-2"
             >
-              {labelConfirmar}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setOpen(false)}
-              className="w-full text-muted-foreground rounded-xl text-sm"
-            >
-              Cancelar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+              <X className="h-3 w-3" />
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* ── Grid de noticias ────────────────────────────────────────────── */}
+      <section className="pb-12">
+        <div className="container mx-auto px-4">
+          <p className="text-sm text-muted-foreground mb-6">
+            {noticiasFiltradas.length}{" "}
+            {noticiasFiltradas.length === 1 ? "noticia encontrada" : "noticias encontradas"}
+          </p>
+
+          {noticias.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <span className="text-6xl mb-4">📰</span>
+              <h2 className="text-xl font-semibold text-slate-700 mb-2">Próximamente habrá novedades</h2>
+              <p className="text-sm text-muted-foreground max-w-xs">Estamos preparando el contenido. ¡Volvé pronto!</p>
+            </div>
+          ) : noticiasFiltradas.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="text-muted-foreground">No se encontraron noticias con los filtros seleccionados.</p>
+              <button onClick={limpiarFiltros} className="mt-3 text-sm text-[#26a7fc] hover:underline">
+                Ver todas las noticias
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {noticiasPaginadas.map((noticia) => (
+                  <Card
+                    key={noticia.id}
+                    className="flex flex-col transition-shadow hover:shadow-lg bg-white/70 backdrop-blur-sm overflow-hidden"
+                  >
+                    {/* Imagen */}
+                    {noticia.imagenUrl ? (
+                      <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+                        <Image
+                          src={noticia.imagenUrl}
+                          alt={noticia.titulo}
+                          fill
+                          className="object-cover transition-transform duration-300 hover:scale-105"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-44 w-full bg-gradient-to-br from-[#26a7fc]/10 to-cyan-50 flex items-center justify-center">
+                        <ImageOff className="h-8 w-8 text-[#26a7fc]/30" strokeWidth={1.5} />
+                      </div>
+                    )}
+
+                    <CardHeader className="pb-2">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        {noticia.categoria && (
+                          <Badge
+                            className="text-xs rounded-lg font-medium cursor-pointer"
+                            style={{
+                              backgroundColor: `${noticia.categoria.color ?? "#26a7fc"}20`,
+                              color:           noticia.categoria.color ?? "#26a7fc",
+                              borderColor:     `${noticia.categoria.color ?? "#26a7fc"}40`,
+                            }}
+                            onClick={() => setCategoria(noticia.categoria.slug)}
+                          >
+                            {noticia.categoria.nombre}
+                          </Badge>
+                        )}
+                        {(noticia.tags ?? []).slice(0, 2).map((tag) => (
+                          <Badge
+                            key={tag.id}
+                            variant="secondary"
+                            className="text-xs cursor-pointer hover:bg-[#26a7fc]/10"
+                            onClick={() => { toggleTag(tag.nombre); setPaginaActual(1) }}
+                          >
+                            {tag.nombre}
+                          </Badge>
+                        ))}
+                      </div>
+                      <CardTitle className="text-base leading-snug line-clamp-2">{noticia.titulo}</CardTitle>
+                      {noticia.resumen && (
+                        <CardDescription className="leading-relaxed line-clamp-2 text-xs mt-1">
+                          {noticia.resumen}
+                        </CardDescription>
+                      )}
+                    </CardHeader>
+
+                    <CardContent className="flex-1 pb-2">
+                      {noticia.publicadaEn && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Calendar className="h-3.5 w-3.5" strokeWidth={1.5} />
+                          <span>{formatFecha(noticia.publicadaEn)}</span>
+                        </div>
+                      )}
+                    </CardContent>
+
+                    <CardFooter>
+                      <Button
+                        asChild variant="ghost" size="sm"
+                        className="gap-1 text-[#26a7fc] hover:text-[#1c8fe0] hover:bg-[#26a7fc]/10 rounded-xl px-3 -ml-3"
+                      >
+                        <Link href={`/noticias/${noticia.slug}`}>
+                          Leer más <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        </Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+
+              {totalPaginas > 1 && (
+                <div className="mt-10">
+                  <Paginacion
+                    paginaActual={paginaActual}
+                    totalPaginas={totalPaginas}
+                    onPaginaChange={setPaginaActual}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
     </>
   )
 }
-COMPONENT
-ok "alerta-tematica.tsx creado"
+TSX
+log "noticias-content.tsx ✓"
 
-# ── 3. Landing page de CatamarcaOpen ─────────────────────────
-log "Sobreescribiendo app/catamarcaopen/page.tsx ..."
-cat > app/catamarcaopen/page.tsx << 'LANDING'
-"use client"
-
-// app/catamarcaopen/page.tsx
-import { CodeTitle } from "@/components/shared/code-title"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Code2, ShieldCheck, GitMerge, ArrowRight } from "lucide-react"
-import { AlertaTematica } from "@/components/catamarcaopen/alerta-tematica"
-
-const features = [
-  {
-    icon: Code2,
-    title: "Código abierto",
-    description:
-      "Todos los proyectos municipales son públicos y auditables. Cualquier ciudadano puede ver, clonar y contribuir al código fuente de los sistemas del Nodo.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Revisión por pares",
-    description:
-      "Los proyectos pasan por un proceso de revisión técnica con calificaciones y comentarios de colaboradores verificados.",
-  },
-  {
-    icon: GitMerge,
-    title: "Contribución ciudadana",
-    description:
-      "Cualquier vecino puede proponer mejoras, reportar problemas o enviar nuevos proyectos que beneficien a la comunidad catamarqueña.",
-  },
-]
-
-export default function CatamarcaOpenLandingPage() {
-  return (
-    <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
-      {/* Hero */}
-      <section className="container mx-auto px-4 text-center max-w-3xl">
-        <div className="inline-flex items-center gap-2 bg-[#26a7fc]/10 border border-[#26a7fc]/20 rounded-full px-4 py-1.5 text-sm font-semibold text-[#1c8fe0] mb-6">
-          <Code2 className="h-3.5 w-3.5" />
-          Plataforma Open Source Municipal
-        </div>
-
-        <CodeTitle as="h1" className="text-4xl md:text-5xl font-bold text-gray-900 mb-5 text-balance">
-          Catamarca<span className="text-[#26a7fc]">Open</span>
-        </CodeTitle>
-
-        <p className="text-lg text-muted-foreground leading-relaxed mb-10 text-pretty">
-          Explorá, colaborá y revisá proyectos de código abierto que mejoran los servicios digitales
-          de la ciudad. La tecnología del Nodo, al servicio de la ciudadanía.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <AlertaTematica destino="/catamarcaopen/proyectos" labelConfirmar="Ver proyectos">
-            <Button
-              size="lg"
-              className="text-white gap-2 cursor-pointer"
-              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-            >
-              Ver proyectos
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </AlertaTematica>
-
-          <AlertaTematica destino="/catamarcaopen/proyectos/nuevo" labelConfirmar="Publicar proyecto">
-            <Button size="lg" variant="outline" className="cursor-pointer">
-              Publicar un proyecto
-            </Button>
-          </AlertaTematica>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="container mx-auto px-4 mt-20 max-w-5xl">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 text-balance">
-            ¿Por qué CatamarcaOpen?
-          </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto text-pretty">
-            Una plataforma pensada para fomentar la transparencia, la colaboración y la innovación
-            cívica.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {features.map((feature) => (
-            <Card key={feature.title} className="border-[#26a7fc]/10 hover:border-[#26a7fc]/30 transition-colors">
-              <CardContent className="pt-6 flex flex-col gap-4">
-                <div className="h-12 w-12 rounded-xl bg-[#26a7fc]/10 flex items-center justify-center">
-                  <feature.icon className="h-6 w-6 text-[#26a7fc]" />
-                </div>
-                <h3 className="font-bold text-gray-900">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA final */}
-      <section className="container mx-auto px-4 mt-20 max-w-2xl text-center">
-        <Card className="border-[#26a7fc]/10 bg-white/70">
-          <CardContent className="pt-10 pb-10 flex flex-col items-center">
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 text-balance">
-              Sumate a la comunidad open source de Catamarca
-            </h2>
-            <p className="text-sm text-muted-foreground mb-8 max-w-md text-pretty">
-              Explorá proyectos, dejá tu revisión o proponé el tuyo con tu misma cuenta de Google del
-              Nodo.
-            </p>
-            <AlertaTematica destino="/catamarcaopen/proyectos" labelConfirmar="Ver proyectos">
-              <Button
-                size="lg"
-                className="text-white gap-2 cursor-pointer"
-                style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-              >
-                Ver proyectos
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </AlertaTematica>
-          </CardContent>
-        </Card>
-      </section>
-    </main>
-  )
-}
-LANDING
-ok "app/catamarcaopen/page.tsx actualizado"
-
-# ── 4. Listado de proyectos ───────────────────────────────────
-log "Sobreescribiendo app/catamarcaopen/proyectos/page.tsx ..."
-cat > app/catamarcaopen/proyectos/page.tsx << 'PROYECTOS'
-// app/catamarcaopen/proyectos/page.tsx
-"use client"
-
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowLeft, Plus, ExternalLink, Github } from "lucide-react"
-import { toast } from "sonner"
-import { getReposPublicos } from "@/lib/catamarcaopen/api"
-import type { CatamarcaOpenRepo } from "@/lib/catamarcaopen/types"
-import { AlertaTematica } from "@/components/catamarcaopen/alerta-tematica"
-
-function RepoSkeleton() {
-  return (
-    <Card className="border-[#26a7fc]/10">
-      <CardContent className="p-5 space-y-3">
-        <Skeleton className="h-4 w-2/3" />
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-1/3" />
-      </CardContent>
-    </Card>
-  )
-}
-
-function RepoCard({ repo }: { repo: CatamarcaOpenRepo }) {
-  const githubUser = repo.url.replace("https://github.com/", "").split("/")[0]
-  const repoSlug   = repo.url.replace("https://github.com/", "").split("/")[1] ?? ""
-
-  return (
-    <Link href={`/catamarcaopen/proyectos/${repo.id}`}>
-      <Card className="h-full border-[#26a7fc]/10 hover:border-[#26a7fc]/40 transition-colors cursor-pointer">
-        <CardContent className="p-5 flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Github className="h-4 w-4 text-gray-500 shrink-0" strokeWidth={1.5} />
-              <span className="font-semibold text-gray-900 text-sm truncate">{repo.nombre}</span>
-            </div>
-            <ExternalLink className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" strokeWidth={1.5} />
-          </div>
-          {repo.descripcion && (
-            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-              {repo.descripcion}
-            </p>
-          )}
-          <p className="text-[10px] text-slate-400 font-mono truncate">
-            {githubUser}/{repoSlug}
-          </p>
-        </CardContent>
-      </Card>
-    </Link>
-  )
-}
-
-export default function CatamarcaOpenProyectosPage() {
-  const [repos, setRepos]         = useState<CatamarcaOpenRepo[] | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let active = true
-    getReposPublicos()
-      .then((data) => { if (active) setRepos(data) })
-      .catch((err) => {
-        if (!active) return
-        toast.error((err as { message?: string })?.message ?? "Error al cargar proyectos")
-      })
-      .finally(() => { if (active) setIsLoading(false) })
-    return () => { active = false }
-  }, [])
-
-  return (
-    <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
-      <div className="container mx-auto px-4 max-w-5xl">
-        <Link
-          href="/catamarcaopen"
-          className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-          CatamarcaOpen
-        </Link>
-
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 text-balance">
-              Proyectos de la comunidad
-            </h1>
-            <p className="text-sm text-muted-foreground max-w-xl text-pretty">
-              Repositorios de código abierto publicados por vecinos y colaboradores del Nodo.
-            </p>
-          </div>
-
-          <AlertaTematica destino="/catamarcaopen/proyectos/nuevo" labelConfirmar="Publicar proyecto">
-            <Button
-              className="text-white shrink-0 gap-2 cursor-pointer"
-              style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-            >
-              <Plus className="h-4 w-4" strokeWidth={1.5} />
-              Publicar proyecto
-            </Button>
-          </AlertaTematica>
-        </div>
-
-        {isLoading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <RepoSkeleton key={i} />
-            ))}
-          </div>
-        ) : !repos || repos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-            <div className="h-16 w-16 rounded-2xl bg-[#26a7fc]/10 flex items-center justify-center">
-              <Github className="h-8 w-8 text-[#26a7fc]" strokeWidth={1.5} />
-            </div>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              Todavía no hay proyectos publicados. ¡Sé el primero en compartir tu repositorio!
-            </p>
-            <AlertaTematica destino="/catamarcaopen/proyectos/nuevo" labelConfirmar="Publicar proyecto">
-              <Button
-                className="text-white gap-2 cursor-pointer"
-                style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-              >
-                <Plus className="h-4 w-4" strokeWidth={1.5} />
-                Publicar proyecto
-              </Button>
-            </AlertaTematica>
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {repos.map((repo) => (
-              <RepoCard key={repo.id} repo={repo} />
-            ))}
-          </div>
-        )}
-      </div>
-    </main>
-  )
-}
-PROYECTOS
-ok "app/catamarcaopen/proyectos/page.tsx actualizado"
-
-# ── 5. Resumen ────────────────────────────────────────────────
 echo ""
-echo -e "${GREEN}════════════════════════════════════════${RESET}"
-echo -e "${GREEN}  ✅  v1-alerta-tematica — LISTO        ${RESET}"
-echo -e "${GREEN}════════════════════════════════════════${RESET}"
+echo -e "${BOLD}${GREEN}================================================${RESET}"
+echo -e "${BOLD}${GREEN}  Filtros de noticias actualizados ✅           ${RESET}"
+echo -e "${BOLD}${GREEN}================================================${RESET}"
 echo ""
-echo "  Archivos creados / modificados:"
-echo "    + components/catamarcaopen/alerta-tematica.tsx  (nuevo)"
-echo "    ~ app/catamarcaopen/page.tsx                    (modificado)"
-echo "    ~ app/catamarcaopen/proyectos/page.tsx          (modificado)"
+echo "  Cambios aplicados:"
+echo "  • use-noticias-filter.ts → agrega categoriaActiva + setCategoria"
+echo "  • filters.ts             → filterNoticias recibe categoría, getTagsParaCategoria()"
+echo "  • noticias-content.tsx   → UI cascada: Categoría → Tags → Búsqueda"
 echo ""
-echo "  Verificá con:  pnpm build"
+echo "  Comportamiento nuevo:"
+echo "  • Botones de categoría (Todas + una por cada cat.) con color propio"
+echo "  • Al seleccionar categoría → tags se resetean y muestran solo los de esa cat."
+echo "  • Tags clickeables también en las cards (filtran al hacer clic)"
+echo "  • Badge de categoría en la card también filtra al hacer clic"
+echo "  • 'Limpiar filtros' aparece solo si hay algo activo"
+echo "  • No hay cambios en el backend ni en types"
 echo ""
