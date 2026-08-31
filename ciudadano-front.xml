@@ -1974,40 +1974,6 @@ x.sh
 31: }
 ```
 
-## File: hooks/noticias/use-noticias-filter.ts
-```typescript
- 1: "use client"
- 2: 
- 3: import { useState } from "react"
- 4: 
- 5: export const useNoticiasFilter = () => {
- 6:   const [tagsSeleccionados, setTagsSeleccionados] = useState<string[]>([])
- 7:   const [busqueda, setBusqueda] = useState("")
- 8:   const [paginaActual, setPaginaActual] = useState(1)
- 9: 
-10:   const toggleTag = (tag: string) => {
-11:     setTagsSeleccionados((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
-12:     setPaginaActual(1)
-13:   }
-14: 
-15:   const limpiarFiltros = () => {
-16:     setTagsSeleccionados([])
-17:     setBusqueda("")
-18:     setPaginaActual(1)
-19:   }
-20: 
-21:   return {
-22:     tagsSeleccionados,
-23:     busqueda,
-24:     paginaActual,
-25:     toggleTag,
-26:     setBusqueda,
-27:     setPaginaActual,
-28:     limpiarFiltros,
-29:   }
-30: }
-```
-
 ## File: hooks/use-code-title.ts
 ```typescript
   1: "use client"
@@ -6606,6 +6572,52 @@ x.sh
 103: }
 ```
 
+## File: hooks/noticias/use-noticias-filter.ts
+```typescript
+ 1: "use client"
+ 2: 
+ 3: import { useState } from "react"
+ 4: 
+ 5: export const useNoticiasFilter = () => {
+ 6:   const [categoriaActiva, setCategoriaActiva] = useState<string>("todas")
+ 7:   const [tagsSeleccionados, setTagsSeleccionados] = useState<string[]>([])
+ 8:   const [busqueda, setBusqueda] = useState("")
+ 9:   const [paginaActual, setPaginaActual] = useState(1)
+10: 
+11:   const setCategoria = (slug: string) => {
+12:     setCategoriaActiva(slug)
+13:     setTagsSeleccionados([])   // resetear tags al cambiar categoría
+14:     setPaginaActual(1)
+15:   }
+16: 
+17:   const toggleTag = (tag: string) => {
+18:     setTagsSeleccionados((prev) =>
+19:       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+20:     )
+21:     setPaginaActual(1)
+22:   }
+23: 
+24:   const limpiarFiltros = () => {
+25:     setCategoriaActiva("todas")
+26:     setTagsSeleccionados([])
+27:     setBusqueda("")
+28:     setPaginaActual(1)
+29:   }
+30: 
+31:   return {
+32:     categoriaActiva,
+33:     tagsSeleccionados,
+34:     busqueda,
+35:     paginaActual,
+36:     setCategoria,
+37:     toggleTag,
+38:     setBusqueda,
+39:     setPaginaActual,
+40:     limpiarFiltros,
+41:   }
+42: }
+```
+
 ## File: lib/catamarcaopen/types.ts
 ```typescript
  1: // lib/catamarcaopen/types.ts
@@ -6803,37 +6815,6 @@ x.sh
 93:     return null
 94:   }
 95: }
-```
-
-## File: lib/noticias/filters.ts
-```typescript
- 1: import type { Noticia } from './types'
- 2: 
- 3: export function filterNoticias(
- 4:   noticias: Noticia[],
- 5:   tags: string[],
- 6:   busqueda: string,
- 7: ): Noticia[] {
- 8:   return noticias.filter((n) => {
- 9:     const matchTags =
-10:       tags.length === 0 ||
-11:       n.tags.some((t) => tags.includes(t.nombre))
-12: 
-13:     const q = busqueda.toLowerCase()
-14:     const matchBusqueda =
-15:       busqueda === '' ||
-16:       n.titulo.toLowerCase().includes(q) ||
-17:       (n.resumen ?? '').toLowerCase().includes(q) ||
-18:       n.tags.some((t) => t.nombre.toLowerCase().includes(q))
-19: 
-20:     return matchTags && matchBusqueda
-21:   })
-22: }
-23: 
-24: export function getCategoriaColor(color?: string): string {
-25:   if (color) return color
-26:   return '#26a7fc'
-27: }
 ```
 
 ## File: lib/noticias/types.ts
@@ -8003,40 +7984,6 @@ x.sh
 360: }
 ```
 
-## File: app/noticias/page.tsx
-```typescript
- 1: import type { Metadata } from "next"
- 2: import { CodeTitle } from "@/components/shared/code-title"
- 3: import { NoticiasContent } from "@/components/noticias/noticias-content"
- 4: import { getNoticias } from "@/lib/noticias/api"
- 5: 
- 6: export const metadata: Metadata = {
- 7:   title: "Noticias | Nodo Tecnológico Catamarca",
- 8:   description: "Las últimas novedades del Nodo Tecnológico de Catamarca.",
- 9: }
-10: 
-11: export default async function NoticiasPage() {
-12:   const { items: noticias } = await getNoticias({ limit: 9 })
-13: 
-14:   return (
-15:     <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
-16:       <main>
-17:         <section className="relative overflow-hidden pt-24 pb-4">
-18:           <div className="container mx-auto px-4 text-center">
-19:             <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
-20:               Las Novedades del{" "}
-21:               <span className="text-[#26a7fc]">Nodo</span>
-22:             </CodeTitle>
-23:           </div>
-24:         </section>
-25: 
-26:         <NoticiasContent noticias={noticias} />
-27:       </main>
-28:     </div>
-29:   )
-30: }
-```
-
 ## File: components/cursos/inscribirse-btn.tsx
 ```typescript
  1: "use client"
@@ -8456,6 +8403,59 @@ x.sh
 42: ): number => areas.filter((a) => a.estado === estado).length
 ```
 
+## File: lib/noticias/filters.ts
+```typescript
+ 1: import type { Noticia } from './types'
+ 2: 
+ 3: export function filterNoticias(
+ 4:   noticias: Noticia[],
+ 5:   categoriaActiva: string,
+ 6:   tags: string[],
+ 7:   busqueda: string,
+ 8: ): Noticia[] {
+ 9:   return noticias.filter((n) => {
+10:     const matchCategoria =
+11:       categoriaActiva === "todas" ||
+12:       n.categoria?.slug === categoriaActiva
+13: 
+14:     const matchTags =
+15:       tags.length === 0 ||
+16:       n.tags.some((t) => tags.includes(t.nombre))
+17: 
+18:     const q = busqueda.toLowerCase()
+19:     const matchBusqueda =
+20:       busqueda === '' ||
+21:       n.titulo.toLowerCase().includes(q) ||
+22:       (n.resumen ?? '').toLowerCase().includes(q) ||
+23:       n.categoria?.nombre.toLowerCase().includes(q) ||
+24:       n.tags.some((t) => t.nombre.toLowerCase().includes(q))
+25: 
+26:     return matchCategoria && matchTags && matchBusqueda
+27:   })
+28: }
+29: 
+30: /**
+31:  * Tags únicos de las noticias en la categoría activa.
+32:  * Si es "todas", devuelve todos los tags disponibles.
+33:  */
+34: export function getTagsParaCategoria(
+35:   noticias: Noticia[],
+36:   categoriaActiva: string,
+37: ): string[] {
+38:   const base = categoriaActiva === "todas"
+39:     ? noticias
+40:     : noticias.filter((n) => n.categoria?.slug === categoriaActiva)
+41: 
+42:   return Array.from(
+43:     new Set(base.flatMap((n) => n.tags?.map((t) => t.nombre) ?? []))
+44:   ).sort()
+45: }
+46: 
+47: export function getCategoriaColor(color?: string): string {
+48:   return color ?? '#26a7fc'
+49: }
+```
+
 ## File: app/api/chat/route.ts
 ```typescript
  1: import { NextRequest, NextResponse } from "next/server"
@@ -8846,6 +8846,42 @@ x.sh
 198: }
 ```
 
+## File: app/noticias/page.tsx
+```typescript
+ 1: import type { Metadata } from "next"
+ 2: import { CodeTitle } from "@/components/shared/code-title"
+ 3: import { NoticiasContent } from "@/components/noticias/noticias-content"
+ 4: import { getNoticias } from "@/lib/noticias/api"
+ 5: 
+ 6: export const metadata: Metadata = {
+ 7:   title: "Noticias | Nodo Tecnológico Catamarca",
+ 8:   description: "Las últimas novedades del Nodo Tecnológico de Catamarca.",
+ 9: }
+10: 
+11: export default async function NoticiasPage() {
+12:   // Traemos hasta 200 noticias para que los filtros client-side
+13:   // operen sobre el conjunto completo, no sobre una página truncada.
+14:   const { items: noticias } = await getNoticias({ limit: 200 })
+15: 
+16:   return (
+17:     <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
+18:       <main>
+19:         <section className="relative overflow-hidden pt-24 pb-4">
+20:           <div className="container mx-auto px-4 text-center">
+21:             <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
+22:               Las Novedades del{" "}
+23:               <span className="text-[#26a7fc]">Nodo</span>
+24:             </CodeTitle>
+25:           </div>
+26:         </section>
+27: 
+28:         <NoticiasContent noticias={noticias} />
+29:       </main>
+30:     </div>
+31:   )
+32: }
+```
+
 ## File: components/home/hero-section.tsx
 ```typescript
  1: /**
@@ -8944,214 +8980,6 @@ x.sh
 94:     </section>
 95:   )
 96: }
-```
-
-## File: components/noticias/noticias-content.tsx
-```typescript
-  1: "use client"
-  2: 
-  3: import Link from "next/link"
-  4: import Image from "next/image"
-  5: import {
-  6:   Card, CardContent, CardDescription,
-  7:   CardFooter, CardHeader, CardTitle,
-  8: } from "@/components/ui/card"
-  9: import { Badge }  from "@/components/ui/badge"
- 10: import { Button } from "@/components/ui/button"
- 11: import { Input }  from "@/components/ui/input"
- 12: import { Calendar, Search, ArrowRight, ImageOff } from "lucide-react"
- 13: import { filterNoticias } from "@/lib/noticias/filters"
- 14: import { useNoticiasFilter } from "@/hooks/noticias/use-noticias-filter"
- 15: import { Paginacion } from "@/components/shared/paginacion"
- 16: import type { Noticia } from "@/lib/noticias/types"
- 17: 
- 18: interface NoticiasContentProps {
- 19:   noticias?: Noticia[] | null   // defensivo: acepta undefined/null
- 20: }
- 21: 
- 22: export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
- 23:   // garantiza array aunque llegue undefined/null
- 24:   const noticias: Noticia[] = Array.isArray(raw) ? raw : []
- 25: 
- 26:   const {
- 27:     tagsSeleccionados, busqueda, paginaActual,
- 28:     toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
- 29:   } = useNoticiasFilter()
- 30: 
- 31:   const noticiasFiltradas = filterNoticias(noticias, tagsSeleccionados, busqueda)
- 32: 
- 33:   const itemsPorPagina  = 6
- 34:   const totalPaginas    = Math.ceil(noticiasFiltradas.length / itemsPorPagina)
- 35:   const indiceInicio    = (paginaActual - 1) * itemsPorPagina
- 36:   const noticiasPaginadas = noticiasFiltradas.slice(indiceInicio, indiceInicio + itemsPorPagina)
- 37: 
- 38:   const tagsDisponibles = Array.from(
- 39:     new Set(noticias.flatMap((n) => n.tags?.map((t) => t.nombre) ?? []))
- 40:   ).sort()
- 41: 
- 42:   const formatFecha = (iso: string) =>
- 43:     new Date(iso).toLocaleDateString("es-AR", {
- 44:       day: "numeric", month: "long", year: "numeric",
- 45:     })
- 46: 
- 47:   return (
- 48:     <>
- 49:       {/* Buscador + tags */}
- 50:       <section className="pb-4">
- 51:         <div className="container mx-auto px-4 flex flex-col gap-4">
- 52:           <div className="relative max-w-sm">
- 53:             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
- 54:             <Input
- 55:               placeholder="Buscar noticias..."
- 56:               value={busqueda}
- 57:               onChange={(e) => { setBusqueda(e.target.value); setPaginaActual(1) }}
- 58:               className="pl-9 bg-white/70 backdrop-blur-sm rounded-xl border-[#26a7fc]/20 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20"
- 59:             />
- 60:           </div>
- 61: 
- 62:           {tagsDisponibles.length > 0 && (
- 63:             <div className="flex flex-wrap gap-2 items-center">
- 64:               {tagsSeleccionados.length > 0 && (
- 65:                 <button
- 66:                   onClick={limpiarFiltros}
- 67:                   className="text-xs text-muted-foreground hover:text-[#26a7fc] underline underline-offset-2"
- 68:                 >
- 69:                   Limpiar filtros
- 70:                 </button>
- 71:               )}
- 72:               {tagsDisponibles.map((tag) => (
- 73:                 <Badge
- 74:                   key={tag}
- 75:                   variant={tagsSeleccionados.includes(tag) ? "default" : "outline"}
- 76:                   className={`cursor-pointer transition-colors text-xs ${
- 77:                     tagsSeleccionados.includes(tag)
- 78:                       ? "bg-[#26a7fc] hover:bg-[#1c8fe0] border-transparent text-white"
- 79:                       : "bg-white/70 backdrop-blur-sm hover:bg-[#26a7fc]/10 border-[#26a7fc]/20"
- 80:                   }`}
- 81:                   onClick={() => { toggleTag(tag); setPaginaActual(1) }}
- 82:                 >
- 83:                   {tag}
- 84:                 </Badge>
- 85:               ))}
- 86:             </div>
- 87:           )}
- 88:         </div>
- 89:       </section>
- 90: 
- 91:       {/* Grid */}
- 92:       <section className="pb-12">
- 93:         <div className="container mx-auto px-4">
- 94:           <p className="text-sm text-muted-foreground mb-6">
- 95:             {noticiasFiltradas.length}{" "}
- 96:             {noticiasFiltradas.length === 1 ? "noticia encontrada" : "noticias encontradas"}
- 97:           </p>
- 98: 
- 99:           {noticias.length === 0 ? (
-100:             <div className="flex flex-col items-center justify-center py-24 text-center">
-101:               <span className="text-6xl mb-4">📰</span>
-102:               <h2 className="text-xl font-semibold text-slate-700 mb-2">Próximamente habrá novedades</h2>
-103:               <p className="text-sm text-muted-foreground max-w-xs">Estamos preparando el contenido. ¡Volvé pronto!</p>
-104:             </div>
-105:           ) : noticiasFiltradas.length === 0 ? (
-106:             <div className="py-16 text-center">
-107:               <p className="text-muted-foreground">No se encontraron noticias con los filtros seleccionados.</p>
-108:               <button onClick={limpiarFiltros} className="mt-3 text-sm text-[#26a7fc] hover:underline">
-109:                 Ver todas las noticias
-110:               </button>
-111:             </div>
-112:           ) : (
-113:             <>
-114:               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-115:                 {noticiasPaginadas.map((noticia) => (
-116:                   <Card
-117:                     key={noticia.id}
-118:                     className="flex flex-col transition-shadow hover:shadow-lg bg-white/70 backdrop-blur-sm overflow-hidden"
-119:                   >
-120:                     {/* Imagen */}
-121:                     {noticia.imagenUrl ? (
-122:                       <div className="relative h-44 w-full overflow-hidden bg-slate-100">
-123:                         <Image
-124:                           src={noticia.imagenUrl}
-125:                           alt={noticia.titulo}
-126:                           fill
-127:                           className="object-cover transition-transform duration-300 hover:scale-105"
-128:                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-129:                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-130:                         />
-131:                       </div>
-132:                     ) : (
-133:                       <div className="h-44 w-full bg-gradient-to-br from-[#26a7fc]/10 to-cyan-50 flex items-center justify-center">
-134:                         <ImageOff className="h-8 w-8 text-[#26a7fc]/30" strokeWidth={1.5} />
-135:                       </div>
-136:                     )}
-137: 
-138:                     <CardHeader className="pb-2">
-139:                       <div className="flex flex-wrap items-center gap-2 mb-2">
-140:                         {noticia.categoria && (
-141:                           <Badge
-142:                             className="text-xs rounded-lg font-medium"
-143:                             style={{
-144:                               backgroundColor: `${noticia.categoria.color ?? '#26a7fc'}20`,
-145:                               color:           noticia.categoria.color ?? '#26a7fc',
-146:                               borderColor:     `${noticia.categoria.color ?? '#26a7fc'}40`,
-147:                             }}
-148:                           >
-149:                             {noticia.categoria.nombre}
-150:                           </Badge>
-151:                         )}
-152:                         {(noticia.tags ?? []).slice(0, 2).map((tag) => (
-153:                           <Badge key={tag.id} variant="secondary" className="text-xs">
-154:                             {tag.nombre}
-155:                           </Badge>
-156:                         ))}
-157:                       </div>
-158:                       <CardTitle className="text-base leading-snug line-clamp-2">{noticia.titulo}</CardTitle>
-159:                       {noticia.resumen && (
-160:                         <CardDescription className="leading-relaxed line-clamp-2 text-xs mt-1">
-161:                           {noticia.resumen}
-162:                         </CardDescription>
-163:                       )}
-164:                     </CardHeader>
-165: 
-166:                     <CardContent className="flex-1 pb-2">
-167:                       {noticia.publicadaEn && (
-168:                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-169:                           <Calendar className="h-3.5 w-3.5" strokeWidth={1.5} />
-170:                           <span>{formatFecha(noticia.publicadaEn)}</span>
-171:                         </div>
-172:                       )}
-173:                     </CardContent>
-174: 
-175:                     <CardFooter>
-176:                       <Button
-177:                         asChild variant="ghost" size="sm"
-178:                         className="gap-1 text-[#26a7fc] hover:text-[#1c8fe0] hover:bg-[#26a7fc]/10 rounded-xl px-3 -ml-3"
-179:                       >
-180:                         <Link href={`/noticias/${noticia.slug}`}>
-181:                           Leer más <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-182:                         </Link>
-183:                       </Button>
-184:                     </CardFooter>
-185:                   </Card>
-186:                 ))}
-187:               </div>
-188: 
-189:               {totalPaginas > 1 && (
-190:                 <div className="mt-10">
-191:                   <Paginacion
-192:                     paginaActual={paginaActual}
-193:                     totalPaginas={totalPaginas}
-194:                     onPaginaChange={setPaginaActual}
-195:                   />
-196:                 </div>
-197:               )}
-198:             </>
-199:           )}
-200:         </div>
-201:       </section>
-202:     </>
-203:   )
-204: }
 ```
 
 ## File: components/header.tsx
@@ -10032,6 +9860,294 @@ x.sh
 198: }
 ```
 
+## File: components/noticias/noticias-content.tsx
+```typescript
+  1: "use client"
+  2: 
+  3: import Link from "next/link"
+  4: import Image from "next/image"
+  5: import {
+  6:   Card, CardContent, CardDescription,
+  7:   CardFooter, CardHeader, CardTitle,
+  8: } from "@/components/ui/card"
+  9: import { Badge }  from "@/components/ui/badge"
+ 10: import { Button } from "@/components/ui/button"
+ 11: import { Input }  from "@/components/ui/input"
+ 12: import { Calendar, Search, ArrowRight, ImageOff, X } from "lucide-react"
+ 13: import { filterNoticias, getTagsParaCategoria } from "@/lib/noticias/filters"
+ 14: import { useNoticiasFilter } from "@/hooks/noticias/use-noticias-filter"
+ 15: import { Paginacion } from "@/components/shared/paginacion"
+ 16: import type { Noticia, NoticiaCategoria } from "@/lib/noticias/types"
+ 17: 
+ 18: interface NoticiasContentProps {
+ 19:   noticias?: Noticia[] | null
+ 20: }
+ 21: 
+ 22: export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
+ 23:   const noticias: Noticia[] = Array.isArray(raw) ? raw : []
+ 24: 
+ 25:   const {
+ 26:     categoriaActiva, tagsSeleccionados, busqueda, paginaActual,
+ 27:     setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
+ 28:   } = useNoticiasFilter()
+ 29: 
+ 30:   // Categorías únicas presentes en las noticias
+ 31:   const categorias: NoticiaCategoria[] = Array.from(
+ 32:     new Map(
+ 33:       noticias
+ 34:         .filter((n) => n.categoria)
+ 35:         .map((n) => [n.categoria.id, n.categoria])
+ 36:     ).values()
+ 37:   ).sort((a, b) => a.nombre.localeCompare(b.nombre))
+ 38: 
+ 39:   // Tags disponibles según categoría activa
+ 40:   const tagsDisponibles = getTagsParaCategoria(noticias, categoriaActiva)
+ 41: 
+ 42:   // Aplicar filtros
+ 43:   const noticiasFiltradas = filterNoticias(
+ 44:     noticias, categoriaActiva, tagsSeleccionados, busqueda
+ 45:   )
+ 46: 
+ 47:   const itemsPorPagina    = 6
+ 48:   const totalPaginas      = Math.ceil(noticiasFiltradas.length / itemsPorPagina)
+ 49:   const indiceInicio      = (paginaActual - 1) * itemsPorPagina
+ 50:   const noticiasPaginadas = noticiasFiltradas.slice(indiceInicio, indiceInicio + itemsPorPagina)
+ 51: 
+ 52:   const hayFiltrosActivos =
+ 53:     categoriaActiva !== "todas" ||
+ 54:     tagsSeleccionados.length > 0 ||
+ 55:     busqueda !== ""
+ 56: 
+ 57:   const formatFecha = (iso: string) =>
+ 58:     new Date(iso).toLocaleDateString("es-AR", {
+ 59:       day: "numeric", month: "long", year: "numeric",
+ 60:     })
+ 61: 
+ 62:   return (
+ 63:     <>
+ 64:       {/* ── Filtros ─────────────────────────────────────────────────────── */}
+ 65:       <section className="pb-6">
+ 66:         <div className="container mx-auto px-4 flex flex-col gap-5">
+ 67: 
+ 68:           {/* Buscador */}
+ 69:           <div className="relative max-w-sm">
+ 70:             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+ 71:             <Input
+ 72:               placeholder="Buscar noticias..."
+ 73:               value={busqueda}
+ 74:               onChange={(e) => { setBusqueda(e.target.value); setPaginaActual(1) }}
+ 75:               className="pl-9 bg-white/70 backdrop-blur-sm rounded-xl border-[#26a7fc]/20 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20"
+ 76:             />
+ 77:           </div>
+ 78: 
+ 79:           {/* Filtro por Categoría */}
+ 80:           {categorias.length > 0 && (
+ 81:             <div className="flex flex-col gap-2">
+ 82:               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+ 83:                 Categoría
+ 84:               </p>
+ 85:               <div className="flex flex-wrap gap-2">
+ 86:                 <button
+ 87:                   onClick={() => setCategoria("todas")}
+ 88:                   className={[
+ 89:                     "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
+ 90:                     categoriaActiva === "todas"
+ 91:                       ? "bg-slate-800 text-white border-slate-800"
+ 92:                       : "bg-white/70 text-slate-600 border-slate-200 hover:border-slate-400",
+ 93:                   ].join(" ")}
+ 94:                 >
+ 95:                   Todas
+ 96:                 </button>
+ 97: 
+ 98:                 {categorias.map((cat) => {
+ 99:                   const color  = cat.color ?? "#26a7fc"
+100:                   const active = categoriaActiva === cat.slug
+101:                   return (
+102:                     <button
+103:                       key={cat.id}
+104:                       onClick={() => setCategoria(cat.slug)}
+105:                       style={active
+106:                         ? { backgroundColor: color, borderColor: color, color: "#fff" }
+107:                         : { borderColor: `${color}40`, color }
+108:                       }
+109:                       className={[
+110:                         "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
+111:                         active ? "shadow-sm" : "bg-white/70 hover:opacity-80",
+112:                       ].join(" ")}
+113:                     >
+114:                       {cat.nombre}
+115:                     </button>
+116:                   )
+117:                 })}
+118:               </div>
+119:             </div>
+120:           )}
+121: 
+122:           {/* Filtro por Tags — solo si hay tags en la categoría activa */}
+123:           {tagsDisponibles.length > 0 && (
+124:             <div className="flex flex-col gap-2">
+125:               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+126:                 Tags
+127:                 {categoriaActiva !== "todas" && (
+128:                   <span className="ml-1 font-normal normal-case text-slate-400">
+129:                     — dentro de la categoría
+130:                   </span>
+131:                 )}
+132:               </p>
+133:               <div className="flex flex-wrap gap-2">
+134:                 {tagsDisponibles.map((tag) => (
+135:                   <Badge
+136:                     key={tag}
+137:                     variant={tagsSeleccionados.includes(tag) ? "default" : "outline"}
+138:                     className={[
+139:                       "cursor-pointer transition-colors text-xs select-none",
+140:                       tagsSeleccionados.includes(tag)
+141:                         ? "bg-[#26a7fc] hover:bg-[#1c8fe0] border-transparent text-white"
+142:                         : "bg-white/70 backdrop-blur-sm hover:bg-[#26a7fc]/10 border-[#26a7fc]/20",
+143:                     ].join(" ")}
+144:                     onClick={() => { toggleTag(tag); setPaginaActual(1) }}
+145:                   >
+146:                     {tag}
+147:                   </Badge>
+148:                 ))}
+149:               </div>
+150:             </div>
+151:           )}
+152: 
+153:           {/* Limpiar filtros */}
+154:           {hayFiltrosActivos && (
+155:             <button
+156:               onClick={limpiarFiltros}
+157:               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#26a7fc] w-fit underline underline-offset-2"
+158:             >
+159:               <X className="h-3 w-3" />
+160:               Limpiar filtros
+161:             </button>
+162:           )}
+163:         </div>
+164:       </section>
+165: 
+166:       {/* ── Grid ────────────────────────────────────────────────────────── */}
+167:       <section className="pb-12">
+168:         <div className="container mx-auto px-4">
+169:           <p className="text-sm text-muted-foreground mb-6">
+170:             {noticiasFiltradas.length}{" "}
+171:             {noticiasFiltradas.length === 1 ? "noticia encontrada" : "noticias encontradas"}
+172:           </p>
+173: 
+174:           {noticias.length === 0 ? (
+175:             <div className="flex flex-col items-center justify-center py-24 text-center">
+176:               <span className="text-6xl mb-4">📰</span>
+177:               <h2 className="text-xl font-semibold text-slate-700 mb-2">Próximamente habrá novedades</h2>
+178:               <p className="text-sm text-muted-foreground max-w-xs">Estamos preparando el contenido. ¡Volvé pronto!</p>
+179:             </div>
+180:           ) : noticiasFiltradas.length === 0 ? (
+181:             <div className="py-16 text-center">
+182:               <p className="text-muted-foreground">No se encontraron noticias con los filtros seleccionados.</p>
+183:               <button onClick={limpiarFiltros} className="mt-3 text-sm text-[#26a7fc] hover:underline">
+184:                 Ver todas las noticias
+185:               </button>
+186:             </div>
+187:           ) : (
+188:             <>
+189:               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+190:                 {noticiasPaginadas.map((noticia) => (
+191:                   <Card
+192:                     key={noticia.id}
+193:                     className="flex flex-col transition-shadow hover:shadow-lg bg-white/70 backdrop-blur-sm overflow-hidden"
+194:                   >
+195:                     {noticia.imagenUrl ? (
+196:                       <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+197:                         <Image
+198:                           src={noticia.imagenUrl}
+199:                           alt={noticia.titulo}
+200:                           fill
+201:                           className="object-cover transition-transform duration-300 hover:scale-105"
+202:                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+203:                           onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+204:                         />
+205:                       </div>
+206:                     ) : (
+207:                       <div className="h-44 w-full bg-gradient-to-br from-[#26a7fc]/10 to-cyan-50 flex items-center justify-center">
+208:                         <ImageOff className="h-8 w-8 text-[#26a7fc]/30" strokeWidth={1.5} />
+209:                       </div>
+210:                     )}
+211: 
+212:                     <CardHeader className="pb-2">
+213:                       <div className="flex flex-wrap items-center gap-2 mb-2">
+214:                         {noticia.categoria && (
+215:                           <Badge
+216:                             className="text-xs rounded-lg font-medium cursor-pointer"
+217:                             style={{
+218:                               backgroundColor: `${noticia.categoria.color ?? "#26a7fc"}20`,
+219:                               color:           noticia.categoria.color ?? "#26a7fc",
+220:                               borderColor:     `${noticia.categoria.color ?? "#26a7fc"}40`,
+221:                             }}
+222:                             onClick={() => setCategoria(noticia.categoria.slug)}
+223:                           >
+224:                             {noticia.categoria.nombre}
+225:                           </Badge>
+226:                         )}
+227:                         {(noticia.tags ?? []).slice(0, 2).map((tag) => (
+228:                           <Badge
+229:                             key={tag.id}
+230:                             variant="secondary"
+231:                             className="text-xs cursor-pointer hover:bg-[#26a7fc]/10"
+232:                             onClick={() => { toggleTag(tag.nombre); setPaginaActual(1) }}
+233:                           >
+234:                             {tag.nombre}
+235:                           </Badge>
+236:                         ))}
+237:                       </div>
+238:                       <CardTitle className="text-base leading-snug line-clamp-2">{noticia.titulo}</CardTitle>
+239:                       {noticia.resumen && (
+240:                         <CardDescription className="leading-relaxed line-clamp-2 text-xs mt-1">
+241:                           {noticia.resumen}
+242:                         </CardDescription>
+243:                       )}
+244:                     </CardHeader>
+245: 
+246:                     <CardContent className="flex-1 pb-2">
+247:                       {noticia.publicadaEn && (
+248:                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
+249:                           <Calendar className="h-3.5 w-3.5" strokeWidth={1.5} />
+250:                           <span>{formatFecha(noticia.publicadaEn)}</span>
+251:                         </div>
+252:                       )}
+253:                     </CardContent>
+254: 
+255:                     <CardFooter>
+256:                       <Button
+257:                         asChild variant="ghost" size="sm"
+258:                         className="gap-1 text-[#26a7fc] hover:text-[#1c8fe0] hover:bg-[#26a7fc]/10 rounded-xl px-3 -ml-3"
+259:                       >
+260:                         <Link href={`/noticias/${noticia.slug}`}>
+261:                           Leer más <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+262:                         </Link>
+263:                       </Button>
+264:                     </CardFooter>
+265:                   </Card>
+266:                 ))}
+267:               </div>
+268: 
+269:               {totalPaginas > 1 && (
+270:                 <div className="mt-10">
+271:                   <Paginacion
+272:                     paginaActual={paginaActual}
+273:                     totalPaginas={totalPaginas}
+274:                     onPaginaChange={setPaginaActual}
+275:                   />
+276:                 </div>
+277:               )}
+278:             </>
+279:           )}
+280:         </div>
+281:       </section>
+282:     </>
+283:   )
+284: }
+```
+
 ## File: app/cursos/page.tsx
 ```typescript
  1: import type { Metadata } from "next"
@@ -10889,450 +11005,463 @@ x.sh
 ```bash
   1: #!/usr/bin/env bash
   2: # ============================================================
-  3: #  v1-alerta-tematica.sh
-  4: #  Agrega el modal de temática (medioambiente / educación /
-  5: #  tecnología) en CatamarcaOpen — ciudadano-front (Next 16 / TS)
-  6: #
-  7: #  Ejecutar desde la raíz del repo:
-  8: #    bash v1-alerta-tematica.sh
-  9: # ============================================================
- 10: set -euo pipefail
- 11: 
- 12: RESET='\033[0m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; RED='\033[0;31m'
- 13: log()  { echo -e "${CYAN}[v1]${RESET} $*"; }
- 14: ok()   { echo -e "${GREEN}[ok]${RESET} $*"; }
- 15: err()  { echo -e "${RED}[!!]${RESET} $*" >&2; exit 1; }
- 16: 
- 17: # ── Verificar que estamos en la raíz del proyecto ────────────
- 18: [[ -f "package.json" ]] || err "Ejecutá este script desde la raíz del repo."
- 19: 
- 20: # ── 1. Crear directorio del componente ───────────────────────
- 21: log "Creando components/catamarcaopen/ ..."
- 22: mkdir -p components/catamarcaopen
+  3: # fix-noticias-filtros-v2.sh — v2.0.0
+  4: # Fix completo: filtros cascada + page.tsx trae todas las noticias
+  5: # ============================================================
+  6: set -euo pipefail
+  7: 
+  8: BOLD="\033[1m"; RESET="\033[0m"; GREEN="\033[32m"; RED="\033[31m"; YELLOW="\033[33m"
+  9: log()  { echo -e "${BOLD}${GREEN}[OK]${RESET} $*"; }
+ 10: warn() { echo -e "${BOLD}${YELLOW}[→]${RESET}  $*"; }
+ 11: err()  { echo -e "${BOLD}${RED}[ERR]${RESET} $*"; exit 1; }
+ 12: 
+ 13: [[ -f "package.json" ]] || err "Corré desde la raíz del frontend ciudadano"
+ 14: 
+ 15: # ─── 1. hooks/noticias/use-noticias-filter.ts ────────────────────────────────
+ 16: warn "Actualizando hooks/noticias/use-noticias-filter.ts ..."
+ 17: mkdir -p hooks/noticias
+ 18: 
+ 19: cat > hooks/noticias/use-noticias-filter.ts << 'TS'
+ 20: "use client"
+ 21: 
+ 22: import { useState } from "react"
  23: 
- 24: # ── 2. Componente AlertaTematica ─────────────────────────────
- 25: log "Escribiendo components/catamarcaopen/alerta-tematica.tsx ..."
- 26: cat > components/catamarcaopen/alerta-tematica.tsx << 'COMPONENT'
- 27: "use client"
- 28: 
- 29: // components/catamarcaopen/alerta-tematica.tsx
- 30: // Modal informativo que se muestra antes de navegar a "Ver proyectos" o "Publicar proyecto".
- 31: // Solo es una maqueta — no bloquea el flujo real, cierra y navega al confirmar.
- 32: 
- 33: import { useState } from "react"
- 34: import { useRouter } from "next/navigation"
- 35: import {
- 36:   Dialog,
- 37:   DialogContent,
- 38:   DialogHeader,
- 39:   DialogTitle,
- 40:   DialogDescription,
- 41: } from "@/components/ui/dialog"
- 42: import { Button } from "@/components/ui/button"
- 43: import { Leaf, GraduationCap, Cpu } from "lucide-react"
- 44: 
- 45: const CATEGORIAS = [
- 46:   {
- 47:     icon: Leaf,
- 48:     label: "Medioambiente",
- 49:     color: "#22c55e",
- 50:     bg: "#22c55e1a",
- 51:     ejemplos: "reciclaje, energía solar, monitoreo ambiental…",
- 52:   },
- 53:   {
- 54:     icon: GraduationCap,
- 55:     label: "Educación",
- 56:     color: "#f59e0b",
- 57:     bg: "#f59e0b1a",
- 58:     ejemplos: "plataformas de aprendizaje, acceso educativo…",
- 59:   },
- 60:   {
- 61:     icon: Cpu,
- 62:     label: "Tecnología",
- 63:     color: "#26a7fc",
- 64:     bg: "#26a7fc1a",
- 65:     ejemplos: "software cívico, infraestructura digital…",
- 66:   },
- 67: ]
- 68: 
- 69: interface AlertaTematicaProps {
- 70:   destino: string
- 71:   labelConfirmar?: string
- 72:   children: React.ReactNode
- 73: }
- 74: 
- 75: export function AlertaTematica({
- 76:   destino,
- 77:   labelConfirmar = "Entendido, continuar",
- 78:   children,
- 79: }: AlertaTematicaProps) {
- 80:   const router = useRouter()
- 81:   const [open, setOpen] = useState(false)
- 82: 
- 83:   function handleConfirm() {
- 84:     setOpen(false)
- 85:     router.push(destino)
- 86:   }
- 87: 
- 88:   return (
- 89:     <>
- 90:       <span
- 91:         onClick={(e) => {
- 92:           e.preventDefault()
- 93:           setOpen(true)
- 94:         }}
- 95:         className="contents"
- 96:       >
- 97:         {children}
- 98:       </span>
- 99: 
-100:       <Dialog open={open} onOpenChange={setOpen}>
-101:         <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden gap-0">
-102:           <div
-103:             className="px-6 pt-7 pb-5"
-104:             style={{ background: "linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%)" }}
-105:           >
-106:             <DialogHeader>
-107:               <DialogTitle className="text-xl font-bold text-gray-900 leading-snug text-balance">
-108:                 ¿Tu proyecto está orientado a alguna de estas áreas?
-109:               </DialogTitle>
-110:               <DialogDescription className="mt-2 text-sm text-muted-foreground text-pretty">
-111:                 CatamarcaOpen prioriza repositorios con impacto en la comunidad.
-112:                 Los proyectos deben estar enfocados en al menos una de las
-113:                 siguientes temáticas:
-114:               </DialogDescription>
-115:             </DialogHeader>
-116:           </div>
-117: 
-118:           <div className="px-6 py-5 space-y-3">
-119:             {CATEGORIAS.map(({ icon: Icon, label, color, bg, ejemplos }) => (
-120:               <div
-121:                 key={label}
-122:                 className="flex items-start gap-3 rounded-xl px-4 py-3"
-123:                 style={{ backgroundColor: bg }}
-124:               >
-125:                 <div
-126:                   className="mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-127:                   style={{ backgroundColor: `${color}33` }}
-128:                 >
-129:                   <Icon className="h-4 w-4" style={{ color }} strokeWidth={1.75} />
-130:                 </div>
-131:                 <div>
-132:                   <p className="font-semibold text-sm text-gray-900">{label}</p>
-133:                   <p className="text-xs text-muted-foreground mt-0.5">{ejemplos}</p>
-134:                 </div>
-135:               </div>
-136:             ))}
-137:           </div>
-138: 
-139:           <div className="px-6 pb-6 flex flex-col gap-2">
-140:             <Button
-141:               onClick={handleConfirm}
-142:               className="w-full text-white rounded-xl"
-143:               style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-144:             >
-145:               {labelConfirmar}
-146:             </Button>
-147:             <Button
-148:               variant="ghost"
-149:               onClick={() => setOpen(false)}
-150:               className="w-full text-muted-foreground rounded-xl text-sm"
-151:             >
-152:               Cancelar
-153:             </Button>
-154:           </div>
-155:         </DialogContent>
-156:       </Dialog>
-157:     </>
-158:   )
-159: }
-160: COMPONENT
-161: ok "alerta-tematica.tsx creado"
+ 24: export const useNoticiasFilter = () => {
+ 25:   const [categoriaActiva, setCategoriaActiva] = useState<string>("todas")
+ 26:   const [tagsSeleccionados, setTagsSeleccionados] = useState<string[]>([])
+ 27:   const [busqueda, setBusqueda] = useState("")
+ 28:   const [paginaActual, setPaginaActual] = useState(1)
+ 29: 
+ 30:   const setCategoria = (slug: string) => {
+ 31:     setCategoriaActiva(slug)
+ 32:     setTagsSeleccionados([])   // resetear tags al cambiar categoría
+ 33:     setPaginaActual(1)
+ 34:   }
+ 35: 
+ 36:   const toggleTag = (tag: string) => {
+ 37:     setTagsSeleccionados((prev) =>
+ 38:       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+ 39:     )
+ 40:     setPaginaActual(1)
+ 41:   }
+ 42: 
+ 43:   const limpiarFiltros = () => {
+ 44:     setCategoriaActiva("todas")
+ 45:     setTagsSeleccionados([])
+ 46:     setBusqueda("")
+ 47:     setPaginaActual(1)
+ 48:   }
+ 49: 
+ 50:   return {
+ 51:     categoriaActiva,
+ 52:     tagsSeleccionados,
+ 53:     busqueda,
+ 54:     paginaActual,
+ 55:     setCategoria,
+ 56:     toggleTag,
+ 57:     setBusqueda,
+ 58:     setPaginaActual,
+ 59:     limpiarFiltros,
+ 60:   }
+ 61: }
+ 62: TS
+ 63: log "use-noticias-filter.ts ✓"
+ 64: 
+ 65: # ─── 2. lib/noticias/filters.ts ──────────────────────────────────────────────
+ 66: warn "Actualizando lib/noticias/filters.ts ..."
+ 67: 
+ 68: cat > lib/noticias/filters.ts << 'TS'
+ 69: import type { Noticia } from './types'
+ 70: 
+ 71: export function filterNoticias(
+ 72:   noticias: Noticia[],
+ 73:   categoriaActiva: string,
+ 74:   tags: string[],
+ 75:   busqueda: string,
+ 76: ): Noticia[] {
+ 77:   return noticias.filter((n) => {
+ 78:     const matchCategoria =
+ 79:       categoriaActiva === "todas" ||
+ 80:       n.categoria?.slug === categoriaActiva
+ 81: 
+ 82:     const matchTags =
+ 83:       tags.length === 0 ||
+ 84:       n.tags.some((t) => tags.includes(t.nombre))
+ 85: 
+ 86:     const q = busqueda.toLowerCase()
+ 87:     const matchBusqueda =
+ 88:       busqueda === '' ||
+ 89:       n.titulo.toLowerCase().includes(q) ||
+ 90:       (n.resumen ?? '').toLowerCase().includes(q) ||
+ 91:       n.categoria?.nombre.toLowerCase().includes(q) ||
+ 92:       n.tags.some((t) => t.nombre.toLowerCase().includes(q))
+ 93: 
+ 94:     return matchCategoria && matchTags && matchBusqueda
+ 95:   })
+ 96: }
+ 97: 
+ 98: /**
+ 99:  * Tags únicos de las noticias en la categoría activa.
+100:  * Si es "todas", devuelve todos los tags disponibles.
+101:  */
+102: export function getTagsParaCategoria(
+103:   noticias: Noticia[],
+104:   categoriaActiva: string,
+105: ): string[] {
+106:   const base = categoriaActiva === "todas"
+107:     ? noticias
+108:     : noticias.filter((n) => n.categoria?.slug === categoriaActiva)
+109: 
+110:   return Array.from(
+111:     new Set(base.flatMap((n) => n.tags?.map((t) => t.nombre) ?? []))
+112:   ).sort()
+113: }
+114: 
+115: export function getCategoriaColor(color?: string): string {
+116:   return color ?? '#26a7fc'
+117: }
+118: TS
+119: log "filters.ts ✓"
+120: 
+121: # ─── 3. app/noticias/page.tsx — traer TODAS las noticias ─────────────────────
+122: warn "Actualizando app/noticias/page.tsx ..."
+123: 
+124: cat > app/noticias/page.tsx << 'TSX'
+125: import type { Metadata } from "next"
+126: import { CodeTitle } from "@/components/shared/code-title"
+127: import { NoticiasContent } from "@/components/noticias/noticias-content"
+128: import { getNoticias } from "@/lib/noticias/api"
+129: 
+130: export const metadata: Metadata = {
+131:   title: "Noticias | Nodo Tecnológico Catamarca",
+132:   description: "Las últimas novedades del Nodo Tecnológico de Catamarca.",
+133: }
+134: 
+135: export default async function NoticiasPage() {
+136:   // Traemos hasta 200 noticias para que los filtros client-side
+137:   // operen sobre el conjunto completo, no sobre una página truncada.
+138:   const { items: noticias } = await getNoticias({ limit: 200 })
+139: 
+140:   return (
+141:     <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
+142:       <main>
+143:         <section className="relative overflow-hidden pt-24 pb-4">
+144:           <div className="container mx-auto px-4 text-center">
+145:             <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
+146:               Las Novedades del{" "}
+147:               <span className="text-[#26a7fc]">Nodo</span>
+148:             </CodeTitle>
+149:           </div>
+150:         </section>
+151: 
+152:         <NoticiasContent noticias={noticias} />
+153:       </main>
+154:     </div>
+155:   )
+156: }
+157: TSX
+158: log "app/noticias/page.tsx ✓"
+159: 
+160: # ─── 4. components/noticias/noticias-content.tsx ─────────────────────────────
+161: warn "Actualizando components/noticias/noticias-content.tsx ..."
 162: 
-163: # ── 3. Landing page de CatamarcaOpen ─────────────────────────
-164: log "Sobreescribiendo app/catamarcaopen/page.tsx ..."
-165: cat > app/catamarcaopen/page.tsx << 'LANDING'
-166: "use client"
-167: 
-168: // app/catamarcaopen/page.tsx
-169: import { CodeTitle } from "@/components/shared/code-title"
-170: import { Card, CardContent } from "@/components/ui/card"
-171: import { Button } from "@/components/ui/button"
-172: import { Code2, ShieldCheck, GitMerge, ArrowRight } from "lucide-react"
-173: import { AlertaTematica } from "@/components/catamarcaopen/alerta-tematica"
-174: 
-175: const features = [
-176:   {
-177:     icon: Code2,
-178:     title: "Código abierto",
-179:     description:
-180:       "Todos los proyectos municipales son públicos y auditables. Cualquier ciudadano puede ver, clonar y contribuir al código fuente de los sistemas del Nodo.",
-181:   },
-182:   {
-183:     icon: ShieldCheck,
-184:     title: "Revisión por pares",
-185:     description:
-186:       "Los proyectos pasan por un proceso de revisión técnica con calificaciones y comentarios de colaboradores verificados.",
-187:   },
-188:   {
-189:     icon: GitMerge,
-190:     title: "Contribución ciudadana",
-191:     description:
-192:       "Cualquier vecino puede proponer mejoras, reportar problemas o enviar nuevos proyectos que beneficien a la comunidad catamarqueña.",
-193:   },
-194: ]
-195: 
-196: export default function CatamarcaOpenLandingPage() {
-197:   return (
-198:     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
-199:       {/* Hero */}
-200:       <section className="container mx-auto px-4 text-center max-w-3xl">
-201:         <div className="inline-flex items-center gap-2 bg-[#26a7fc]/10 border border-[#26a7fc]/20 rounded-full px-4 py-1.5 text-sm font-semibold text-[#1c8fe0] mb-6">
-202:           <Code2 className="h-3.5 w-3.5" />
-203:           Plataforma Open Source Municipal
-204:         </div>
-205: 
-206:         <CodeTitle as="h1" className="text-4xl md:text-5xl font-bold text-gray-900 mb-5 text-balance">
-207:           Catamarca<span className="text-[#26a7fc]">Open</span>
-208:         </CodeTitle>
+163: cat > components/noticias/noticias-content.tsx << 'TSX'
+164: "use client"
+165: 
+166: import Link from "next/link"
+167: import Image from "next/image"
+168: import {
+169:   Card, CardContent, CardDescription,
+170:   CardFooter, CardHeader, CardTitle,
+171: } from "@/components/ui/card"
+172: import { Badge }  from "@/components/ui/badge"
+173: import { Button } from "@/components/ui/button"
+174: import { Input }  from "@/components/ui/input"
+175: import { Calendar, Search, ArrowRight, ImageOff, X } from "lucide-react"
+176: import { filterNoticias, getTagsParaCategoria } from "@/lib/noticias/filters"
+177: import { useNoticiasFilter } from "@/hooks/noticias/use-noticias-filter"
+178: import { Paginacion } from "@/components/shared/paginacion"
+179: import type { Noticia, NoticiaCategoria } from "@/lib/noticias/types"
+180: 
+181: interface NoticiasContentProps {
+182:   noticias?: Noticia[] | null
+183: }
+184: 
+185: export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
+186:   const noticias: Noticia[] = Array.isArray(raw) ? raw : []
+187: 
+188:   const {
+189:     categoriaActiva, tagsSeleccionados, busqueda, paginaActual,
+190:     setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
+191:   } = useNoticiasFilter()
+192: 
+193:   // Categorías únicas presentes en las noticias
+194:   const categorias: NoticiaCategoria[] = Array.from(
+195:     new Map(
+196:       noticias
+197:         .filter((n) => n.categoria)
+198:         .map((n) => [n.categoria.id, n.categoria])
+199:     ).values()
+200:   ).sort((a, b) => a.nombre.localeCompare(b.nombre))
+201: 
+202:   // Tags disponibles según categoría activa
+203:   const tagsDisponibles = getTagsParaCategoria(noticias, categoriaActiva)
+204: 
+205:   // Aplicar filtros
+206:   const noticiasFiltradas = filterNoticias(
+207:     noticias, categoriaActiva, tagsSeleccionados, busqueda
+208:   )
 209: 
-210:         <p className="text-lg text-muted-foreground leading-relaxed mb-10 text-pretty">
-211:           Explorá, colaborá y revisá proyectos de código abierto que mejoran los servicios digitales
-212:           de la ciudad. La tecnología del Nodo, al servicio de la ciudadanía.
-213:         </p>
+210:   const itemsPorPagina    = 6
+211:   const totalPaginas      = Math.ceil(noticiasFiltradas.length / itemsPorPagina)
+212:   const indiceInicio      = (paginaActual - 1) * itemsPorPagina
+213:   const noticiasPaginadas = noticiasFiltradas.slice(indiceInicio, indiceInicio + itemsPorPagina)
 214: 
-215:         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-216:           <AlertaTematica destino="/catamarcaopen/proyectos" labelConfirmar="Ver proyectos">
-217:             <Button
-218:               size="lg"
-219:               className="text-white gap-2 cursor-pointer"
-220:               style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-221:             >
-222:               Ver proyectos
-223:               <ArrowRight className="h-4 w-4" />
-224:             </Button>
-225:           </AlertaTematica>
-226: 
-227:           <AlertaTematica destino="/catamarcaopen/proyectos/nuevo" labelConfirmar="Publicar proyecto">
-228:             <Button size="lg" variant="outline" className="cursor-pointer">
-229:               Publicar un proyecto
-230:             </Button>
-231:           </AlertaTematica>
-232:         </div>
-233:       </section>
-234: 
-235:       {/* Features */}
-236:       <section className="container mx-auto px-4 mt-20 max-w-5xl">
-237:         <div className="text-center mb-12">
-238:           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 text-balance">
-239:             ¿Por qué CatamarcaOpen?
-240:           </h2>
-241:           <p className="text-muted-foreground max-w-xl mx-auto text-pretty">
-242:             Una plataforma pensada para fomentar la transparencia, la colaboración y la innovación
-243:             cívica.
-244:           </p>
-245:         </div>
-246: 
-247:         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-248:           {features.map((feature) => (
-249:             <Card key={feature.title} className="border-[#26a7fc]/10 hover:border-[#26a7fc]/30 transition-colors">
-250:               <CardContent className="pt-6 flex flex-col gap-4">
-251:                 <div className="h-12 w-12 rounded-xl bg-[#26a7fc]/10 flex items-center justify-center">
-252:                   <feature.icon className="h-6 w-6 text-[#26a7fc]" />
-253:                 </div>
-254:                 <h3 className="font-bold text-gray-900">{feature.title}</h3>
-255:                 <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
-256:               </CardContent>
-257:             </Card>
-258:           ))}
-259:         </div>
-260:       </section>
-261: 
-262:       {/* CTA final */}
-263:       <section className="container mx-auto px-4 mt-20 max-w-2xl text-center">
-264:         <Card className="border-[#26a7fc]/10 bg-white/70">
-265:           <CardContent className="pt-10 pb-10 flex flex-col items-center">
-266:             <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 text-balance">
-267:               Sumate a la comunidad open source de Catamarca
-268:             </h2>
-269:             <p className="text-sm text-muted-foreground mb-8 max-w-md text-pretty">
-270:               Explorá proyectos, dejá tu revisión o proponé el tuyo con tu misma cuenta de Google del
-271:               Nodo.
-272:             </p>
-273:             <AlertaTematica destino="/catamarcaopen/proyectos" labelConfirmar="Ver proyectos">
-274:               <Button
-275:                 size="lg"
-276:                 className="text-white gap-2 cursor-pointer"
-277:                 style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-278:               >
-279:                 Ver proyectos
-280:                 <ArrowRight className="h-4 w-4" />
-281:               </Button>
-282:             </AlertaTematica>
-283:           </CardContent>
-284:         </Card>
-285:       </section>
-286:     </main>
-287:   )
-288: }
-289: LANDING
-290: ok "app/catamarcaopen/page.tsx actualizado"
-291: 
-292: # ── 4. Listado de proyectos ───────────────────────────────────
-293: log "Sobreescribiendo app/catamarcaopen/proyectos/page.tsx ..."
-294: cat > app/catamarcaopen/proyectos/page.tsx << 'PROYECTOS'
-295: // app/catamarcaopen/proyectos/page.tsx
-296: "use client"
-297: 
-298: import { useEffect, useState } from "react"
-299: import Link from "next/link"
-300: import { Card, CardContent } from "@/components/ui/card"
-301: import { Button } from "@/components/ui/button"
-302: import { Skeleton } from "@/components/ui/skeleton"
-303: import { ArrowLeft, Plus, ExternalLink, Github } from "lucide-react"
-304: import { toast } from "sonner"
-305: import { getReposPublicos } from "@/lib/catamarcaopen/api"
-306: import type { CatamarcaOpenRepo } from "@/lib/catamarcaopen/types"
-307: import { AlertaTematica } from "@/components/catamarcaopen/alerta-tematica"
-308: 
-309: function RepoSkeleton() {
-310:   return (
-311:     <Card className="border-[#26a7fc]/10">
-312:       <CardContent className="p-5 space-y-3">
-313:         <Skeleton className="h-4 w-2/3" />
-314:         <Skeleton className="h-3 w-full" />
-315:         <Skeleton className="h-3 w-1/3" />
-316:       </CardContent>
-317:     </Card>
-318:   )
-319: }
-320: 
-321: function RepoCard({ repo }: { repo: CatamarcaOpenRepo }) {
-322:   const githubUser = repo.url.replace("https://github.com/", "").split("/")[0]
-323:   const repoSlug   = repo.url.replace("https://github.com/", "").split("/")[1] ?? ""
-324: 
-325:   return (
-326:     <Link href={`/catamarcaopen/proyectos/${repo.id}`}>
-327:       <Card className="h-full border-[#26a7fc]/10 hover:border-[#26a7fc]/40 transition-colors cursor-pointer">
-328:         <CardContent className="p-5 flex flex-col gap-3">
-329:           <div className="flex items-start justify-between gap-2">
-330:             <div className="flex items-center gap-2 min-w-0">
-331:               <Github className="h-4 w-4 text-gray-500 shrink-0" strokeWidth={1.5} />
-332:               <span className="font-semibold text-gray-900 text-sm truncate">{repo.nombre}</span>
-333:             </div>
-334:             <ExternalLink className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" strokeWidth={1.5} />
-335:           </div>
-336:           {repo.descripcion && (
-337:             <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-338:               {repo.descripcion}
-339:             </p>
-340:           )}
-341:           <p className="text-[10px] text-slate-400 font-mono truncate">
-342:             {githubUser}/{repoSlug}
-343:           </p>
-344:         </CardContent>
-345:       </Card>
-346:     </Link>
-347:   )
-348: }
-349: 
-350: export default function CatamarcaOpenProyectosPage() {
-351:   const [repos, setRepos]         = useState<CatamarcaOpenRepo[] | null>(null)
-352:   const [isLoading, setIsLoading] = useState(true)
-353: 
-354:   useEffect(() => {
-355:     let active = true
-356:     getReposPublicos()
-357:       .then((data) => { if (active) setRepos(data) })
-358:       .catch((err) => {
-359:         if (!active) return
-360:         toast.error((err as { message?: string })?.message ?? "Error al cargar proyectos")
-361:       })
-362:       .finally(() => { if (active) setIsLoading(false) })
-363:     return () => { active = false }
-364:   }, [])
-365: 
-366:   return (
-367:     <main className="min-h-screen pt-32 pb-20 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
-368:       <div className="container mx-auto px-4 max-w-5xl">
-369:         <Link
-370:           href="/catamarcaopen"
-371:           className="inline-flex items-center gap-1.5 text-sm text-[#1c8fe0] hover:text-cyan-800 mb-6"
-372:         >
-373:           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-374:           CatamarcaOpen
-375:         </Link>
-376: 
-377:         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
-378:           <div>
-379:             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 text-balance">
-380:               Proyectos de la comunidad
-381:             </h1>
-382:             <p className="text-sm text-muted-foreground max-w-xl text-pretty">
-383:               Repositorios de código abierto publicados por vecinos y colaboradores del Nodo.
-384:             </p>
-385:           </div>
-386: 
-387:           <AlertaTematica destino="/catamarcaopen/proyectos/nuevo" labelConfirmar="Publicar proyecto">
-388:             <Button
-389:               className="text-white shrink-0 gap-2 cursor-pointer"
-390:               style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-391:             >
-392:               <Plus className="h-4 w-4" strokeWidth={1.5} />
-393:               Publicar proyecto
-394:             </Button>
-395:           </AlertaTematica>
-396:         </div>
-397: 
-398:         {isLoading ? (
-399:           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-400:             {Array.from({ length: 6 }).map((_, i) => (
-401:               <RepoSkeleton key={i} />
-402:             ))}
-403:           </div>
-404:         ) : !repos || repos.length === 0 ? (
-405:           <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-406:             <div className="h-16 w-16 rounded-2xl bg-[#26a7fc]/10 flex items-center justify-center">
-407:               <Github className="h-8 w-8 text-[#26a7fc]" strokeWidth={1.5} />
-408:             </div>
-409:             <p className="text-sm text-muted-foreground max-w-sm">
-410:               Todavía no hay proyectos publicados. ¡Sé el primero en compartir tu repositorio!
-411:             </p>
-412:             <AlertaTematica destino="/catamarcaopen/proyectos/nuevo" labelConfirmar="Publicar proyecto">
-413:               <Button
-414:                 className="text-white gap-2 cursor-pointer"
-415:                 style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-416:               >
-417:                 <Plus className="h-4 w-4" strokeWidth={1.5} />
-418:                 Publicar proyecto
-419:               </Button>
-420:             </AlertaTematica>
-421:           </div>
-422:         ) : (
-423:           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-424:             {repos.map((repo) => (
-425:               <RepoCard key={repo.id} repo={repo} />
-426:             ))}
-427:           </div>
-428:         )}
-429:       </div>
-430:     </main>
-431:   )
-432: }
-433: PROYECTOS
-434: ok "app/catamarcaopen/proyectos/page.tsx actualizado"
-435: 
-436: # ── 5. Resumen ────────────────────────────────────────────────
-437: echo ""
-438: echo -e "${GREEN}════════════════════════════════════════${RESET}"
-439: echo -e "${GREEN}  ✅  v1-alerta-tematica — LISTO        ${RESET}"
-440: echo -e "${GREEN}════════════════════════════════════════${RESET}"
-441: echo ""
-442: echo "  Archivos creados / modificados:"
-443: echo "    + components/catamarcaopen/alerta-tematica.tsx  (nuevo)"
-444: echo "    ~ app/catamarcaopen/page.tsx                    (modificado)"
-445: echo "    ~ app/catamarcaopen/proyectos/page.tsx          (modificado)"
-446: echo ""
-447: echo "  Verificá con:  pnpm build"
-448: echo ""
+215:   const hayFiltrosActivos =
+216:     categoriaActiva !== "todas" ||
+217:     tagsSeleccionados.length > 0 ||
+218:     busqueda !== ""
+219: 
+220:   const formatFecha = (iso: string) =>
+221:     new Date(iso).toLocaleDateString("es-AR", {
+222:       day: "numeric", month: "long", year: "numeric",
+223:     })
+224: 
+225:   return (
+226:     <>
+227:       {/* ── Filtros ─────────────────────────────────────────────────────── */}
+228:       <section className="pb-6">
+229:         <div className="container mx-auto px-4 flex flex-col gap-5">
+230: 
+231:           {/* Buscador */}
+232:           <div className="relative max-w-sm">
+233:             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+234:             <Input
+235:               placeholder="Buscar noticias..."
+236:               value={busqueda}
+237:               onChange={(e) => { setBusqueda(e.target.value); setPaginaActual(1) }}
+238:               className="pl-9 bg-white/70 backdrop-blur-sm rounded-xl border-[#26a7fc]/20 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20"
+239:             />
+240:           </div>
+241: 
+242:           {/* Filtro por Categoría */}
+243:           {categorias.length > 0 && (
+244:             <div className="flex flex-col gap-2">
+245:               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+246:                 Categoría
+247:               </p>
+248:               <div className="flex flex-wrap gap-2">
+249:                 <button
+250:                   onClick={() => setCategoria("todas")}
+251:                   className={[
+252:                     "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
+253:                     categoriaActiva === "todas"
+254:                       ? "bg-slate-800 text-white border-slate-800"
+255:                       : "bg-white/70 text-slate-600 border-slate-200 hover:border-slate-400",
+256:                   ].join(" ")}
+257:                 >
+258:                   Todas
+259:                 </button>
+260: 
+261:                 {categorias.map((cat) => {
+262:                   const color  = cat.color ?? "#26a7fc"
+263:                   const active = categoriaActiva === cat.slug
+264:                   return (
+265:                     <button
+266:                       key={cat.id}
+267:                       onClick={() => setCategoria(cat.slug)}
+268:                       style={active
+269:                         ? { backgroundColor: color, borderColor: color, color: "#fff" }
+270:                         : { borderColor: `${color}40`, color }
+271:                       }
+272:                       className={[
+273:                         "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
+274:                         active ? "shadow-sm" : "bg-white/70 hover:opacity-80",
+275:                       ].join(" ")}
+276:                     >
+277:                       {cat.nombre}
+278:                     </button>
+279:                   )
+280:                 })}
+281:               </div>
+282:             </div>
+283:           )}
+284: 
+285:           {/* Filtro por Tags — solo si hay tags en la categoría activa */}
+286:           {tagsDisponibles.length > 0 && (
+287:             <div className="flex flex-col gap-2">
+288:               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+289:                 Tags
+290:                 {categoriaActiva !== "todas" && (
+291:                   <span className="ml-1 font-normal normal-case text-slate-400">
+292:                     — dentro de la categoría
+293:                   </span>
+294:                 )}
+295:               </p>
+296:               <div className="flex flex-wrap gap-2">
+297:                 {tagsDisponibles.map((tag) => (
+298:                   <Badge
+299:                     key={tag}
+300:                     variant={tagsSeleccionados.includes(tag) ? "default" : "outline"}
+301:                     className={[
+302:                       "cursor-pointer transition-colors text-xs select-none",
+303:                       tagsSeleccionados.includes(tag)
+304:                         ? "bg-[#26a7fc] hover:bg-[#1c8fe0] border-transparent text-white"
+305:                         : "bg-white/70 backdrop-blur-sm hover:bg-[#26a7fc]/10 border-[#26a7fc]/20",
+306:                     ].join(" ")}
+307:                     onClick={() => { toggleTag(tag); setPaginaActual(1) }}
+308:                   >
+309:                     {tag}
+310:                   </Badge>
+311:                 ))}
+312:               </div>
+313:             </div>
+314:           )}
+315: 
+316:           {/* Limpiar filtros */}
+317:           {hayFiltrosActivos && (
+318:             <button
+319:               onClick={limpiarFiltros}
+320:               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#26a7fc] w-fit underline underline-offset-2"
+321:             >
+322:               <X className="h-3 w-3" />
+323:               Limpiar filtros
+324:             </button>
+325:           )}
+326:         </div>
+327:       </section>
+328: 
+329:       {/* ── Grid ────────────────────────────────────────────────────────── */}
+330:       <section className="pb-12">
+331:         <div className="container mx-auto px-4">
+332:           <p className="text-sm text-muted-foreground mb-6">
+333:             {noticiasFiltradas.length}{" "}
+334:             {noticiasFiltradas.length === 1 ? "noticia encontrada" : "noticias encontradas"}
+335:           </p>
+336: 
+337:           {noticias.length === 0 ? (
+338:             <div className="flex flex-col items-center justify-center py-24 text-center">
+339:               <span className="text-6xl mb-4">📰</span>
+340:               <h2 className="text-xl font-semibold text-slate-700 mb-2">Próximamente habrá novedades</h2>
+341:               <p className="text-sm text-muted-foreground max-w-xs">Estamos preparando el contenido. ¡Volvé pronto!</p>
+342:             </div>
+343:           ) : noticiasFiltradas.length === 0 ? (
+344:             <div className="py-16 text-center">
+345:               <p className="text-muted-foreground">No se encontraron noticias con los filtros seleccionados.</p>
+346:               <button onClick={limpiarFiltros} className="mt-3 text-sm text-[#26a7fc] hover:underline">
+347:                 Ver todas las noticias
+348:               </button>
+349:             </div>
+350:           ) : (
+351:             <>
+352:               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+353:                 {noticiasPaginadas.map((noticia) => (
+354:                   <Card
+355:                     key={noticia.id}
+356:                     className="flex flex-col transition-shadow hover:shadow-lg bg-white/70 backdrop-blur-sm overflow-hidden"
+357:                   >
+358:                     {noticia.imagenUrl ? (
+359:                       <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+360:                         <Image
+361:                           src={noticia.imagenUrl}
+362:                           alt={noticia.titulo}
+363:                           fill
+364:                           className="object-cover transition-transform duration-300 hover:scale-105"
+365:                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+366:                           onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+367:                         />
+368:                       </div>
+369:                     ) : (
+370:                       <div className="h-44 w-full bg-gradient-to-br from-[#26a7fc]/10 to-cyan-50 flex items-center justify-center">
+371:                         <ImageOff className="h-8 w-8 text-[#26a7fc]/30" strokeWidth={1.5} />
+372:                       </div>
+373:                     )}
+374: 
+375:                     <CardHeader className="pb-2">
+376:                       <div className="flex flex-wrap items-center gap-2 mb-2">
+377:                         {noticia.categoria && (
+378:                           <Badge
+379:                             className="text-xs rounded-lg font-medium cursor-pointer"
+380:                             style={{
+381:                               backgroundColor: `${noticia.categoria.color ?? "#26a7fc"}20`,
+382:                               color:           noticia.categoria.color ?? "#26a7fc",
+383:                               borderColor:     `${noticia.categoria.color ?? "#26a7fc"}40`,
+384:                             }}
+385:                             onClick={() => setCategoria(noticia.categoria.slug)}
+386:                           >
+387:                             {noticia.categoria.nombre}
+388:                           </Badge>
+389:                         )}
+390:                         {(noticia.tags ?? []).slice(0, 2).map((tag) => (
+391:                           <Badge
+392:                             key={tag.id}
+393:                             variant="secondary"
+394:                             className="text-xs cursor-pointer hover:bg-[#26a7fc]/10"
+395:                             onClick={() => { toggleTag(tag.nombre); setPaginaActual(1) }}
+396:                           >
+397:                             {tag.nombre}
+398:                           </Badge>
+399:                         ))}
+400:                       </div>
+401:                       <CardTitle className="text-base leading-snug line-clamp-2">{noticia.titulo}</CardTitle>
+402:                       {noticia.resumen && (
+403:                         <CardDescription className="leading-relaxed line-clamp-2 text-xs mt-1">
+404:                           {noticia.resumen}
+405:                         </CardDescription>
+406:                       )}
+407:                     </CardHeader>
+408: 
+409:                     <CardContent className="flex-1 pb-2">
+410:                       {noticia.publicadaEn && (
+411:                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
+412:                           <Calendar className="h-3.5 w-3.5" strokeWidth={1.5} />
+413:                           <span>{formatFecha(noticia.publicadaEn)}</span>
+414:                         </div>
+415:                       )}
+416:                     </CardContent>
+417: 
+418:                     <CardFooter>
+419:                       <Button
+420:                         asChild variant="ghost" size="sm"
+421:                         className="gap-1 text-[#26a7fc] hover:text-[#1c8fe0] hover:bg-[#26a7fc]/10 rounded-xl px-3 -ml-3"
+422:                       >
+423:                         <Link href={`/noticias/${noticia.slug}`}>
+424:                           Leer más <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+425:                         </Link>
+426:                       </Button>
+427:                     </CardFooter>
+428:                   </Card>
+429:                 ))}
+430:               </div>
+431: 
+432:               {totalPaginas > 1 && (
+433:                 <div className="mt-10">
+434:                   <Paginacion
+435:                     paginaActual={paginaActual}
+436:                     totalPaginas={totalPaginas}
+437:                     onPaginaChange={setPaginaActual}
+438:                   />
+439:                 </div>
+440:               )}
+441:             </>
+442:           )}
+443:         </div>
+444:       </section>
+445:     </>
+446:   )
+447: }
+448: TSX
+449: log "noticias-content.tsx ✓"
+450: 
+451: echo ""
+452: echo -e "${BOLD}${GREEN}================================================${RESET}"
+453: echo -e "${BOLD}${GREEN}  Filtros de noticias v2 aplicados ✅           ${RESET}"
+454: echo -e "${BOLD}${GREEN}================================================${RESET}"
+455: echo ""
+456: echo "  Archivos modificados:"
+457: echo "  • hooks/noticias/use-noticias-filter.ts  (categoría + tags)"
+458: echo "  • lib/noticias/filters.ts                (filtrado cascada)"
+459: echo "  • app/noticias/page.tsx                  (limit 200 — trae todas)"
+460: echo "  • components/noticias/noticias-content.tsx (UI nueva)"
+461: echo ""
 ```

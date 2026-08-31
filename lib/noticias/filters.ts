@@ -27,10 +27,6 @@ export function filterNoticias(
   })
 }
 
-/**
- * Tags únicos de las noticias en la categoría activa.
- * Si es "todas", devuelve todos los tags disponibles.
- */
 export function getTagsParaCategoria(
   noticias: Noticia[],
   categoriaActiva: string,

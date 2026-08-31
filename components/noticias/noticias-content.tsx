@@ -27,7 +27,7 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
     setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
   } = useNoticiasFilter()
 
-  // Categorías únicas presentes en las noticias
+  // Categorías únicas de las noticias recibidas
   const categorias: NoticiaCategoria[] = Array.from(
     new Map(
       noticias
@@ -36,10 +36,8 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
     ).values()
   ).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
-  // Tags disponibles según categoría activa
   const tagsDisponibles = getTagsParaCategoria(noticias, categoriaActiva)
 
-  // Aplicar filtros
   const noticiasFiltradas = filterNoticias(
     noticias, categoriaActiva, tagsSeleccionados, busqueda
   )
@@ -61,7 +59,6 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
 
   return (
     <>
-      {/* ── Filtros ─────────────────────────────────────────────────────── */}
       <section className="pb-6">
         <div className="container mx-auto px-4 flex flex-col gap-5">
 
@@ -76,12 +73,10 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
             />
           </div>
 
-          {/* Filtro por Categoría */}
+          {/* Filtro categoría */}
           {categorias.length > 0 && (
             <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Categoría
-              </p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Categoría</p>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setCategoria("todas")}
@@ -119,15 +114,13 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
             </div>
           )}
 
-          {/* Filtro por Tags — solo si hay tags en la categoría activa */}
+          {/* Filtro tags */}
           {tagsDisponibles.length > 0 && (
             <div className="flex flex-col gap-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 Tags
                 {categoriaActiva !== "todas" && (
-                  <span className="ml-1 font-normal normal-case text-slate-400">
-                    — dentro de la categoría
-                  </span>
+                  <span className="ml-1 font-normal normal-case text-slate-400">— dentro de la categoría</span>
                 )}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -150,7 +143,7 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
             </div>
           )}
 
-          {/* Limpiar filtros */}
+          {/* Limpiar */}
           {hayFiltrosActivos && (
             <button
               onClick={limpiarFiltros}
@@ -163,7 +156,6 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
         </div>
       </section>
 
-      {/* ── Grid ────────────────────────────────────────────────────────── */}
       <section className="pb-12">
         <div className="container mx-auto px-4">
           <p className="text-sm text-muted-foreground mb-6">

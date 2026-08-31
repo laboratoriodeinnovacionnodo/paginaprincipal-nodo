@@ -10,7 +10,7 @@ export const useNoticiasFilter = () => {
 
   const setCategoria = (slug: string) => {
     setCategoriaActiva(slug)
-    setTagsSeleccionados([])   // resetear tags al cambiar categoría
+    setTagsSeleccionados([])
     setPaginaActual(1)
   }
 
@@ -29,14 +29,7 @@ export const useNoticiasFilter = () => {
   }
 
   return {
-    categoriaActiva,
-    tagsSeleccionados,
-    busqueda,
-    paginaActual,
-    setCategoria,
-    toggleTag,
-    setBusqueda,
-    setPaginaActual,
-    limpiarFiltros,
+    categoriaActiva, tagsSeleccionados, busqueda, paginaActual,
+    setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
   }
 }

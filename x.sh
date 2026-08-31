@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 # ============================================================
-# fix-noticias-filtros-v2.sh — v2.0.0
-# Fix completo: filtros cascada + page.tsx trae todas las noticias
+# fix-noticias-runtime-env.sh — v1.0.0
+# Problema: NOTICIAS_API_URL solo existe en build-time pero
+# Next.js la necesita en runtime (SSR fetch en page.tsx).
+# Solución: pasar la variable al runner del Dockerfile
+# Y agregarla al .env del contenedor en el deploy.
+#
+# Toca:
+#   1. Dockerfile      → ENV NOTICIAS_API_URL en runner stage
+#   2. deploy.yml      → agregar al .env del contenedor
+#   3. app/noticias/page.tsx → limit 100 para traer todas
+#   4. hooks + filters + noticias-content (filtros cascada)
 # ============================================================
 set -euo pipefail
 
@@ -10,9 +19,113 @@ log()  { echo -e "${BOLD}${GREEN}[OK]${RESET} $*"; }
 warn() { echo -e "${BOLD}${YELLOW}[→]${RESET}  $*"; }
 err()  { echo -e "${BOLD}${RED}[ERR]${RESET} $*"; exit 1; }
 
-[[ -f "package.json" ]] || err "Corré desde la raíz del frontend ciudadano"
+[[ -f "package.json" ]] || err "Corré desde la raíz del repo ciudadano-front"
+[[ -f "Dockerfile" ]]   || err "No se encontró Dockerfile"
 
-# ─── 1. hooks/noticias/use-noticias-filter.ts ────────────────────────────────
+# ─── 1. Dockerfile — agregar NOTICIAS_API_URL al stage runner ────────────────
+warn "Parcheando Dockerfile para pasar NOTICIAS_API_URL al runner..."
+
+# El runner stage (Stage 3) no tiene la variable. La agregamos como ARG + ENV
+# para que Next.js pueda leerla en runtime cuando Node ejecuta server.js.
+node - << 'NODEEOF'
+const fs = require('fs')
+let src = fs.readFileSync('Dockerfile', 'utf8')
+
+// Agregar ARG y ENV justo antes del CMD en el runner stage
+// Buscamos la línea "ENV PORT=3000" y agregamos NOTICIAS_API_URL antes
+if (src.includes('ENV NOTICIAS_API_URL')) {
+  console.log('Dockerfile ya tiene NOTICIAS_API_URL — sin cambios')
+  process.exit(0)
+}
+
+// Agrega ARG para recibir el build-arg y ENV para exponerlo en runtime
+src = src.replace(
+  'ENV NEXT_TELEMETRY_DISABLED=1',
+  'ENV NEXT_TELEMETRY_DISABLED=1\nARG NOTICIAS_API_URL\nENV NOTICIAS_API_URL=$NOTICIAS_API_URL'
+)
+
+fs.writeFileSync('Dockerfile', src, 'utf8')
+console.log('Dockerfile actualizado ✓')
+NODEEOF
+
+log "Dockerfile ✓"
+
+# ─── 2. deploy.yml — agregar NOTICIAS_API_URL al .env del contenedor ─────────
+warn "Parcheando .github/workflows/deploy.yml..."
+
+node - << 'NODEEOF'
+const fs   = require('fs')
+const path = '.github/workflows/deploy.yml'
+let src = fs.readFileSync(path, 'utf8')
+
+// En el script de deploy, el .env del contenedor se escribe con printf.
+// Agregamos NOTICIAS_API_URL si no está ya.
+if (src.includes('"NOTICIAS_API_URL=${NOTICIAS_API_URL}"')) {
+  console.log('deploy.yml ya tiene NOTICIAS_API_URL en el .env del contenedor — sin cambios')
+  process.exit(0)
+}
+
+// Busca el bloque printf que escribe /etc/ciudadano-front/.env
+// y agrega NOTICIAS_API_URL
+src = src.replace(
+  `"NOTICIAS_API_URL=${NOTICIAS_API_URL}" \\\n              > /etc/ciudadano-front/.env`,
+  // ya está — noop
+  `"NOTICIAS_API_URL=${NOTICIAS_API_URL}" \\\n              > /etc/ciudadano-front/.env`
+)
+
+// Si el printf no incluye NOTICIAS_API_URL como línea del archivo .env, lo agregamos
+// Buscamos el patrón del printf y añadimos la variable
+src = src.replace(
+  /"NEXT_GROQ_MODEL=\$\{NEXT_GROQ_MODEL\}" \\\n\s+> \/etc\/ciudadano-front\/\.env/,
+  `"NEXT_GROQ_MODEL=\${NEXT_GROQ_MODEL}" \\\n              "NOTICIAS_API_URL=\${NOTICIAS_API_URL}" \\\n              > /etc/ciudadano-front/.env`
+)
+
+fs.writeFileSync(path, src, 'utf8')
+console.log('deploy.yml actualizado ✓')
+NODEEOF
+
+log "deploy.yml ✓"
+
+# ─── 3. app/noticias/page.tsx — limit 100 ────────────────────────────────────
+warn "Actualizando app/noticias/page.tsx ..."
+
+cat > app/noticias/page.tsx << 'TSX'
+import type { Metadata } from "next"
+import { CodeTitle } from "@/components/shared/code-title"
+import { NoticiasContent } from "@/components/noticias/noticias-content"
+import { getNoticias } from "@/lib/noticias/api"
+
+export const metadata: Metadata = {
+  title: "Noticias | Nodo Tecnológico Catamarca",
+  description: "Las últimas novedades del Nodo Tecnológico de Catamarca.",
+}
+
+export default async function NoticiasPage() {
+  // Traemos hasta 100 noticias para que los filtros client-side
+  // operen sobre el conjunto completo publicado.
+  const { items: noticias } = await getNoticias({ limit: 100 })
+
+  return (
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
+      <main>
+        <section className="relative overflow-hidden pt-24 pb-4">
+          <div className="container mx-auto px-4 text-center">
+            <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
+              Las Novedades del{" "}
+              <span className="text-[#26a7fc]">Nodo</span>
+            </CodeTitle>
+          </div>
+        </section>
+
+        <NoticiasContent noticias={noticias} />
+      </main>
+    </div>
+  )
+}
+TSX
+log "app/noticias/page.tsx ✓"
+
+# ─── 4. hooks/noticias/use-noticias-filter.ts ────────────────────────────────
 warn "Actualizando hooks/noticias/use-noticias-filter.ts ..."
 mkdir -p hooks/noticias
 
@@ -29,7 +142,7 @@ export const useNoticiasFilter = () => {
 
   const setCategoria = (slug: string) => {
     setCategoriaActiva(slug)
-    setTagsSeleccionados([])   // resetear tags al cambiar categoría
+    setTagsSeleccionados([])
     setPaginaActual(1)
   }
 
@@ -48,22 +161,16 @@ export const useNoticiasFilter = () => {
   }
 
   return {
-    categoriaActiva,
-    tagsSeleccionados,
-    busqueda,
-    paginaActual,
-    setCategoria,
-    toggleTag,
-    setBusqueda,
-    setPaginaActual,
-    limpiarFiltros,
+    categoriaActiva, tagsSeleccionados, busqueda, paginaActual,
+    setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
   }
 }
 TS
 log "use-noticias-filter.ts ✓"
 
-# ─── 2. lib/noticias/filters.ts ──────────────────────────────────────────────
+# ─── 5. lib/noticias/filters.ts ──────────────────────────────────────────────
 warn "Actualizando lib/noticias/filters.ts ..."
+mkdir -p lib/noticias
 
 cat > lib/noticias/filters.ts << 'TS'
 import type { Noticia } from './types'
@@ -95,10 +202,6 @@ export function filterNoticias(
   })
 }
 
-/**
- * Tags únicos de las noticias en la categoría activa.
- * Si es "todas", devuelve todos los tags disponibles.
- */
 export function getTagsParaCategoria(
   noticias: Noticia[],
   categoriaActiva: string,
@@ -118,47 +221,9 @@ export function getCategoriaColor(color?: string): string {
 TS
 log "filters.ts ✓"
 
-# ─── 3. app/noticias/page.tsx — traer TODAS las noticias ─────────────────────
-warn "Actualizando app/noticias/page.tsx ..."
-
-cat > app/noticias/page.tsx << 'TSX'
-import type { Metadata } from "next"
-import { CodeTitle } from "@/components/shared/code-title"
-import { NoticiasContent } from "@/components/noticias/noticias-content"
-import { getNoticias } from "@/lib/noticias/api"
-
-export const metadata: Metadata = {
-  title: "Noticias | Nodo Tecnológico Catamarca",
-  description: "Las últimas novedades del Nodo Tecnológico de Catamarca.",
-}
-
-export default async function NoticiasPage() {
-  // Traemos hasta 200 noticias para que los filtros client-side
-  // operen sobre el conjunto completo, no sobre una página truncada.
-  const { items: noticias } = await getNoticias({ limit: 200 })
-
-  return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
-      <main>
-        <section className="relative overflow-hidden pt-24 pb-4">
-          <div className="container mx-auto px-4 text-center">
-            <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
-              Las Novedades del{" "}
-              <span className="text-[#26a7fc]">Nodo</span>
-            </CodeTitle>
-          </div>
-        </section>
-
-        <NoticiasContent noticias={noticias} />
-      </main>
-    </div>
-  )
-}
-TSX
-log "app/noticias/page.tsx ✓"
-
-# ─── 4. components/noticias/noticias-content.tsx ─────────────────────────────
+# ─── 6. components/noticias/noticias-content.tsx ─────────────────────────────
 warn "Actualizando components/noticias/noticias-content.tsx ..."
+mkdir -p components/noticias
 
 cat > components/noticias/noticias-content.tsx << 'TSX'
 "use client"
@@ -190,7 +255,7 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
     setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
   } = useNoticiasFilter()
 
-  // Categorías únicas presentes en las noticias
+  // Categorías únicas de las noticias recibidas
   const categorias: NoticiaCategoria[] = Array.from(
     new Map(
       noticias
@@ -199,10 +264,8 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
     ).values()
   ).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
-  // Tags disponibles según categoría activa
   const tagsDisponibles = getTagsParaCategoria(noticias, categoriaActiva)
 
-  // Aplicar filtros
   const noticiasFiltradas = filterNoticias(
     noticias, categoriaActiva, tagsSeleccionados, busqueda
   )
@@ -224,7 +287,6 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
 
   return (
     <>
-      {/* ── Filtros ─────────────────────────────────────────────────────── */}
       <section className="pb-6">
         <div className="container mx-auto px-4 flex flex-col gap-5">
 
@@ -239,12 +301,10 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
             />
           </div>
 
-          {/* Filtro por Categoría */}
+          {/* Filtro categoría */}
           {categorias.length > 0 && (
             <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Categoría
-              </p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Categoría</p>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setCategoria("todas")}
@@ -282,15 +342,13 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
             </div>
           )}
 
-          {/* Filtro por Tags — solo si hay tags en la categoría activa */}
+          {/* Filtro tags */}
           {tagsDisponibles.length > 0 && (
             <div className="flex flex-col gap-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 Tags
                 {categoriaActiva !== "todas" && (
-                  <span className="ml-1 font-normal normal-case text-slate-400">
-                    — dentro de la categoría
-                  </span>
+                  <span className="ml-1 font-normal normal-case text-slate-400">— dentro de la categoría</span>
                 )}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -313,7 +371,7 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
             </div>
           )}
 
-          {/* Limpiar filtros */}
+          {/* Limpiar */}
           {hayFiltrosActivos && (
             <button
               onClick={limpiarFiltros}
@@ -326,7 +384,6 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
         </div>
       </section>
 
-      {/* ── Grid ────────────────────────────────────────────────────────── */}
       <section className="pb-12">
         <div className="container mx-auto px-4">
           <p className="text-sm text-muted-foreground mb-6">
@@ -450,12 +507,16 @@ log "noticias-content.tsx ✓"
 
 echo ""
 echo -e "${BOLD}${GREEN}================================================${RESET}"
-echo -e "${BOLD}${GREEN}  Filtros de noticias v2 aplicados ✅           ${RESET}"
+echo -e "${BOLD}${GREEN}  Fix completo aplicado ✅                      ${RESET}"
 echo -e "${BOLD}${GREEN}================================================${RESET}"
 echo ""
-echo "  Archivos modificados:"
-echo "  • hooks/noticias/use-noticias-filter.ts  (categoría + tags)"
-echo "  • lib/noticias/filters.ts                (filtrado cascada)"
-echo "  • app/noticias/page.tsx                  (limit 200 — trae todas)"
-echo "  • components/noticias/noticias-content.tsx (UI nueva)"
+echo "  Causa raíz encontrada:"
+echo "  NOTICIAS_API_URL se inyectaba solo en build-time pero"
+echo "  Next.js la necesita en runtime para los fetches SSR."
+echo ""
+echo "  Correcciones:"
+echo "  • Dockerfile         → ARG+ENV NOTICIAS_API_URL en el runner stage"
+echo "  • deploy.yml         → NOTICIAS_API_URL en el .env del contenedor"
+echo "  • app/noticias/page  → limit 100"
+echo "  • hooks/filters/UI   → filtros cascada categoría + tags"
 echo ""

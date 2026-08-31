@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 }
 
 export default async function NoticiasPage() {
-  // Traemos hasta 200 noticias para que los filtros client-side
-  // operen sobre el conjunto completo, no sobre una página truncada.
-  const { items: noticias } = await getNoticias({ limit: 200 })
+  // Traemos hasta 100 noticias para que los filtros client-side
+  // operen sobre el conjunto completo publicado.
+  const { items: noticias } = await getNoticias({ limit: 100 })
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
