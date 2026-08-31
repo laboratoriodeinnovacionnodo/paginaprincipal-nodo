@@ -9,35 +9,50 @@ import {
 import { Badge }  from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
-import { Calendar, Search, ArrowRight, ImageOff } from "lucide-react"
-import { filterNoticias } from "@/lib/noticias/filters"
+import { Calendar, Search, ArrowRight, ImageOff, X } from "lucide-react"
+import { filterNoticias, getTagsParaCategoria } from "@/lib/noticias/filters"
 import { useNoticiasFilter } from "@/hooks/noticias/use-noticias-filter"
 import { Paginacion } from "@/components/shared/paginacion"
-import type { Noticia } from "@/lib/noticias/types"
+import type { Noticia, NoticiaCategoria } from "@/lib/noticias/types"
 
 interface NoticiasContentProps {
-  noticias?: Noticia[] | null   // defensivo: acepta undefined/null
+  noticias?: Noticia[] | null
 }
 
 export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
-  // garantiza array aunque llegue undefined/null
   const noticias: Noticia[] = Array.isArray(raw) ? raw : []
 
   const {
-    tagsSeleccionados, busqueda, paginaActual,
-    toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
+    categoriaActiva, tagsSeleccionados, busqueda, paginaActual,
+    setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
   } = useNoticiasFilter()
 
-  const noticiasFiltradas = filterNoticias(noticias, tagsSeleccionados, busqueda)
+  // Categorías únicas presentes en las noticias
+  const categorias: NoticiaCategoria[] = Array.from(
+    new Map(
+      noticias
+        .filter((n) => n.categoria)
+        .map((n) => [n.categoria.id, n.categoria])
+    ).values()
+  ).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
-  const itemsPorPagina  = 6
-  const totalPaginas    = Math.ceil(noticiasFiltradas.length / itemsPorPagina)
-  const indiceInicio    = (paginaActual - 1) * itemsPorPagina
+  // Tags disponibles según categoría activa
+  const tagsDisponibles = getTagsParaCategoria(noticias, categoriaActiva)
+
+  // Aplicar filtros
+  const noticiasFiltradas = filterNoticias(
+    noticias, categoriaActiva, tagsSeleccionados, busqueda
+  )
+
+  const itemsPorPagina    = 6
+  const totalPaginas      = Math.ceil(noticiasFiltradas.length / itemsPorPagina)
+  const indiceInicio      = (paginaActual - 1) * itemsPorPagina
   const noticiasPaginadas = noticiasFiltradas.slice(indiceInicio, indiceInicio + itemsPorPagina)
 
-  const tagsDisponibles = Array.from(
-    new Set(noticias.flatMap((n) => n.tags?.map((t) => t.nombre) ?? []))
-  ).sort()
+  const hayFiltrosActivos =
+    categoriaActiva !== "todas" ||
+    tagsSeleccionados.length > 0 ||
+    busqueda !== ""
 
   const formatFecha = (iso: string) =>
     new Date(iso).toLocaleDateString("es-AR", {
@@ -46,9 +61,11 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
 
   return (
     <>
-      {/* Buscador + tags */}
-      <section className="pb-4">
-        <div className="container mx-auto px-4 flex flex-col gap-4">
+      {/* ── Filtros ─────────────────────────────────────────────────────── */}
+      <section className="pb-6">
+        <div className="container mx-auto px-4 flex flex-col gap-5">
+
+          {/* Buscador */}
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
@@ -59,36 +76,94 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
             />
           </div>
 
-          {tagsDisponibles.length > 0 && (
-            <div className="flex flex-wrap gap-2 items-center">
-              {tagsSeleccionados.length > 0 && (
+          {/* Filtro por Categoría */}
+          {categorias.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Categoría
+              </p>
+              <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={limpiarFiltros}
-                  className="text-xs text-muted-foreground hover:text-[#26a7fc] underline underline-offset-2"
+                  onClick={() => setCategoria("todas")}
+                  className={[
+                    "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
+                    categoriaActiva === "todas"
+                      ? "bg-slate-800 text-white border-slate-800"
+                      : "bg-white/70 text-slate-600 border-slate-200 hover:border-slate-400",
+                  ].join(" ")}
                 >
-                  Limpiar filtros
+                  Todas
                 </button>
-              )}
-              {tagsDisponibles.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant={tagsSeleccionados.includes(tag) ? "default" : "outline"}
-                  className={`cursor-pointer transition-colors text-xs ${
-                    tagsSeleccionados.includes(tag)
-                      ? "bg-[#26a7fc] hover:bg-[#1c8fe0] border-transparent text-white"
-                      : "bg-white/70 backdrop-blur-sm hover:bg-[#26a7fc]/10 border-[#26a7fc]/20"
-                  }`}
-                  onClick={() => { toggleTag(tag); setPaginaActual(1) }}
-                >
-                  {tag}
-                </Badge>
-              ))}
+
+                {categorias.map((cat) => {
+                  const color  = cat.color ?? "#26a7fc"
+                  const active = categoriaActiva === cat.slug
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setCategoria(cat.slug)}
+                      style={active
+                        ? { backgroundColor: color, borderColor: color, color: "#fff" }
+                        : { borderColor: `${color}40`, color }
+                      }
+                      className={[
+                        "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
+                        active ? "shadow-sm" : "bg-white/70 hover:opacity-80",
+                      ].join(" ")}
+                    >
+                      {cat.nombre}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
+          )}
+
+          {/* Filtro por Tags — solo si hay tags en la categoría activa */}
+          {tagsDisponibles.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Tags
+                {categoriaActiva !== "todas" && (
+                  <span className="ml-1 font-normal normal-case text-slate-400">
+                    — dentro de la categoría
+                  </span>
+                )}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {tagsDisponibles.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant={tagsSeleccionados.includes(tag) ? "default" : "outline"}
+                    className={[
+                      "cursor-pointer transition-colors text-xs select-none",
+                      tagsSeleccionados.includes(tag)
+                        ? "bg-[#26a7fc] hover:bg-[#1c8fe0] border-transparent text-white"
+                        : "bg-white/70 backdrop-blur-sm hover:bg-[#26a7fc]/10 border-[#26a7fc]/20",
+                    ].join(" ")}
+                    onClick={() => { toggleTag(tag); setPaginaActual(1) }}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Limpiar filtros */}
+          {hayFiltrosActivos && (
+            <button
+              onClick={limpiarFiltros}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#26a7fc] w-fit underline underline-offset-2"
+            >
+              <X className="h-3 w-3" />
+              Limpiar filtros
+            </button>
           )}
         </div>
       </section>
 
-      {/* Grid */}
+      {/* ── Grid ────────────────────────────────────────────────────────── */}
       <section className="pb-12">
         <div className="container mx-auto px-4">
           <p className="text-sm text-muted-foreground mb-6">
@@ -117,7 +192,6 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
                     key={noticia.id}
                     className="flex flex-col transition-shadow hover:shadow-lg bg-white/70 backdrop-blur-sm overflow-hidden"
                   >
-                    {/* Imagen */}
                     {noticia.imagenUrl ? (
                       <div className="relative h-44 w-full overflow-hidden bg-slate-100">
                         <Image
@@ -126,7 +200,7 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
                           fill
                           className="object-cover transition-transform duration-300 hover:scale-105"
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
                         />
                       </div>
                     ) : (
@@ -139,18 +213,24 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         {noticia.categoria && (
                           <Badge
-                            className="text-xs rounded-lg font-medium"
+                            className="text-xs rounded-lg font-medium cursor-pointer"
                             style={{
-                              backgroundColor: `${noticia.categoria.color ?? '#26a7fc'}20`,
-                              color:           noticia.categoria.color ?? '#26a7fc',
-                              borderColor:     `${noticia.categoria.color ?? '#26a7fc'}40`,
+                              backgroundColor: `${noticia.categoria.color ?? "#26a7fc"}20`,
+                              color:           noticia.categoria.color ?? "#26a7fc",
+                              borderColor:     `${noticia.categoria.color ?? "#26a7fc"}40`,
                             }}
+                            onClick={() => setCategoria(noticia.categoria.slug)}
                           >
                             {noticia.categoria.nombre}
                           </Badge>
                         )}
                         {(noticia.tags ?? []).slice(0, 2).map((tag) => (
-                          <Badge key={tag.id} variant="secondary" className="text-xs">
+                          <Badge
+                            key={tag.id}
+                            variant="secondary"
+                            className="text-xs cursor-pointer hover:bg-[#26a7fc]/10"
+                            onClick={() => { toggleTag(tag.nombre); setPaginaActual(1) }}
+                          >
                             {tag.nombre}
                           </Badge>
                         ))}

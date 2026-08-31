@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
-# fix-noticias-filtros.sh — v1.0.0
-# Mejora los filtros de la sección pública de noticias:
-#   1. hooks/noticias/use-noticias-filter.ts → agrega categoriaActiva
-#   2. lib/noticias/filters.ts               → filtra por categoría + tags
-#   3. components/noticias/noticias-content.tsx → UI con filtro cascada
+# fix-noticias-filtros-v2.sh — v2.0.0
+# Fix completo: filtros cascada + page.tsx trae todas las noticias
 # ============================================================
 set -euo pipefail
 
@@ -67,7 +64,6 @@ log "use-noticias-filter.ts ✓"
 
 # ─── 2. lib/noticias/filters.ts ──────────────────────────────────────────────
 warn "Actualizando lib/noticias/filters.ts ..."
-mkdir -p lib/noticias
 
 cat > lib/noticias/filters.ts << 'TS'
 import type { Noticia } from './types'
@@ -79,17 +75,14 @@ export function filterNoticias(
   busqueda: string,
 ): Noticia[] {
   return noticias.filter((n) => {
-    // 1. Filtro por categoría
     const matchCategoria =
       categoriaActiva === "todas" ||
       n.categoria?.slug === categoriaActiva
 
-    // 2. Filtro por tags (dentro de la categoría activa)
     const matchTags =
       tags.length === 0 ||
       n.tags.some((t) => tags.includes(t.nombre))
 
-    // 3. Búsqueda libre
     const q = busqueda.toLowerCase()
     const matchBusqueda =
       busqueda === '' ||
@@ -103,19 +96,19 @@ export function filterNoticias(
 }
 
 /**
- * Devuelve los tags únicos de las noticias que pertenecen
- * a la categoría activa (o de todas si es "todas").
+ * Tags únicos de las noticias en la categoría activa.
+ * Si es "todas", devuelve todos los tags disponibles.
  */
 export function getTagsParaCategoria(
   noticias: Noticia[],
   categoriaActiva: string,
 ): string[] {
-  const filtradas = categoriaActiva === "todas"
+  const base = categoriaActiva === "todas"
     ? noticias
     : noticias.filter((n) => n.categoria?.slug === categoriaActiva)
 
   return Array.from(
-    new Set(filtradas.flatMap((n) => n.tags?.map((t) => t.nombre) ?? []))
+    new Set(base.flatMap((n) => n.tags?.map((t) => t.nombre) ?? []))
   ).sort()
 }
 
@@ -125,9 +118,47 @@ export function getCategoriaColor(color?: string): string {
 TS
 log "filters.ts ✓"
 
-# ─── 3. components/noticias/noticias-content.tsx ─────────────────────────────
+# ─── 3. app/noticias/page.tsx — traer TODAS las noticias ─────────────────────
+warn "Actualizando app/noticias/page.tsx ..."
+
+cat > app/noticias/page.tsx << 'TSX'
+import type { Metadata } from "next"
+import { CodeTitle } from "@/components/shared/code-title"
+import { NoticiasContent } from "@/components/noticias/noticias-content"
+import { getNoticias } from "@/lib/noticias/api"
+
+export const metadata: Metadata = {
+  title: "Noticias | Nodo Tecnológico Catamarca",
+  description: "Las últimas novedades del Nodo Tecnológico de Catamarca.",
+}
+
+export default async function NoticiasPage() {
+  // Traemos hasta 200 noticias para que los filtros client-side
+  // operen sobre el conjunto completo, no sobre una página truncada.
+  const { items: noticias } = await getNoticias({ limit: 200 })
+
+  return (
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-cyan-100 via-white to-blue-100">
+      <main>
+        <section className="relative overflow-hidden pt-24 pb-4">
+          <div className="container mx-auto px-4 text-center">
+            <CodeTitle as="h1" className="mb-6 text-4xl font-bold text-balance md:text-6xl">
+              Las Novedades del{" "}
+              <span className="text-[#26a7fc]">Nodo</span>
+            </CodeTitle>
+          </div>
+        </section>
+
+        <NoticiasContent noticias={noticias} />
+      </main>
+    </div>
+  )
+}
+TSX
+log "app/noticias/page.tsx ✓"
+
+# ─── 4. components/noticias/noticias-content.tsx ─────────────────────────────
 warn "Actualizando components/noticias/noticias-content.tsx ..."
-mkdir -p components/noticias
 
 cat > components/noticias/noticias-content.tsx << 'TSX'
 "use client"
@@ -159,7 +190,7 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
     setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
   } = useNoticiasFilter()
 
-  // ── Categorías únicas de todas las noticias ──────────────────────────────
+  // Categorías únicas presentes en las noticias
   const categorias: NoticiaCategoria[] = Array.from(
     new Map(
       noticias
@@ -168,10 +199,10 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
     ).values()
   ).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
-  // ── Tags disponibles según la categoría activa ───────────────────────────
+  // Tags disponibles según categoría activa
   const tagsDisponibles = getTagsParaCategoria(noticias, categoriaActiva)
 
-  // ── Aplicar filtros ───────────────────────────────────────────────────────
+  // Aplicar filtros
   const noticiasFiltradas = filterNoticias(
     noticias, categoriaActiva, tagsSeleccionados, busqueda
   )
@@ -215,7 +246,6 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
                 Categoría
               </p>
               <div className="flex flex-wrap gap-2">
-                {/* Botón "Todas" */}
                 <button
                   onClick={() => setCategoria("todas")}
                   className={[
@@ -241,9 +271,7 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
                       }
                       className={[
                         "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
-                        active
-                          ? "shadow-sm"
-                          : "bg-white/70 hover:opacity-80",
+                        active ? "shadow-sm" : "bg-white/70 hover:opacity-80",
                       ].join(" ")}
                     >
                       {cat.nombre}
@@ -254,18 +282,18 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
             </div>
           )}
 
-          {/* Filtro por Tags (sólo si hay tags en la categoría activa) */}
+          {/* Filtro por Tags — solo si hay tags en la categoría activa */}
           {tagsDisponibles.length > 0 && (
             <div className="flex flex-col gap-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                 Tags
                 {categoriaActiva !== "todas" && (
                   <span className="ml-1 font-normal normal-case text-slate-400">
-                    — filtrando por categoría
+                    — dentro de la categoría
                   </span>
                 )}
               </p>
-              <div className="flex flex-wrap gap-2 items-center">
+              <div className="flex flex-wrap gap-2">
                 {tagsDisponibles.map((tag) => (
                   <Badge
                     key={tag}
@@ -298,7 +326,7 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
         </div>
       </section>
 
-      {/* ── Grid de noticias ────────────────────────────────────────────── */}
+      {/* ── Grid ────────────────────────────────────────────────────────── */}
       <section className="pb-12">
         <div className="container mx-auto px-4">
           <p className="text-sm text-muted-foreground mb-6">
@@ -327,7 +355,6 @@ export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
                     key={noticia.id}
                     className="flex flex-col transition-shadow hover:shadow-lg bg-white/70 backdrop-blur-sm overflow-hidden"
                   >
-                    {/* Imagen */}
                     {noticia.imagenUrl ? (
                       <div className="relative h-44 w-full overflow-hidden bg-slate-100">
                         <Image
@@ -423,19 +450,12 @@ log "noticias-content.tsx ✓"
 
 echo ""
 echo -e "${BOLD}${GREEN}================================================${RESET}"
-echo -e "${BOLD}${GREEN}  Filtros de noticias actualizados ✅           ${RESET}"
+echo -e "${BOLD}${GREEN}  Filtros de noticias v2 aplicados ✅           ${RESET}"
 echo -e "${BOLD}${GREEN}================================================${RESET}"
 echo ""
-echo "  Cambios aplicados:"
-echo "  • use-noticias-filter.ts → agrega categoriaActiva + setCategoria"
-echo "  • filters.ts             → filterNoticias recibe categoría, getTagsParaCategoria()"
-echo "  • noticias-content.tsx   → UI cascada: Categoría → Tags → Búsqueda"
-echo ""
-echo "  Comportamiento nuevo:"
-echo "  • Botones de categoría (Todas + una por cada cat.) con color propio"
-echo "  • Al seleccionar categoría → tags se resetean y muestran solo los de esa cat."
-echo "  • Tags clickeables también en las cards (filtran al hacer clic)"
-echo "  • Badge de categoría en la card también filtra al hacer clic"
-echo "  • 'Limpiar filtros' aparece solo si hay algo activo"
-echo "  • No hay cambios en el backend ni en types"
+echo "  Archivos modificados:"
+echo "  • hooks/noticias/use-noticias-filter.ts  (categoría + tags)"
+echo "  • lib/noticias/filters.ts                (filtrado cascada)"
+echo "  • app/noticias/page.tsx                  (limit 200 — trae todas)"
+echo "  • components/noticias/noticias-content.tsx (UI nueva)"
 echo ""
