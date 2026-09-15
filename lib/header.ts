@@ -32,6 +32,10 @@ export const navLinks = [
     label: "Sobre Nosotros",
     href: "/sobre-nosotros",
   },
+  { 
+    label: "Eventos",
+    href: "/eventos" 
+  }
 ]
 
 export const ctaButton = {

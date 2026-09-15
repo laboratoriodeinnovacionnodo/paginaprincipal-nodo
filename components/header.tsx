@@ -21,6 +21,7 @@ const navIcons: Record<string, any> = {
   "/sobre-nosotros": Users,
   "/catamarcaopen": Code2,
   "/laboratorio": FlaskConical,
+  "/eventos": Calendar
 }
 
 export function Header() {
