@@ -41,6 +41,7 @@ The content is organized as follows:
 .github/
   workflows/
     deploy.yml
+    deploy.yml.bak.20260915_163239
 app/
   api/
     chat/
@@ -70,6 +71,12 @@ app/
       loading.tsx
       page.tsx
     cursos-client.tsx
+    loading.tsx
+    page.tsx
+  eventos/
+    [id]/
+      loading.tsx
+      page.tsx
     loading.tsx
     page.tsx
   laboratorio/
@@ -192,6 +199,9 @@ lib/
   equipo/
     data.ts
     types.ts
+  eventos/
+    api.ts
+    types.ts
   laboratorio/
     api.ts
     types.ts
@@ -214,6 +224,7 @@ styles/
 .npmrc
 components.json
 Dockerfile
+Dockerfile.bak.20260915_163239
 next.config.mjs
 package.json
 postcss.config.mjs
@@ -223,6 +234,100 @@ x.sh
 ```
 
 # Files
+
+## File: .github/workflows/deploy.yml.bak.20260915_163239
+```
+ 1: name: 🧑‍🤝‍🧑 Deploy — ciudadano-front
+ 2: 
+ 3: on:
+ 4:   push:
+ 5:     branches: [main]
+ 6: 
+ 7: jobs:
+ 8:   build-and-deploy:
+ 9:     runs-on: ubuntu-latest
+10: 
+11:     steps:
+12:       - name: Checkout código
+13:         uses: actions/checkout@v4
+14: 
+15:       - name: Setup Docker Buildx
+16:         uses: docker/setup-buildx-action@v3
+17: 
+18:       - name: Login a GitHub Container Registry
+19:         uses: docker/login-action@v3
+20:         with:
+21:           registry: ghcr.io
+22:           username: ${{ github.actor }}
+23:           password: ${{ secrets.GITHUB_TOKEN }}
+24: 
+25:       - name: Build y push imagen
+26:         uses: docker/build-push-action@v5
+27:         with:
+28:           context: .
+29:           push: true
+30:           tags: ghcr.io/${{ github.repository }}:latest
+31:           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
+32:           cache-to:   type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
+33:           # NOTICIAS_API_URL va en build-args para el ARG del runner stage
+34:           build-args: |
+35:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
+36:           secrets: |
+37:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
+38:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
+39:             NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+40:             NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+41:             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+42:             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+43:             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
+44:             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
+45:             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
+46:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
+47:             NEXT_PUBLIC_COWORKING_URL=${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
+48: 
+49:       - name: Deploy en servidor
+50:         uses: appleboy/ssh-action@v1
+51:         env:
+52:           NEXT_GROQ_API_KEY:  ${{ secrets.NEXT_GROQ_API_KEY }}
+53:           NEXT_GROQ_MODEL:    ${{ secrets.NEXT_GROQ_MODEL }}
+54:           NOTICIAS_API_URL:   ${{ secrets.NOTICIAS_API_URL }}
+55:           NEXT_PUBLIC_COWORKING_URL: ${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
+56:         with:
+57:           host:     ${{ secrets.DO_HOST }}
+58:           username: ${{ secrets.DO_USER }}
+59:           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
+60:           port:     ${{ secrets.DO_PORT }}
+61:           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL,NOTICIAS_API_URL,NEXT_PUBLIC_COWORKING_URL
+62:           script: |
+63:             set -e
+64:             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
+65:             docker pull ghcr.io/${{ github.repository }}:latest
+66: 
+67:             docker network inspect red_interna >/dev/null 2>&1 || \
+68:               docker network create --driver bridge red_interna
+69: 
+70:             mkdir -p /etc/ciudadano-front
+71:             printf '%s\n' \
+72:               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
+73:               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
+74:               "NOTICIAS_API_URL=${NOTICIAS_API_URL}" \
+75:               > /etc/ciudadano-front/.env
+76:             chmod 600 /etc/ciudadano-front/.env
+77: 
+78:             docker stop ciudadano-front || true
+79:             docker rm   ciudadano-front || true
+80: 
+81:             docker run -d \
+82:               --name    ciudadano-front \
+83:               --restart always \
+84:               --network red_interna \
+85:               --env-file /etc/ciudadano-front/.env \
+86:               ghcr.io/${{ github.repository }}:latest
+87: 
+88:             sleep 3
+89:             docker logs ciudadano-front --tail 20
+90:             docker image prune -f
+```
 
 ## File: app/catamarcaopen/proyectos/[id]/loading.tsx
 ```typescript
@@ -472,6 +577,405 @@ x.sh
 34:     </div>
 35:   )
 36: }
+```
+
+## File: app/eventos/[id]/loading.tsx
+```typescript
+ 1: import { Skeleton } from '@/components/ui/skeleton'
+ 2: 
+ 3: export default function EventoDetalleLoading() {
+ 4:   return (
+ 5:     <main className="min-h-screen pt-28 pb-20 bg-gradient-to-br from-slate-50 via-white to-blue-50">
+ 6:       <div className="container mx-auto px-4 max-w-3xl space-y-6">
+ 7:         <Skeleton className="h-4 w-24" />
+ 8:         <Skeleton className="h-10 w-3/4" />
+ 9:         <Skeleton className="h-4 w-1/2" />
+10:         <Skeleton className="h-32 w-full rounded-2xl" />
+11:         <Skeleton className="h-12 w-48 rounded-xl" />
+12:       </div>
+13:     </main>
+14:   )
+15: }
+```
+
+## File: app/eventos/[id]/page.tsx
+```typescript
+  1: import type { Metadata } from 'next'
+  2: import Link from 'next/link'
+  3: import { notFound } from 'next/navigation'
+  4: import {
+  5:   ArrowLeft, Calendar, Clock, Phone, Mail, ExternalLink, Info,
+  6: } from 'lucide-react'
+  7: import { getEventoCiudadano, getEventosCiudadanos } from '@/lib/eventos/api'
+  8: import { TIPO_EVENTO_LABEL, TIPO_EVENTO_COLOR, type TipoEvento } from '@/lib/eventos/types'
+  9: 
+ 10: interface Props {
+ 11:   params: Promise<{ id: string }>
+ 12: }
+ 13: 
+ 14: export async function generateMetadata({ params }: Props): Promise<Metadata> {
+ 15:   const { id } = await params
+ 16:   const evento = await getEventoCiudadano(id)
+ 17:   if (!evento) return { title: 'Evento no encontrado | NODO' }
+ 18:   return {
+ 19:     title: `${evento.titulo} | NODO Tecnológico`,
+ 20:     description: evento.descripcion ?? evento.informacion.slice(0, 160),
+ 21:   }
+ 22: }
+ 23: 
+ 24: export const revalidate = 60
+ 25: 
+ 26: export default async function EventoDetallePage({ params }: Props) {
+ 27:   const { id } = await params
+ 28:   const evento = await getEventoCiudadano(id)
+ 29: 
+ 30:   if (!evento) notFound()
+ 31: 
+ 32:   const mismaFecha   = evento.fechaDesde.slice(0, 10) === evento.fechaHasta.slice(0, 10)
+ 33:   const badge        = TIPO_EVENTO_COLOR[evento.tipoEvento as TipoEvento] ?? 'bg-slate-100 text-slate-500 border-slate-200'
+ 34:   const label        = TIPO_EVENTO_LABEL[evento.tipoEvento as TipoEvento] ?? evento.tipoEvento
+ 35:   const hoy          = new Date().toISOString().slice(0, 10)
+ 36:   const esPasado     = evento.fechaHasta.slice(0, 10) < hoy
+ 37:   const tieneContacto = evento.contactoCiudadano || evento.linkInscripcion
+ 38: 
+ 39:   function formatFecha(iso: string) {
+ 40:     return new Date(iso).toLocaleDateString('es-AR', {
+ 41:       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+ 42:     })
+ 43:   }
+ 44: 
+ 45:   // Detectar si el contacto es email o teléfono
+ 46:   const esEmail = evento.contactoCiudadano?.includes('@')
+ 47: 
+ 48:   return (
+ 49:     <main className="min-h-screen pt-28 pb-20 bg-gradient-to-br from-slate-50 via-white to-blue-50">
+ 50:       <div className="container mx-auto px-4 max-w-3xl">
+ 51: 
+ 52:         {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
+ 53:         <Link
+ 54:           href="/eventos"
+ 55:           className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-[#26a7fc] transition-colors mb-8"
+ 56:         >
+ 57:           <ArrowLeft className="h-4 w-4" />
+ 58:           Volver a eventos
+ 59:         </Link>
+ 60: 
+ 61:         {/* ── Badge estado ─────────────────────────────────────────────────── */}
+ 62:         <div className="flex items-center gap-3 mb-4 flex-wrap">
+ 63:           <span className={`inline-flex text-xs font-semibold px-3 py-1 rounded-full border ${badge}`}>
+ 64:             {label}
+ 65:           </span>
+ 66:           {esPasado && (
+ 67:             <span className="text-xs text-slate-400 font-medium">Este evento ya finalizó</span>
+ 68:           )}
+ 69:         </div>
+ 70: 
+ 71:         {/* ── Título ───────────────────────────────────────────────────────── */}
+ 72:         <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 leading-snug">
+ 73:           {evento.titulo}
+ 74:         </h1>
+ 75:         {evento.descripcion && (
+ 76:           <p className="text-slate-500 text-base mb-8">{evento.descripcion}</p>
+ 77:         )}
+ 78: 
+ 79:         {/* ── Fecha y hora ─────────────────────────────────────────────────── */}
+ 80:         <div className="flex flex-col sm:flex-row gap-4 mb-8">
+ 81:           <div className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl px-5 py-4 flex-1">
+ 82:             <Calendar className="h-5 w-5 text-[#26a7fc] shrink-0 mt-0.5" strokeWidth={1.5} />
+ 83:             <div>
+ 84:               <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Fecha</p>
+ 85:               <p className="text-sm font-semibold text-slate-800 capitalize">
+ 86:                 {formatFecha(evento.fechaDesde)}
+ 87:               </p>
+ 88:               {!mismaFecha && (
+ 89:                 <p className="text-xs text-slate-400 mt-0.5">
+ 90:                   hasta el {formatFecha(evento.fechaHasta)}
+ 91:                 </p>
+ 92:               )}
+ 93:             </div>
+ 94:           </div>
+ 95: 
+ 96:           <div className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl px-5 py-4 flex-1">
+ 97:             <Clock className="h-5 w-5 text-[#26a7fc] shrink-0 mt-0.5" strokeWidth={1.5} />
+ 98:             <div>
+ 99:               <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Horario</p>
+100:               <p className="text-sm font-semibold text-slate-800">
+101:                 {evento.horaDesde} – {evento.horaHasta} hs
+102:               </p>
+103:             </div>
+104:           </div>
+105:         </div>
+106: 
+107:         {/* ── Información ──────────────────────────────────────────────────── */}
+108:         {evento.informacion && (
+109:           <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 mb-8">
+110:             <div className="flex items-center gap-2 mb-3">
+111:               <Info className="h-4 w-4 text-[#26a7fc]" strokeWidth={1.5} />
+112:               <h2 className="text-sm font-semibold text-slate-700">Información</h2>
+113:             </div>
+114:             <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+115:               {evento.informacion}
+116:             </p>
+117:           </div>
+118:         )}
+119: 
+120:         {/* ── Contacto e inscripción ────────────────────────────────────────── */}
+121:         {tieneContacto && !esPasado && (
+122:           <div className="bg-[#26a7fc]/5 border border-[#26a7fc]/20 rounded-2xl px-6 py-5 space-y-4">
+123:             <h2 className="text-sm font-semibold text-[#26a7fc]">Participar</h2>
+124: 
+125:             {evento.contactoCiudadano && (
+126:               <div className="flex items-center gap-3">
+127:                 {esEmail
+128:                   ? <Mail className="h-4 w-4 text-[#26a7fc] shrink-0" strokeWidth={1.5} />
+129:                   : <Phone className="h-4 w-4 text-[#26a7fc] shrink-0" strokeWidth={1.5} />
+130:                 }
+131:                 <div>
+132:                   <p className="text-xs text-slate-400 mb-0.5">
+133:                     {esEmail ? 'Email de contacto' : 'Teléfono de contacto'}
+134:                   </p>
+135:                   {esEmail ? (
+136:                     <a
+137:                       href={`mailto:${evento.contactoCiudadano}`}
+138:                       className="text-sm font-medium text-[#26a7fc] hover:underline"
+139:                     >
+140:                       {evento.contactoCiudadano}
+141:                     </a>
+142:                   ) : (
+143:                     <a
+144:                       href={`tel:${evento.contactoCiudadano}`}
+145:                       className="text-sm font-medium text-[#26a7fc] hover:underline"
+146:                     >
+147:                       {evento.contactoCiudadano}
+148:                     </a>
+149:                   )}
+150:                 </div>
+151:               </div>
+152:             )}
+153: 
+154:             {evento.linkInscripcion && (
+155:               <a
+156:                 href={evento.linkInscripcion}
+157:                 target="_blank"
+158:                 rel="noopener noreferrer"
+159:                 className="inline-flex items-center gap-2 bg-[#26a7fc] hover:bg-[#1c8fe0] text-white text-sm font-semibold px-6 py-3 rounded-xl transition-colors shadow-sm shadow-[#26a7fc]/30"
+160:               >
+161:                 Inscribirse
+162:                 <ExternalLink className="h-4 w-4" />
+163:               </a>
+164:             )}
+165:           </div>
+166:         )}
+167: 
+168:         {/* Mensaje si es pasado pero tiene contacto */}
+169:         {tieneContacto && esPasado && (
+170:           <div className="bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm text-slate-400 text-center">
+171:             Este evento ya finalizó. Seguí la agenda para próximas ediciones.
+172:           </div>
+173:         )}
+174: 
+175:       </div>
+176:     </main>
+177:   )
+178: }
+```
+
+## File: app/eventos/loading.tsx
+```typescript
+ 1: import { Skeleton } from '@/components/ui/skeleton'
+ 2: 
+ 3: export default function EventosLoading() {
+ 4:   return (
+ 5:     <main className="min-h-screen pt-28 pb-20 bg-gradient-to-br from-slate-50 via-white to-blue-50">
+ 6:       <div className="container mx-auto px-4 max-w-5xl space-y-6">
+ 7:         <Skeleton className="h-8 w-48" />
+ 8:         <Skeleton className="h-4 w-72" />
+ 9:         <div className="space-y-3 mt-8">
+10:           {Array.from({ length: 6 }).map((_, i) => (
+11:             <Skeleton key={i} className="h-20 w-full rounded-xl" />
+12:           ))}
+13:         </div>
+14:       </div>
+15:     </main>
+16:   )
+17: }
+```
+
+## File: app/eventos/page.tsx
+```typescript
+  1: import type { Metadata } from 'next'
+  2: import Link from 'next/link'
+  3: import { Calendar, Clock, ChevronRight, Phone, ExternalLink, Search } from 'lucide-react'
+  4: import { getEventosCiudadanos } from '@/lib/eventos/api'
+  5: import { TIPO_EVENTO_LABEL, TIPO_EVENTO_COLOR, type TipoEvento } from '@/lib/eventos/types'
+  6: 
+  7: export const metadata: Metadata = {
+  8:   title: 'Eventos | NODO Tecnológico',
+  9:   description: 'Agenda de eventos públicos del Nodo Tecnológico de Catamarca.',
+ 10: }
+ 11: 
+ 12: // Revalidar cada 60 segundos (ISR)
+ 13: export const revalidate = 60
+ 14: 
+ 15: function formatFecha(iso: string) {
+ 16:   return new Date(iso).toLocaleDateString('es-AR', {
+ 17:     weekday: 'long',
+ 18:     day: 'numeric',
+ 19:     month: 'long',
+ 20:     year: 'numeric',
+ 21:   })
+ 22: }
+ 23: 
+ 24: function formatFechaCorta(iso: string) {
+ 25:   return new Date(iso).toLocaleDateString('es-AR', {
+ 26:     day: 'numeric',
+ 27:     month: 'short',
+ 28:   })
+ 29: }
+ 30: 
+ 31: function esMismaFecha(desde: string, hasta: string) {
+ 32:   return desde.slice(0, 10) === hasta.slice(0, 10)
+ 33: }
+ 34: 
+ 35: export default async function EventosPage() {
+ 36:   const eventos = await getEventosCiudadanos()
+ 37: 
+ 38:   // Separar próximos/en curso de pasados
+ 39:   const hoy = new Date().toISOString().slice(0, 10)
+ 40:   const proximos  = eventos.filter((e) => e.fechaHasta.slice(0, 10) >= hoy && e.tipoEvento !== 'CANCELADO')
+ 41:   const pasados   = eventos.filter((e) => e.fechaHasta.slice(0, 10) < hoy  || e.tipoEvento === 'CANCELADO')
+ 42: 
+ 43:   return (
+ 44:     <main className="min-h-screen pt-28 pb-20 bg-gradient-to-br from-slate-50 via-white to-blue-50">
+ 45:       <div className="container mx-auto px-4 max-w-5xl">
+ 46: 
+ 47:         {/* ── Header ──────────────────────────────────────────────────────── */}
+ 48:         <div className="mb-10">
+ 49:           <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#26a7fc] uppercase tracking-widest mb-3">
+ 50:             <span className="h-px w-6 bg-[#26a7fc]" />
+ 51:             Agenda
+ 52:           </div>
+ 53:           <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
+ 54:             Eventos del Nodo
+ 55:           </h1>
+ 56:           <p className="text-slate-500 text-sm max-w-xl">
+ 57:             Actividades, talleres y jornadas abiertas a la comunidad. Hacé clic en cada evento para ver el detalle e inscribirte.
+ 58:           </p>
+ 59:         </div>
+ 60: 
+ 61:         {/* ── Sin eventos ─────────────────────────────────────────────────── */}
+ 62:         {eventos.length === 0 && (
+ 63:           <div className="flex flex-col items-center justify-center py-32 text-center">
+ 64:             <Calendar className="h-12 w-12 text-[#26a7fc]/30 mb-4" strokeWidth={1.5} />
+ 65:             <h2 className="text-lg font-semibold text-slate-700 mb-1">Sin eventos por ahora</h2>
+ 66:             <p className="text-sm text-slate-400">Volvé pronto para ver la agenda actualizada.</p>
+ 67:           </div>
+ 68:         )}
+ 69: 
+ 70:         {/* ── Próximos eventos ────────────────────────────────────────────── */}
+ 71:         {proximos.length > 0 && (
+ 72:           <section className="mb-12">
+ 73:             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+ 74:               <span className="h-px flex-1 bg-slate-200" />
+ 75:               Próximos y en curso
+ 76:               <span className="h-px flex-1 bg-slate-200" />
+ 77:             </h2>
+ 78:             <div className="space-y-3">
+ 79:               {proximos.map((evento) => (
+ 80:                 <EventoCard key={evento.id} evento={evento} />
+ 81:               ))}
+ 82:             </div>
+ 83:           </section>
+ 84:         )}
+ 85: 
+ 86:         {/* ── Pasados ─────────────────────────────────────────────────────── */}
+ 87:         {pasados.length > 0 && (
+ 88:           <section>
+ 89:             <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+ 90:               <span className="h-px flex-1 bg-slate-100" />
+ 91:               Realizados
+ 92:               <span className="h-px flex-1 bg-slate-100" />
+ 93:             </h2>
+ 94:             <div className="space-y-3 opacity-70">
+ 95:               {pasados.map((evento) => (
+ 96:                 <EventoCard key={evento.id} evento={evento} pasado />
+ 97:               ))}
+ 98:             </div>
+ 99:           </section>
+100:         )}
+101:       </div>
+102:     </main>
+103:   )
+104: }
+105: 
+106: // ── Card de evento ─────────────────────────────────────────────────────────────
+107: function EventoCard({
+108:   evento,
+109:   pasado = false,
+110: }: {
+111:   evento: Awaited<ReturnType<typeof getEventosCiudadanos>>[number]
+112:   pasado?: boolean
+113: }) {
+114:   const hoy  = new Date().toISOString().slice(0, 10)
+115:   const mismaFecha = evento.fechaDesde.slice(0, 10) === evento.fechaHasta.slice(0, 10)
+116:   const badge = TIPO_EVENTO_COLOR[evento.tipoEvento as TipoEvento] ??
+117:     'bg-slate-100 text-slate-500 border-slate-200'
+118:   const label = TIPO_EVENTO_LABEL[evento.tipoEvento as TipoEvento] ?? evento.tipoEvento
+119: 
+120:   return (
+121:     <Link
+122:       href={`/eventos/${evento.id}`}
+123:       className="group flex items-center gap-4 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl px-5 py-4 hover:border-[#26a7fc]/40 hover:shadow-md hover:-translate-y-0.5 transition-all"
+124:     >
+125:       {/* Fecha */}
+126:       <div className="hidden sm:flex flex-col items-center justify-center w-14 shrink-0 text-center">
+127:         <span className="text-2xl font-bold text-slate-800 leading-none">
+128:           {new Date(evento.fechaDesde).getUTCDate()}
+129:         </span>
+130:         <span className="text-xs text-slate-400 uppercase mt-0.5">
+131:           {new Date(evento.fechaDesde).toLocaleDateString('es-AR', { month: 'short' })}
+132:         </span>
+133:       </div>
+134: 
+135:       <div className="h-10 w-px bg-slate-100 hidden sm:block shrink-0" />
+136: 
+137:       {/* Info */}
+138:       <div className="flex-1 min-w-0">
+139:         <div className="flex items-center gap-2 mb-1 flex-wrap">
+140:           <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badge}`}>
+141:             {label}
+142:           </span>
+143:           <span className="text-xs text-slate-400 flex items-center gap-1">
+144:             <Clock className="h-3 w-3" />
+145:             {evento.horaDesde} – {evento.horaHasta}
+146:           </span>
+147:           {!mismaFecha && (
+148:             <span className="text-xs text-slate-400 flex items-center gap-1">
+149:               <Calendar className="h-3 w-3" />
+150:               hasta {new Date(evento.fechaHasta).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+151:             </span>
+152:           )}
+153:         </div>
+154:         <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-[#26a7fc] transition-colors">
+155:           {evento.titulo}
+156:         </p>
+157:         {evento.descripcion && (
+158:           <p className="text-xs text-slate-400 truncate mt-0.5">{evento.descripcion}</p>
+159:         )}
+160:       </div>
+161: 
+162:       {/* Acciones rápidas */}
+163:       <div className="flex items-center gap-2 shrink-0">
+164:         {evento.linkInscripcion && !pasado && (
+165:           <span className="hidden md:inline-flex items-center gap-1 text-xs text-[#26a7fc] font-medium border border-[#26a7fc]/30 rounded-lg px-2.5 py-1 bg-[#26a7fc]/5">
+166:             Inscribirse
+167:           </span>
+168:         )}
+169:         <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#26a7fc] transition-colors" />
+170:       </div>
+171:     </Link>
+172:   )
+173: }
 ```
 
 ## File: app/laboratorio/proyectos/[slug]/loading.tsx
@@ -2664,6 +3168,126 @@ x.sh
 12: }
 ```
 
+## File: lib/eventos/api.ts
+```typescript
+ 1: /**
+ 2:  * lib/eventos/api.ts
+ 3:  * Fetcher para GET /events/ciudadanos del calendario-back.
+ 4:  * Endpoint público — no requiere autenticación.
+ 5:  * Base URL: NEXT_PUBLIC_CALENDARIO_API_URL
+ 6:  */
+ 7: import type { EventoCiudadano } from './types'
+ 8: 
+ 9: const BASE = (process.env.NEXT_PUBLIC_CALENDARIO_API_URL ?? '').replace(/\/$/, '')
+10: 
+11: function url(path: string) {
+12:   if (!BASE) throw new Error('[eventos-api] NEXT_PUBLIC_CALENDARIO_API_URL no configurada')
+13:   return `${BASE}${path}`
+14: }
+15: 
+16: /**
+17:  * Trae todos los eventos con mostrarEnCiudadanos=true.
+18:  * Se puede filtrar por fechaDesde / fechaHasta / tipoEvento.
+19:  */
+20: export async function getEventosCiudadanos(params?: {
+21:   fechaDesde?: string
+22:   fechaHasta?: string
+23:   tipoEvento?: string
+24: }): Promise<EventoCiudadano[]> {
+25:   try {
+26:     const qs = new URLSearchParams({ mostrarEnCiudadanos: 'true' })
+27:     if (params?.fechaDesde) qs.set('fechaDesde', params.fechaDesde)
+28:     if (params?.fechaHasta) qs.set('fechaHasta', params.fechaHasta)
+29:     if (params?.tipoEvento) qs.set('tipoEvento', params.tipoEvento)
+30: 
+31:     const res = await fetch(url(`/events?${qs}`), {
+32:       cache: 'no-store',
+33:       headers: { 'Content-Type': 'application/json' },
+34:     })
+35: 
+36:     if (!res.ok) {
+37:       console.error(`[eventos-api] GET /events → ${res.status}`)
+38:       return []
+39:     }
+40: 
+41:     const json = await res.json()
+42:     // El back puede devolver array directo o { data: [...] }
+43:     return (Array.isArray(json) ? json : json?.data ?? []) as EventoCiudadano[]
+44:   } catch (err) {
+45:     console.error('[eventos-api] Error:', err)
+46:     return []
+47:   }
+48: }
+49: 
+50: /**
+51:  * Trae un evento por ID (verificando que sea público).
+52:  */
+53: export async function getEventoCiudadano(id: string): Promise<EventoCiudadano | null> {
+54:   try {
+55:     const res = await fetch(url(`/events/ciudadanos`), {
+56:       cache: 'no-store',
+57:       headers: { 'Content-Type': 'application/json' },
+58:     })
+59:     if (!res.ok) return null
+60:     const json = await res.json()
+61:     const lista = (Array.isArray(json) ? json : json?.data ?? []) as EventoCiudadano[]
+62:     return lista.find((e) => e.id === id) ?? null
+63:   } catch {
+64:     return null
+65:   }
+66: }
+```
+
+## File: lib/eventos/types.ts
+```typescript
+ 1: /**
+ 2:  * lib/eventos/types.ts
+ 3:  * Tipos públicos del calendario-back para ciudadano-front.
+ 4:  * Solo expone campos relevantes para el ciudadano — sin datos internos.
+ 5:  */
+ 6: 
+ 7: export type TipoEvento =
+ 8:   | 'PENDIENTE'
+ 9:   | 'EN_CURSO'
+10:   | 'FINALIZADO'
+11:   | 'CANCELADO'
+12:   | 'MASIVO'
+13:   | 'ESCOLAR'
+14: 
+15: export interface EventoCiudadano {
+16:   id:                  string
+17:   titulo:              string
+18:   descripcion?:        string
+19:   informacion:         string
+20:   fechaDesde:          string   // ISO 8601
+21:   fechaHasta:          string   // ISO 8601
+22:   horaDesde:           string   // HH:mm
+23:   horaHasta:           string   // HH:mm
+24:   tipoEvento:          TipoEvento
+25:   contactoCiudadano?:  string
+26:   linkInscripcion?:    string
+27:   mostrarEnCiudadanos: boolean
+28: }
+29: 
+30: export const TIPO_EVENTO_LABEL: Record<TipoEvento, string> = {
+31:   PENDIENTE:  'Próximo',
+32:   EN_CURSO:   'En curso',
+33:   FINALIZADO: 'Finalizado',
+34:   CANCELADO:  'Cancelado',
+35:   MASIVO:     'Masivo',
+36:   ESCOLAR:    'Escolar',
+37: }
+38: 
+39: export const TIPO_EVENTO_COLOR: Record<TipoEvento, string> = {
+40:   PENDIENTE:  'bg-blue-100 text-blue-700 border-blue-200',
+41:   EN_CURSO:   'bg-green-100 text-green-700 border-green-200',
+42:   FINALIZADO: 'bg-slate-100 text-slate-500 border-slate-200',
+43:   CANCELADO:  'bg-red-100 text-red-600 border-red-200',
+44:   MASIVO:     'bg-purple-100 text-purple-700 border-purple-200',
+45:   ESCOLAR:    'bg-amber-100 text-amber-700 border-amber-200',
+46: }
+```
+
 ## File: lib/laboratorio/api.ts
 ```typescript
  1: // lib/laboratorio/api.ts
@@ -2933,6 +3557,67 @@ x.sh
 19:   },
 20:   "iconLibrary": "lucide"
 21: }
+```
+
+## File: Dockerfile.bak.20260915_163239
+```
+ 1: # ─── Stage 1: deps ───────────────────────────────────────────
+ 2: FROM node:22-alpine AS deps
+ 3: RUN apk add --no-cache libc6-compat
+ 4: WORKDIR /app
+ 5: RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+ 6: COPY package.json pnpm-lock.yaml* ./
+ 7: RUN pnpm i --no-frozen-lockfile
+ 8: 
+ 9: # ─── Stage 2: build ──────────────────────────────────────────
+10: FROM node:22-alpine AS builder
+11: WORKDIR /app
+12: RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+13: COPY --from=deps /app/node_modules ./node_modules
+14: COPY . .
+15: RUN --mount=type=secret,id=NEXT_GROQ_API_KEY \
+16:     --mount=type=secret,id=NEXT_GROQ_MODEL \
+17:     --mount=type=secret,id=NEXT_PUBLIC_FIREBASE_API_KEY \
+18:     --mount=type=secret,id=NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN \
+19:     --mount=type=secret,id=NEXT_PUBLIC_FIREBASE_PROJECT_ID \
+20:     --mount=type=secret,id=NEXT_PUBLIC_FIREBASE_APP_ID \
+21:     --mount=type=secret,id=NEXT_PUBLIC_CIUDADANO_API_URL \
+22:     --mount=type=secret,id=NEXT_PUBLIC_CURSOS_API_URL \
+23:     --mount=type=secret,id=NEXT_PUBLIC_REGISTRO_URL \
+24:     --mount=type=secret,id=NOTICIAS_API_URL \
+25:     --mount=type=secret,id=NEXT_PUBLIC_COWORKING_URL \
+26:     NEXT_GROQ_API_KEY=$(cat /run/secrets/NEXT_GROQ_API_KEY) \
+27:     NEXT_GROQ_MODEL=$(cat /run/secrets/NEXT_GROQ_MODEL) \
+28:     NEXT_PUBLIC_FIREBASE_API_KEY=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_API_KEY) \
+29:     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) \
+30:     NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_PROJECT_ID) \
+31:     NEXT_PUBLIC_FIREBASE_APP_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_APP_ID) \
+32:     NEXT_PUBLIC_CIUDADANO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CIUDADANO_API_URL) \
+33:     NEXT_PUBLIC_CURSOS_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CURSOS_API_URL) \
+34:     NEXT_PUBLIC_REGISTRO_URL=$(cat /run/secrets/NEXT_PUBLIC_REGISTRO_URL) \
+35:     NOTICIAS_API_URL=$(cat /run/secrets/NOTICIAS_API_URL) \
+36:     NEXT_PUBLIC_COWORKING_URL=$(cat /run/secrets/NEXT_PUBLIC_COWORKING_URL) \
+37:     
+38:     pnpm run build
+39: 
+40: # ─── Stage 3: runner ─────────────────────────────────────────
+41: FROM node:22-alpine AS runner
+42: WORKDIR /app
+43: ENV NODE_ENV=production
+44: ENV NEXT_TELEMETRY_DISABLED=1
+45: ARG NOTICIAS_API_URL
+46: ENV NOTICIAS_API_URL=$NOTICIAS_API_URL
+47: RUN addgroup --system --gid 1001 nodejs
+48: RUN adduser  --system --uid 1001 nextjs
+49: COPY --from=builder /app/public ./public
+50: RUN mkdir .next && chown nextjs:nodejs .next
+51: COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+52: COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+53: USER nextjs
+54: EXPOSE 3000
+55: ENV PORT=3000
+56: ENV HOSTNAME="0.0.0.0"
+57: CMD ["node", "server.js"]
 ```
 
 ## File: postcss.config.mjs
@@ -8886,182 +9571,6 @@ x.sh
 96: }
 ```
 
-## File: components/header.tsx
-```typescript
-  1: "use client"
-  2: 
-  3: import { useState, useEffect } from "react"
-  4: import { usePathname } from "next/navigation"
-  5: import { Menu, Newspaper, Bot, GraduationCap, Award, Users, Calendar, Briefcase, Code2, FlaskConical } from "lucide-react"
-  6: import Link from "next/link"
-  7: import { logo, navLinks, ctaButton } from "@/lib/header"
-  8: import { HeaderAuth, HeaderAuthMobileCard } from "@/components/auth/header-auth"
-  9: import {
- 10:   Drawer,
- 11:   DrawerContent,
- 12:   DrawerHeader,
- 13:   DrawerTitle,
- 14:   DrawerDescription,
- 15:   DrawerClose,
- 16: } from "@/components/ui/drawer"
- 17: 
- 18: const navIcons: Record<string, any> = {
- 19:   "/noticias": Newspaper,
- 20:   "/coworking": Briefcase,
- 21:   "/sobre-nosotros": Users,
- 22:   "/catamarcaopen": Code2,
- 23:   "/laboratorio": FlaskConical,
- 24: }
- 25: 
- 26: export function Header() {
- 27:   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
- 28:   const [scrolled, setScrolled] = useState(false)
- 29:   const pathname = usePathname()
- 30: 
- 31:   const LogoIcon = logo.icon
- 32: 
- 33:   useEffect(() => {
- 34:     if (pathname !== "/") return
- 35: 
- 36:     const handleScroll = () => {
- 37:       const scrollPosition = window.scrollY
- 38:       const windowHeight = window.innerHeight
- 39:       setScrolled(scrollPosition > windowHeight * 0.9)
- 40:     }
- 41: 
- 42:     window.addEventListener("scroll", handleScroll)
- 43:     return () => window.removeEventListener("scroll", handleScroll)
- 44:   }, [pathname])
- 45: 
- 46:   const headerBg =
- 47:     pathname === "/" ? (scrolled ? "bg-white/25 backdrop-blur-lg" : "bg-transparent") : "bg-white/25 backdrop-blur-lg"
- 48: 
- 49:   // TEXT COLORS WITHOUT HOVER COLOR CHANGE
- 50:   const textColor = pathname === "/" ? (scrolled ? "text-gray-700" : "text-white") : "text-gray-700"
- 51: 
- 52:   const logoTitleColor = pathname === "/" ? (scrolled ? "text-gray-900" : "text-white") : "text-gray-900"
- 53: 
- 54:   const logoSubtitleColor = pathname === "/" ? (scrolled ? "text-gray-500" : "text-gray-200") : "text-gray-500"
- 55: 
- 56:   const iconColor = pathname === "/" && !scrolled ? "text-white" : "text-gray-700"
- 57: 
- 58:   return (
- 59:     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${headerBg}`}>
- 60:       <nav className="container mx-auto px-6 lg:px-8">
- 61:         <div className="flex items-center justify-between h-20 transition-colors duration-500">
- 62:           {/* Logo */}
- 63:           <Link href={logo.href} className="flex items-center gap-2.5 group">
- 64:             <div
- 65:               className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
- 66:               style={{
- 67:                 backgroundImage: `linear-gradient(to bottom right, ${logo.gradientFrom}, ${logo.gradientTo})`,
- 68:               }}
- 69:             >
- 70:               <LogoIcon className="h-6 w-6 text-white" />
- 71:             </div>
- 72:             <div className="hidden lg:flex flex-col transition-colors duration-500">
- 73:               <span className={`text-xl font-bold leading-tight ${logoTitleColor}`}>
- 74:                 {logo.title.split("Tech")[0]}
- 75:                 <span className="text-[#26a7fc]"> Tecnologico</span>
- 76:               </span>
- 77:               <span className={`text-[10px] font-medium tracking-wide ${logoSubtitleColor}`}>{logo.subtitle}</span>
- 78:             </div>
- 79:           </Link>
- 80: 
- 81:           {/* Derecha: nav desktop + avatar/ingresar + botón mobile */}
- 82:           <div className="flex items-center gap-2 sm:gap-3">
- 83:             {/* Desktop Navigation */}
- 84:             <div className="hidden lg:flex items-center gap-1 transition-colors duration-500">
- 85:               {navLinks.map((link) => (
- 86:                 <Link
- 87:                   key={link.href}
- 88:                   href={link.href}
- 89:                   className={`group relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${textColor}`}
- 90:                 >
- 91:                   {link.label}
- 92:                   <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#26a7fc] rounded-full opacity-0 transition-all duration-300 group-hover:w-1/2 group-hover:opacity-100" />
- 93:                 </Link>
- 94:               ))}
- 95: 
- 96:               <Link
- 97:                 href={ctaButton.href}
- 98:                 className="ml-3 px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-all duration-200 hover:scale-105"
- 99:                 style={{
-100:                   backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})`,
-101:                 }}
-102:               >
-103:                 {ctaButton.label}
-104:               </Link>
-105:             </div>
-106: 
-107:             {/* Avatar del ciudadano / botón Ingresar — visible en TODAS las pantallas */}
-108:             <HeaderAuth textColor={textColor} />
-109: 
-110:             {/* Mobile Menu Button */}
-111:             <button
-112:               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-113:               className="lg:hidden p-2.5 rounded-lg hover:bg-gray-100 transition-colors"
-114:               aria-label="Toggle menu"
-115:             >
-116:               <Menu className={`h-6 w-6 transition-colors duration-300 ${iconColor}`} />
-117:             </button>
-118:           </div>
-119:         </div>
-120:       </nav>
-121: 
-122:       <Drawer open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} direction="bottom">
-123:         <DrawerContent className="bg-gradient-to-b from-white to-cyan-50/30 backdrop-blur-xl border-t border-[#26a7fc]/10">
-124:           <DrawerHeader className="sr-only">
-125:             <DrawerTitle>Menu de navegación</DrawerTitle>
-126:             <DrawerDescription>Opciones de navegación del sitio</DrawerDescription>
-127:           </DrawerHeader>
-128: 
-129:           <DrawerClose className="mx-auto w-full py-3 flex justify-center cursor-pointer active:bg-gray-50/50 transition-colors">
-130:             <div className="w-12 h-1.5 rounded-full bg-gray-300" />
-131:           </DrawerClose>
-132: 
-133:           <div className="px-6 pb-8">
-134:             {/* Tarjeta de perfil / login del ciudadano */}
-135:             <div className="mb-4">
-136:               <HeaderAuthMobileCard onNavigate={() => setMobileMenuOpen(false)} />
-137:             </div>
-138: 
-139:             <div className="flex flex-col gap-2">
-140:               {navLinks.map((link) => {
-141:                 const Icon = navIcons[link.href]
-142:                 return (
-143:                   <Link
-144:                     key={link.href}
-145:                     href={link.href}
-146:                     className="flex items-center gap-3 px-4 py-3.5 text-base font-semibold rounded-xl text-gray-700 hover:bg-[#26a7fc]/10 active:bg-[#26a7fc]/10 transition-all duration-200"
-147:                     onClick={() => setMobileMenuOpen(false)}
-148:                   >
-149:                     {Icon && <Icon className="h-5 w-5 text-[#26a7fc]" />}
-150:                     {link.label}
-151:                   </Link>
-152:                 )
-153:               })}
-154: 
-155:               <Link
-156:                 href={ctaButton.href}
-157:                 className="flex items-center justify-center gap-2 mt-3 px-4 py-3.5 text-white text-base font-semibold rounded-xl text-center shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 active:scale-95 transition-all duration-200"
-158:                 style={{
-159:                   backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})`,
-160:                 }}
-161:                 onClick={() => setMobileMenuOpen(false)}
-162:               >
-163:                 <GraduationCap className="h-5 w-5" />
-164:                 {ctaButton.label}
-165:               </Link>
-166:             </div>
-167:           </div>
-168:         </DrawerContent>
-169:       </Drawer>
-170:     </header>
-171:   )
-172: }
-```
-
 ## File: lib/coworking/api.ts
 ```typescript
  1: import type { AreaBackendResponse, AreaCoworkingAPI, Asiento } from "./types"
@@ -9279,52 +9788,6 @@ x.sh
 43: export function getCategoriaColor(color?: string): string {
 44:   return color ?? '#26a7fc'
 45: }
-```
-
-## File: lib/header.ts
-```typescript
- 1: // lib/headerData.ts
- 2: 
- 3: import { GraduationCap } from "lucide-react"
- 4: 
- 5: export const logo = {
- 6:   icon: GraduationCap,
- 7:   title: "NodoTech",
- 8:   subtitle: "CATAMARCA",
- 9:   href: "/",
-10:   gradientFrom: "#26a7fc",
-11:   gradientTo: "#1c8fe0",
-12: }
-13: 
-14: export const navLinks = [
-15:   {
-16:     label: "Noticias",
-17:     href: "/noticias",
-18:   },
-19:   {
-20:     label: "Coworking",
-21:     href: "/coworking",
-22:   },
-23:   {
-24:     label: "Laboratorio",
-25:     href: "/laboratorio",
-26:   },
-27:   {
-28:     label: "CatamarcaOpen",
-29:     href: "/catamarcaopen",
-30:   },
-31:   {
-32:     label: "Sobre Nosotros",
-33:     href: "/sobre-nosotros",
-34:   },
-35: ]
-36: 
-37: export const ctaButton = {
-38:   label: "Cursos",
-39:   href: "https://alumnos.nodo.cc.gob.ar",
-40:   gradientFrom: "#26a7fc",
-41:   gradientTo: "#1c8fe0",
-42: }
 ```
 
 ## File: app/catamarcaopen/proyectos/nuevo/page.tsx
@@ -9847,6 +10310,233 @@ x.sh
 30:     </div>
 31:   )
 32: }
+```
+
+## File: components/header.tsx
+```typescript
+  1: "use client"
+  2: 
+  3: import { useState, useEffect } from "react"
+  4: import { usePathname } from "next/navigation"
+  5: import { Menu, Newspaper, Bot, GraduationCap, Award, Users, Calendar, Briefcase, Code2, FlaskConical } from "lucide-react"
+  6: import Link from "next/link"
+  7: import { logo, navLinks, ctaButton } from "@/lib/header"
+  8: import { HeaderAuth, HeaderAuthMobileCard } from "@/components/auth/header-auth"
+  9: import {
+ 10:   Drawer,
+ 11:   DrawerContent,
+ 12:   DrawerHeader,
+ 13:   DrawerTitle,
+ 14:   DrawerDescription,
+ 15:   DrawerClose,
+ 16: } from "@/components/ui/drawer"
+ 17: 
+ 18: const navIcons: Record<string, any> = {
+ 19:   "/noticias": Newspaper,
+ 20:   "/coworking": Briefcase,
+ 21:   "/sobre-nosotros": Users,
+ 22:   "/catamarcaopen": Code2,
+ 23:   "/laboratorio": FlaskConical,
+ 24:   "/eventos": Calendar
+ 25: }
+ 26: 
+ 27: export function Header() {
+ 28:   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+ 29:   const [scrolled, setScrolled] = useState(false)
+ 30:   const pathname = usePathname()
+ 31: 
+ 32:   const LogoIcon = logo.icon
+ 33: 
+ 34:   useEffect(() => {
+ 35:     if (pathname !== "/") return
+ 36: 
+ 37:     const handleScroll = () => {
+ 38:       const scrollPosition = window.scrollY
+ 39:       const windowHeight = window.innerHeight
+ 40:       setScrolled(scrollPosition > windowHeight * 0.9)
+ 41:     }
+ 42: 
+ 43:     window.addEventListener("scroll", handleScroll)
+ 44:     return () => window.removeEventListener("scroll", handleScroll)
+ 45:   }, [pathname])
+ 46: 
+ 47:   const headerBg =
+ 48:     pathname === "/" ? (scrolled ? "bg-white/25 backdrop-blur-lg" : "bg-transparent") : "bg-white/25 backdrop-blur-lg"
+ 49: 
+ 50:   // TEXT COLORS WITHOUT HOVER COLOR CHANGE
+ 51:   const textColor = pathname === "/" ? (scrolled ? "text-gray-700" : "text-white") : "text-gray-700"
+ 52: 
+ 53:   const logoTitleColor = pathname === "/" ? (scrolled ? "text-gray-900" : "text-white") : "text-gray-900"
+ 54: 
+ 55:   const logoSubtitleColor = pathname === "/" ? (scrolled ? "text-gray-500" : "text-gray-200") : "text-gray-500"
+ 56: 
+ 57:   const iconColor = pathname === "/" && !scrolled ? "text-white" : "text-gray-700"
+ 58: 
+ 59:   return (
+ 60:     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${headerBg}`}>
+ 61:       <nav className="container mx-auto px-6 lg:px-8">
+ 62:         <div className="flex items-center justify-between h-20 transition-colors duration-500">
+ 63:           {/* Logo */}
+ 64:           <Link href={logo.href} className="flex items-center gap-2.5 group">
+ 65:             <div
+ 66:               className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
+ 67:               style={{
+ 68:                 backgroundImage: `linear-gradient(to bottom right, ${logo.gradientFrom}, ${logo.gradientTo})`,
+ 69:               }}
+ 70:             >
+ 71:               <LogoIcon className="h-6 w-6 text-white" />
+ 72:             </div>
+ 73:             <div className="hidden lg:flex flex-col transition-colors duration-500">
+ 74:               <span className={`text-xl font-bold leading-tight ${logoTitleColor}`}>
+ 75:                 {logo.title.split("Tech")[0]}
+ 76:                 <span className="text-[#26a7fc]"> Tecnologico</span>
+ 77:               </span>
+ 78:               <span className={`text-[10px] font-medium tracking-wide ${logoSubtitleColor}`}>{logo.subtitle}</span>
+ 79:             </div>
+ 80:           </Link>
+ 81: 
+ 82:           {/* Derecha: nav desktop + avatar/ingresar + botón mobile */}
+ 83:           <div className="flex items-center gap-2 sm:gap-3">
+ 84:             {/* Desktop Navigation */}
+ 85:             <div className="hidden lg:flex items-center gap-1 transition-colors duration-500">
+ 86:               {navLinks.map((link) => (
+ 87:                 <Link
+ 88:                   key={link.href}
+ 89:                   href={link.href}
+ 90:                   className={`group relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${textColor}`}
+ 91:                 >
+ 92:                   {link.label}
+ 93:                   <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#26a7fc] rounded-full opacity-0 transition-all duration-300 group-hover:w-1/2 group-hover:opacity-100" />
+ 94:                 </Link>
+ 95:               ))}
+ 96: 
+ 97:               <Link
+ 98:                 href={ctaButton.href}
+ 99:                 className="ml-3 px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-all duration-200 hover:scale-105"
+100:                 style={{
+101:                   backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})`,
+102:                 }}
+103:               >
+104:                 {ctaButton.label}
+105:               </Link>
+106:             </div>
+107: 
+108:             {/* Avatar del ciudadano / botón Ingresar — visible en TODAS las pantallas */}
+109:             <HeaderAuth textColor={textColor} />
+110: 
+111:             {/* Mobile Menu Button */}
+112:             <button
+113:               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+114:               className="lg:hidden p-2.5 rounded-lg hover:bg-gray-100 transition-colors"
+115:               aria-label="Toggle menu"
+116:             >
+117:               <Menu className={`h-6 w-6 transition-colors duration-300 ${iconColor}`} />
+118:             </button>
+119:           </div>
+120:         </div>
+121:       </nav>
+122: 
+123:       <Drawer open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} direction="bottom">
+124:         <DrawerContent className="bg-gradient-to-b from-white to-cyan-50/30 backdrop-blur-xl border-t border-[#26a7fc]/10">
+125:           <DrawerHeader className="sr-only">
+126:             <DrawerTitle>Menu de navegación</DrawerTitle>
+127:             <DrawerDescription>Opciones de navegación del sitio</DrawerDescription>
+128:           </DrawerHeader>
+129: 
+130:           <DrawerClose className="mx-auto w-full py-3 flex justify-center cursor-pointer active:bg-gray-50/50 transition-colors">
+131:             <div className="w-12 h-1.5 rounded-full bg-gray-300" />
+132:           </DrawerClose>
+133: 
+134:           <div className="px-6 pb-8">
+135:             {/* Tarjeta de perfil / login del ciudadano */}
+136:             <div className="mb-4">
+137:               <HeaderAuthMobileCard onNavigate={() => setMobileMenuOpen(false)} />
+138:             </div>
+139: 
+140:             <div className="flex flex-col gap-2">
+141:               {navLinks.map((link) => {
+142:                 const Icon = navIcons[link.href]
+143:                 return (
+144:                   <Link
+145:                     key={link.href}
+146:                     href={link.href}
+147:                     className="flex items-center gap-3 px-4 py-3.5 text-base font-semibold rounded-xl text-gray-700 hover:bg-[#26a7fc]/10 active:bg-[#26a7fc]/10 transition-all duration-200"
+148:                     onClick={() => setMobileMenuOpen(false)}
+149:                   >
+150:                     {Icon && <Icon className="h-5 w-5 text-[#26a7fc]" />}
+151:                     {link.label}
+152:                   </Link>
+153:                 )
+154:               })}
+155: 
+156:               <Link
+157:                 href={ctaButton.href}
+158:                 className="flex items-center justify-center gap-2 mt-3 px-4 py-3.5 text-white text-base font-semibold rounded-xl text-center shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 active:scale-95 transition-all duration-200"
+159:                 style={{
+160:                   backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})`,
+161:                 }}
+162:                 onClick={() => setMobileMenuOpen(false)}
+163:               >
+164:                 <GraduationCap className="h-5 w-5" />
+165:                 {ctaButton.label}
+166:               </Link>
+167:             </div>
+168:           </div>
+169:         </DrawerContent>
+170:       </Drawer>
+171:     </header>
+172:   )
+173: }
+```
+
+## File: lib/header.ts
+```typescript
+ 1: // lib/headerData.ts
+ 2: 
+ 3: import { GraduationCap } from "lucide-react"
+ 4: 
+ 5: export const logo = {
+ 6:   icon: GraduationCap,
+ 7:   title: "NodoTech",
+ 8:   subtitle: "CATAMARCA",
+ 9:   href: "/",
+10:   gradientFrom: "#26a7fc",
+11:   gradientTo: "#1c8fe0",
+12: }
+13: 
+14: export const navLinks = [
+15:   {
+16:     label: "Noticias",
+17:     href: "/noticias",
+18:   },
+19:   {
+20:     label: "Coworking",
+21:     href: "/coworking",
+22:   },
+23:   {
+24:     label: "Laboratorio",
+25:     href: "/laboratorio",
+26:   },
+27:   {
+28:     label: "CatamarcaOpen",
+29:     href: "/catamarcaopen",
+30:   },
+31:   {
+32:     label: "Sobre Nosotros",
+33:     href: "/sobre-nosotros",
+34:   },
+35:   { 
+36:     label: "Eventos",
+37:     href: "/eventos" 
+38:   }
+39: ]
+40: 
+41: export const ctaButton = {
+42:   label: "Cursos",
+43:   href: "https://alumnos.nodo.cc.gob.ar",
+44:   gradientFrom: "#26a7fc",
+45:   gradientTo: "#1c8fe0",
+46: }
 ```
 
 ## File: app/cursos/page.tsx
@@ -10862,100 +11552,6 @@ x.sh
 89: }
 ```
 
-## File: .github/workflows/deploy.yml
-```yaml
- 1: name: 🧑‍🤝‍🧑 Deploy — ciudadano-front
- 2: 
- 3: on:
- 4:   push:
- 5:     branches: [main]
- 6: 
- 7: jobs:
- 8:   build-and-deploy:
- 9:     runs-on: ubuntu-latest
-10: 
-11:     steps:
-12:       - name: Checkout código
-13:         uses: actions/checkout@v4
-14: 
-15:       - name: Setup Docker Buildx
-16:         uses: docker/setup-buildx-action@v3
-17: 
-18:       - name: Login a GitHub Container Registry
-19:         uses: docker/login-action@v3
-20:         with:
-21:           registry: ghcr.io
-22:           username: ${{ github.actor }}
-23:           password: ${{ secrets.GITHUB_TOKEN }}
-24: 
-25:       - name: Build y push imagen
-26:         uses: docker/build-push-action@v5
-27:         with:
-28:           context: .
-29:           push: true
-30:           tags: ghcr.io/${{ github.repository }}:latest
-31:           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
-32:           cache-to:   type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
-33:           # NOTICIAS_API_URL va en build-args para el ARG del runner stage
-34:           build-args: |
-35:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
-36:           secrets: |
-37:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
-38:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
-39:             NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-40:             NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-41:             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-42:             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
-43:             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
-44:             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
-45:             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
-46:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
-47:             NEXT_PUBLIC_COWORKING_URL=${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
-48: 
-49:       - name: Deploy en servidor
-50:         uses: appleboy/ssh-action@v1
-51:         env:
-52:           NEXT_GROQ_API_KEY:  ${{ secrets.NEXT_GROQ_API_KEY }}
-53:           NEXT_GROQ_MODEL:    ${{ secrets.NEXT_GROQ_MODEL }}
-54:           NOTICIAS_API_URL:   ${{ secrets.NOTICIAS_API_URL }}
-55:           NEXT_PUBLIC_COWORKING_URL: ${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
-56:         with:
-57:           host:     ${{ secrets.DO_HOST }}
-58:           username: ${{ secrets.DO_USER }}
-59:           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
-60:           port:     ${{ secrets.DO_PORT }}
-61:           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL,NOTICIAS_API_URL,NEXT_PUBLIC_COWORKING_URL
-62:           script: |
-63:             set -e
-64:             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
-65:             docker pull ghcr.io/${{ github.repository }}:latest
-66: 
-67:             docker network inspect red_interna >/dev/null 2>&1 || \
-68:               docker network create --driver bridge red_interna
-69: 
-70:             mkdir -p /etc/ciudadano-front
-71:             printf '%s\n' \
-72:               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
-73:               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
-74:               "NOTICIAS_API_URL=${NOTICIAS_API_URL}" \
-75:               > /etc/ciudadano-front/.env
-76:             chmod 600 /etc/ciudadano-front/.env
-77: 
-78:             docker stop ciudadano-front || true
-79:             docker rm   ciudadano-front || true
-80: 
-81:             docker run -d \
-82:               --name    ciudadano-front \
-83:               --restart always \
-84:               --network red_interna \
-85:               --env-file /etc/ciudadano-front/.env \
-86:               ghcr.io/${{ github.repository }}:latest
-87: 
-88:             sleep 3
-89:             docker logs ciudadano-front --tail 20
-90:             docker image prune -f
-```
-
 ## File: app/layout.tsx
 ```typescript
   1: import type React from "react"
@@ -11069,6 +11665,101 @@ x.sh
 109: }
 ```
 
+## File: .github/workflows/deploy.yml
+```yaml
+ 1: name: 🧑‍🤝‍🧑 Deploy — ciudadano-front
+ 2: 
+ 3: on:
+ 4:   push:
+ 5:     branches: [main]
+ 6: 
+ 7: jobs:
+ 8:   build-and-deploy:
+ 9:     runs-on: ubuntu-latest
+10: 
+11:     steps:
+12:       - name: Checkout código
+13:         uses: actions/checkout@v4
+14: 
+15:       - name: Setup Docker Buildx
+16:         uses: docker/setup-buildx-action@v3
+17: 
+18:       - name: Login a GitHub Container Registry
+19:         uses: docker/login-action@v3
+20:         with:
+21:           registry: ghcr.io
+22:           username: ${{ github.actor }}
+23:           password: ${{ secrets.GITHUB_TOKEN }}
+24: 
+25:       - name: Build y push imagen
+26:         uses: docker/build-push-action@v5
+27:         with:
+28:           context: .
+29:           push: true
+30:           tags: ghcr.io/${{ github.repository }}:latest
+31:           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:cache
+32:           cache-to:   type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
+33:           # NOTICIAS_API_URL va en build-args para el ARG del runner stage
+34:           build-args: |
+35:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
+36:           secrets: |
+37:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
+38:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
+39:             NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+40:             NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+41:             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+42:             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+43:             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
+44:             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
+45:             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
+46:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
+47:             NEXT_PUBLIC_COWORKING_URL=${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
+48:             NEXT_PUBLIC_CALENDARIO_API_URL=${{ secrets.NEXT_PUBLIC_CALENDARIO_API_URL }}
+49: 
+50:       - name: Deploy en servidor
+51:         uses: appleboy/ssh-action@v1
+52:         env:
+53:           NEXT_GROQ_API_KEY:  ${{ secrets.NEXT_GROQ_API_KEY }}
+54:           NEXT_GROQ_MODEL:    ${{ secrets.NEXT_GROQ_MODEL }}
+55:           NOTICIAS_API_URL:   ${{ secrets.NOTICIAS_API_URL }}
+56:           NEXT_PUBLIC_COWORKING_URL: ${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
+57:         with:
+58:           host:     ${{ secrets.DO_HOST }}
+59:           username: ${{ secrets.DO_USER }}
+60:           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
+61:           port:     ${{ secrets.DO_PORT }}
+62:           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL,NOTICIAS_API_URL,NEXT_PUBLIC_COWORKING_URL
+63:           script: |
+64:             set -e
+65:             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
+66:             docker pull ghcr.io/${{ github.repository }}:latest
+67: 
+68:             docker network inspect red_interna >/dev/null 2>&1 || \
+69:               docker network create --driver bridge red_interna
+70: 
+71:             mkdir -p /etc/ciudadano-front
+72:             printf '%s\n' \
+73:               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
+74:               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
+75:               "NOTICIAS_API_URL=${NOTICIAS_API_URL}" \
+76:               > /etc/ciudadano-front/.env
+77:             chmod 600 /etc/ciudadano-front/.env
+78: 
+79:             docker stop ciudadano-front || true
+80:             docker rm   ciudadano-front || true
+81: 
+82:             docker run -d \
+83:               --name    ciudadano-front \
+84:               --restart always \
+85:               --network red_interna \
+86:               --env-file /etc/ciudadano-front/.env \
+87:               ghcr.io/${{ github.repository }}:latest
+88: 
+89:             sleep 3
+90:             docker logs ciudadano-front --tail 20
+91:             docker image prune -f
+```
+
 ## File: Dockerfile
 ```dockerfile
  1: # ─── Stage 1: deps ───────────────────────────────────────────
@@ -11096,501 +11787,818 @@ x.sh
 23:     --mount=type=secret,id=NEXT_PUBLIC_REGISTRO_URL \
 24:     --mount=type=secret,id=NOTICIAS_API_URL \
 25:     --mount=type=secret,id=NEXT_PUBLIC_COWORKING_URL \
-26:     NEXT_GROQ_API_KEY=$(cat /run/secrets/NEXT_GROQ_API_KEY) \
-27:     NEXT_GROQ_MODEL=$(cat /run/secrets/NEXT_GROQ_MODEL) \
-28:     NEXT_PUBLIC_FIREBASE_API_KEY=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_API_KEY) \
-29:     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) \
-30:     NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_PROJECT_ID) \
-31:     NEXT_PUBLIC_FIREBASE_APP_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_APP_ID) \
-32:     NEXT_PUBLIC_CIUDADANO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CIUDADANO_API_URL) \
-33:     NEXT_PUBLIC_CURSOS_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CURSOS_API_URL) \
-34:     NEXT_PUBLIC_REGISTRO_URL=$(cat /run/secrets/NEXT_PUBLIC_REGISTRO_URL) \
-35:     NOTICIAS_API_URL=$(cat /run/secrets/NOTICIAS_API_URL) \
-36:     NEXT_PUBLIC_COWORKING_URL=$(cat /run/secrets/NEXT_PUBLIC_COWORKING_URL) \
-37:     
-38:     pnpm run build
-39: 
-40: # ─── Stage 3: runner ─────────────────────────────────────────
-41: FROM node:22-alpine AS runner
-42: WORKDIR /app
-43: ENV NODE_ENV=production
-44: ENV NEXT_TELEMETRY_DISABLED=1
-45: ARG NOTICIAS_API_URL
-46: ENV NOTICIAS_API_URL=$NOTICIAS_API_URL
-47: RUN addgroup --system --gid 1001 nodejs
-48: RUN adduser  --system --uid 1001 nextjs
-49: COPY --from=builder /app/public ./public
-50: RUN mkdir .next && chown nextjs:nodejs .next
-51: COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-52: COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-53: USER nextjs
-54: EXPOSE 3000
-55: ENV PORT=3000
-56: ENV HOSTNAME="0.0.0.0"
-57: CMD ["node", "server.js"]
+26:     --mount=type=secret,id=NEXT_PUBLIC_CALENDARIO_API_URL \
+27:     NEXT_GROQ_API_KEY=$(cat /run/secrets/NEXT_GROQ_API_KEY) \
+28:     NEXT_GROQ_MODEL=$(cat /run/secrets/NEXT_GROQ_MODEL) \
+29:     NEXT_PUBLIC_FIREBASE_API_KEY=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_API_KEY) \
+30:     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) \
+31:     NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_PROJECT_ID) \
+32:     NEXT_PUBLIC_FIREBASE_APP_ID=$(cat /run/secrets/NEXT_PUBLIC_FIREBASE_APP_ID) \
+33:     NEXT_PUBLIC_CIUDADANO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CIUDADANO_API_URL) \
+34:     NEXT_PUBLIC_CURSOS_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CURSOS_API_URL) \
+35:     NEXT_PUBLIC_REGISTRO_URL=$(cat /run/secrets/NEXT_PUBLIC_REGISTRO_URL) \
+36:     NOTICIAS_API_URL=$(cat /run/secrets/NOTICIAS_API_URL) \
+37:     NEXT_PUBLIC_COWORKING_URL=$(cat /run/secrets/NEXT_PUBLIC_COWORKING_URL) \
+38:     NEXT_PUBLIC_CALENDARIO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CALENDARIO_API_URL) \
+39:     
+40:     pnpm run build
+41: 
+42: # ─── Stage 3: runner ─────────────────────────────────────────
+43: FROM node:22-alpine AS runner
+44: WORKDIR /app
+45: ENV NODE_ENV=production
+46: ENV NEXT_TELEMETRY_DISABLED=1
+47: ARG NOTICIAS_API_URL
+48: ENV NOTICIAS_API_URL=$NOTICIAS_API_URL
+49: RUN addgroup --system --gid 1001 nodejs
+50: RUN adduser  --system --uid 1001 nextjs
+51: COPY --from=builder /app/public ./public
+52: RUN mkdir .next && chown nextjs:nodejs .next
+53: COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+54: COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+55: USER nextjs
+56: EXPOSE 3000
+57: ENV PORT=3000
+58: ENV HOSTNAME="0.0.0.0"
+59: CMD ["node", "server.js"]
 ```
 
 ## File: x.sh
 ```bash
   1: #!/usr/bin/env bash
-  2: # ============================================================
-  3: # add-noticia-modal.sh — v1.0.0
-  4: # Reemplaza la navegación a /noticias/[slug] por un Dialog
-  5: # que muestra el contenido completo de la noticia inline.
-  6: # La URL se actualiza con router.push para compartibilidad.
-  7: # Solo toca: components/noticias/noticias-content.tsx
-  8: # ============================================================
-  9: set -euo pipefail
- 10: 
- 11: BOLD="\033[1m"; RESET="\033[0m"; GREEN="\033[32m"; RED="\033[31m"; YELLOW="\033[33m"
- 12: log()  { echo -e "${BOLD}${GREEN}[OK]${RESET} $*"; }
- 13: warn() { echo -e "${BOLD}${YELLOW}[→]${RESET}  $*"; }
- 14: err()  { echo -e "${BOLD}${RED}[ERR]${RESET} $*"; exit 1; }
- 15: 
- 16: [[ -f "package.json" ]] || err "Corré desde la raíz del repo ciudadano-front"
- 17: 
- 18: warn "Reescribiendo components/noticias/noticias-content.tsx con modal..."
- 19: 
- 20: cat > components/noticias/noticias-content.tsx << 'TSX'
- 21: "use client"
- 22: 
- 23: import { useState } from "react"
- 24: import Image from "next/image"
- 25: import {
- 26:   Card, CardContent, CardDescription,
- 27:   CardFooter, CardHeader, CardTitle,
- 28: } from "@/components/ui/card"
- 29: import {
- 30:   Dialog, DialogContent, DialogHeader, DialogTitle,
- 31: } from "@/components/ui/dialog"
- 32: import { Badge }  from "@/components/ui/badge"
- 33: import { Button } from "@/components/ui/button"
- 34: import { Input }  from "@/components/ui/input"
- 35: import {
- 36:   Calendar, Search, ArrowRight, ImageOff,
- 37:   X, Tag as TagIcon,
- 38: } from "lucide-react"
- 39: import { filterNoticias, getTagsParaCategoria } from "@/lib/noticias/filters"
- 40: import { useNoticiasFilter } from "@/hooks/noticias/use-noticias-filter"
- 41: import { Paginacion } from "@/components/shared/paginacion"
- 42: import type { Noticia, NoticiaCategoria } from "@/lib/noticias/types"
+  2: # =============================================================================
+  3: #  feat-eventos-ciudadano.sh
+  4: #  Feature: sección /eventos en ciudadano-front
+  5: #
+  6: #  Crea:
+  7: #    lib/eventos/types.ts           → tipos públicos del evento
+  8: #    lib/eventos/api.ts             → fetcher GET /events/ciudadanos
+  9: #    app/eventos/loading.tsx        → skeleton
+ 10: #    app/eventos/page.tsx           → tabla de eventos + navegación
+ 11: #    app/eventos/[id]/page.tsx      → detalle del evento
+ 12: #    app/eventos/[id]/loading.tsx   → skeleton detalle
+ 13: #
+ 14: #  Modifica:
+ 15: #    Dockerfile                     → agrega NEXT_PUBLIC_CALENDARIO_API_URL
+ 16: #    .github/workflows/deploy.yml   → agrega secret al build y al run
+ 17: #
+ 18: #  Requiere en GitHub Secrets:
+ 19: #    NEXT_PUBLIC_CALENDARIO_API_URL → URL pública del calendario-back
+ 20: #                                     Ej: https://calendario.nodo.cc.gob.ar
+ 21: #
+ 22: #  Uso:
+ 23: #    chmod +x feat-eventos-ciudadano.sh
+ 24: #    ./feat-eventos-ciudadano.sh
+ 25: # =============================================================================
+ 26: 
+ 27: set -euo pipefail
+ 28: 
+ 29: BOLD="\033[1m"
+ 30: GREEN="\033[0;32m"
+ 31: CYAN="\033[0;36m"
+ 32: YELLOW="\033[1;33m"
+ 33: RESET="\033[0m"
+ 34: 
+ 35: log()  { echo -e "${CYAN}▶ $*${RESET}"; }
+ 36: ok()   { echo -e "${GREEN}✅ $*${RESET}"; }
+ 37: warn() { echo -e "${YELLOW}⚠️  $*${RESET}"; }
+ 38: 
+ 39: if [[ ! -f "package.json" ]]; then
+ 40:   echo "❌  Ejecutá este script desde la raíz del proyecto ciudadano-front"
+ 41:   exit 1
+ 42: fi
  43: 
- 44: interface NoticiasContentProps {
- 45:   noticias?: Noticia[] | null
- 46: }
- 47: 
- 48: export function NoticiasContent({ noticias: raw }: NoticiasContentProps) {
- 49:   const noticias: Noticia[] = Array.isArray(raw) ? raw : []
- 50: 
- 51:   const {
- 52:     categoriaActiva, tagsSeleccionados, busqueda, paginaActual,
- 53:     setCategoria, toggleTag, setBusqueda, setPaginaActual, limpiarFiltros,
- 54:   } = useNoticiasFilter()
+ 44: echo ""
+ 45: echo -e "${BOLD}${CYAN}════════════════════════════════════════════════════${RESET}"
+ 46: echo -e "${BOLD}${CYAN}  feat: sección eventos → ciudadano-front            ${RESET}"
+ 47: echo -e "${BOLD}${CYAN}════════════════════════════════════════════════════${RESET}"
+ 48: echo ""
+ 49: 
+ 50: # ─────────────────────────────────────────────────────────────────────────────
+ 51: # 1. lib/eventos/types.ts
+ 52: # ─────────────────────────────────────────────────────────────────────────────
+ 53: log "Creando lib/eventos/types.ts..."
+ 54: mkdir -p lib/eventos
  55: 
- 56:   // Modal state — la noticia seleccionada
- 57:   const [noticiaAbierta, setNoticiaAbierta] = useState<Noticia | null>(null)
- 58: 
- 59:   // Categorías únicas
- 60:   const categorias: NoticiaCategoria[] = Array.from(
- 61:     new Map(
- 62:       noticias
- 63:         .filter((n) => n.categoria)
- 64:         .map((n) => [n.categoria.id, n.categoria])
- 65:     ).values()
- 66:   ).sort((a, b) => a.nombre.localeCompare(b.nombre))
- 67: 
- 68:   const tagsDisponibles = getTagsParaCategoria(noticias, categoriaActiva)
- 69: 
- 70:   const noticiasFiltradas = filterNoticias(
- 71:     noticias, categoriaActiva, tagsSeleccionados, busqueda
- 72:   )
- 73: 
- 74:   const itemsPorPagina    = 6
- 75:   const totalPaginas      = Math.ceil(noticiasFiltradas.length / itemsPorPagina)
- 76:   const indiceInicio      = (paginaActual - 1) * itemsPorPagina
- 77:   const noticiasPaginadas = noticiasFiltradas.slice(indiceInicio, indiceInicio + itemsPorPagina)
- 78: 
- 79:   const hayFiltrosActivos =
- 80:     categoriaActiva !== "todas" ||
- 81:     tagsSeleccionados.length > 0 ||
- 82:     busqueda !== ""
- 83: 
- 84:   const formatFecha = (iso: string) =>
- 85:     new Date(iso).toLocaleDateString("es-AR", {
- 86:       day: "numeric", month: "long", year: "numeric",
- 87:     })
- 88: 
- 89:   const abrirNoticia = (noticia: Noticia) => {
- 90:     setNoticiaAbierta(noticia)
- 91:     // Actualizar URL para compartibilidad sin navegar
- 92:     window.history.pushState({}, "", `/noticias/${noticia.slug}`)
- 93:   }
+ 56: cat > lib/eventos/types.ts << 'TS'
+ 57: /**
+ 58:  * lib/eventos/types.ts
+ 59:  * Tipos públicos del calendario-back para ciudadano-front.
+ 60:  * Solo expone campos relevantes para el ciudadano — sin datos internos.
+ 61:  */
+ 62: 
+ 63: export type TipoEvento =
+ 64:   | 'PENDIENTE'
+ 65:   | 'EN_CURSO'
+ 66:   | 'FINALIZADO'
+ 67:   | 'CANCELADO'
+ 68:   | 'MASIVO'
+ 69:   | 'ESCOLAR'
+ 70: 
+ 71: export interface EventoCiudadano {
+ 72:   id:                  string
+ 73:   titulo:              string
+ 74:   descripcion?:        string
+ 75:   informacion:         string
+ 76:   fechaDesde:          string   // ISO 8601
+ 77:   fechaHasta:          string   // ISO 8601
+ 78:   horaDesde:           string   // HH:mm
+ 79:   horaHasta:           string   // HH:mm
+ 80:   tipoEvento:          TipoEvento
+ 81:   contactoCiudadano?:  string
+ 82:   linkInscripcion?:    string
+ 83:   mostrarEnCiudadanos: boolean
+ 84: }
+ 85: 
+ 86: export const TIPO_EVENTO_LABEL: Record<TipoEvento, string> = {
+ 87:   PENDIENTE:  'Próximo',
+ 88:   EN_CURSO:   'En curso',
+ 89:   FINALIZADO: 'Finalizado',
+ 90:   CANCELADO:  'Cancelado',
+ 91:   MASIVO:     'Masivo',
+ 92:   ESCOLAR:    'Escolar',
+ 93: }
  94: 
- 95:   const cerrarModal = () => {
- 96:     setNoticiaAbierta(null)
- 97:     window.history.pushState({}, "", "/noticias")
- 98:   }
- 99: 
-100:   return (
-101:     <>
-102:       {/* ── Modal de detalle ────────────────────────────────────────────── */}
-103:       <Dialog
-104:         open={!!noticiaAbierta}
-105:         onOpenChange={(open) => { if (!open) cerrarModal() }}
-106:       >
-107:         <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl">
-108:           {noticiaAbierta && (
-109:             <>
-110:               {/* Imagen de cabecera */}
-111:               {noticiaAbierta.imagenUrl ? (
-112:                 <div className="relative h-56 w-full overflow-hidden rounded-t-2xl bg-slate-100 shrink-0">
-113:                   <Image
-114:                     src={noticiaAbierta.imagenUrl}
-115:                     alt={noticiaAbierta.titulo}
-116:                     fill
-117:                     className="object-cover"
-118:                     sizes="(max-width: 768px) 100vw, 672px"
-119:                     priority
-120:                   />
-121:                   {/* Gradiente sobre la imagen */}
-122:                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-123:                   {/* Badges sobre la imagen */}
-124:                   <div className="absolute bottom-4 left-4 flex flex-wrap gap-2">
-125:                     {noticiaAbierta.categoria && (
-126:                       <Badge
-127:                         className="text-xs font-semibold rounded-lg backdrop-blur-sm"
-128:                         style={{
-129:                           backgroundColor: `${noticiaAbierta.categoria.color ?? "#26a7fc"}cc`,
-130:                           color: "#fff",
-131:                           borderColor: "transparent",
-132:                         }}
-133:                       >
-134:                         {noticiaAbierta.categoria.nombre}
-135:                       </Badge>
-136:                     )}
-137:                   </div>
-138:                 </div>
-139:               ) : (
-140:                 /* Sin imagen: franja de color de categoría */
-141:                 <div
-142:                   className="h-2 w-full rounded-t-2xl shrink-0"
-143:                   style={{ backgroundColor: noticiaAbierta.categoria?.color ?? "#26a7fc" }}
-144:                 />
-145:               )}
+ 95: export const TIPO_EVENTO_COLOR: Record<TipoEvento, string> = {
+ 96:   PENDIENTE:  'bg-blue-100 text-blue-700 border-blue-200',
+ 97:   EN_CURSO:   'bg-green-100 text-green-700 border-green-200',
+ 98:   FINALIZADO: 'bg-slate-100 text-slate-500 border-slate-200',
+ 99:   CANCELADO:  'bg-red-100 text-red-600 border-red-200',
+100:   MASIVO:     'bg-purple-100 text-purple-700 border-purple-200',
+101:   ESCOLAR:    'bg-amber-100 text-amber-700 border-amber-200',
+102: }
+103: TS
+104: ok "lib/eventos/types.ts creado"
+105: 
+106: # ─────────────────────────────────────────────────────────────────────────────
+107: # 2. lib/eventos/api.ts
+108: # ─────────────────────────────────────────────────────────────────────────────
+109: log "Creando lib/eventos/api.ts..."
+110: 
+111: cat > lib/eventos/api.ts << 'TS'
+112: /**
+113:  * lib/eventos/api.ts
+114:  * Fetcher para GET /events/ciudadanos del calendario-back.
+115:  * Endpoint público — no requiere autenticación.
+116:  * Base URL: NEXT_PUBLIC_CALENDARIO_API_URL
+117:  */
+118: import type { EventoCiudadano } from './types'
+119: 
+120: const BASE = (process.env.NEXT_PUBLIC_CALENDARIO_API_URL ?? '').replace(/\/$/, '')
+121: 
+122: function url(path: string) {
+123:   if (!BASE) throw new Error('[eventos-api] NEXT_PUBLIC_CALENDARIO_API_URL no configurada')
+124:   return `${BASE}${path}`
+125: }
+126: 
+127: /**
+128:  * Trae todos los eventos con mostrarEnCiudadanos=true.
+129:  * Se puede filtrar por fechaDesde / fechaHasta / tipoEvento.
+130:  */
+131: export async function getEventosCiudadanos(params?: {
+132:   fechaDesde?: string
+133:   fechaHasta?: string
+134:   tipoEvento?: string
+135: }): Promise<EventoCiudadano[]> {
+136:   try {
+137:     const qs = new URLSearchParams({ mostrarEnCiudadanos: 'true' })
+138:     if (params?.fechaDesde) qs.set('fechaDesde', params.fechaDesde)
+139:     if (params?.fechaHasta) qs.set('fechaHasta', params.fechaHasta)
+140:     if (params?.tipoEvento) qs.set('tipoEvento', params.tipoEvento)
+141: 
+142:     const res = await fetch(url(`/events?${qs}`), {
+143:       cache: 'no-store',
+144:       headers: { 'Content-Type': 'application/json' },
+145:     })
 146: 
-147:               {/* Contenido del modal */}
-148:               <div className="p-6 flex flex-col gap-4">
-149:                 <DialogHeader className="gap-1 text-left">
-150:                   {/* Fecha + tags */}
-151:                   <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-1">
-152:                     {noticiaAbierta.publicadaEn && (
-153:                       <span className="flex items-center gap-1">
-154:                         <Calendar className="h-3.5 w-3.5" strokeWidth={1.5} />
-155:                         {formatFecha(noticiaAbierta.publicadaEn)}
-156:                       </span>
-157:                     )}
-158:                     {noticiaAbierta.tags.length > 0 && (
-159:                       <span className="flex items-center gap-1.5">
-160:                         <TagIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
-161:                         <span className="flex flex-wrap gap-1">
-162:                           {noticiaAbierta.tags.map((tag) => (
-163:                             <Badge
-164:                               key={tag.id}
-165:                               variant="secondary"
-166:                               className="text-xs rounded-md cursor-pointer hover:bg-[#26a7fc]/10"
-167:                               onClick={() => {
-168:                                 cerrarModal()
-169:                                 toggleTag(tag.nombre)
-170:                               }}
-171:                             >
-172:                               {tag.nombre}
-173:                             </Badge>
-174:                           ))}
-175:                         </span>
-176:                       </span>
-177:                     )}
-178:                   </div>
-179: 
-180:                   <DialogTitle
-181:                     className="text-xl md:text-2xl font-extrabold text-slate-900 leading-tight text-balance"
-182:                     style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-183:                   >
-184:                     {noticiaAbierta.titulo}
-185:                   </DialogTitle>
-186:                 </DialogHeader>
-187: 
-188:                 {/* Resumen destacado */}
-189:                 {noticiaAbierta.resumen && (
-190:                   <p
-191:                     className="text-slate-600 leading-relaxed text-sm font-medium
-192:                                border-l-4 border-[#26a7fc]/40 pl-4 italic"
-193:                     style={{ fontFamily: "'Inter', sans-serif" }}
-194:                   >
-195:                     {noticiaAbierta.resumen}
-196:                   </p>
-197:                 )}
-198: 
-199:                 {/* Contenido completo */}
-200:                 <div
-201:                   className="text-slate-700 text-sm leading-7 whitespace-pre-wrap"
-202:                   style={{ fontFamily: "'Inter', sans-serif" }}
-203:                 >
-204:                   {noticiaAbierta.contenido}
-205:                 </div>
-206: 
-207:                 {/* Footer del modal */}
-208:                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-209:                   <button
-210:                     onClick={cerrarModal}
-211:                     className="text-xs text-slate-400 hover:text-[#26a7fc] transition-colors"
-212:                   >
-213:                     ← Volver a noticias
-214:                   </button>
-215:                   <a
-216:                     href={`/noticias/${noticiaAbierta.slug}`}
-217:                     target="_blank"
-218:                     rel="noopener noreferrer"
-219:                     className="text-xs text-slate-400 hover:text-[#26a7fc] transition-colors underline underline-offset-2"
-220:                   >
-221:                     Abrir en página completa ↗
-222:                   </a>
-223:                 </div>
-224:               </div>
-225:             </>
-226:           )}
-227:         </DialogContent>
-228:       </Dialog>
-229: 
-230:       {/* ── Filtros ─────────────────────────────────────────────────────── */}
-231:       <section className="pb-6">
-232:         <div className="container mx-auto px-4 flex flex-col gap-5">
-233: 
-234:           <div className="relative max-w-sm">
-235:             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-236:             <Input
-237:               placeholder="Buscar noticias..."
-238:               value={busqueda}
-239:               onChange={(e) => { setBusqueda(e.target.value); setPaginaActual(1) }}
-240:               className="pl-9 bg-white/70 backdrop-blur-sm rounded-xl border-[#26a7fc]/20 focus:border-[#26a7fc] focus:ring-[#26a7fc]/20"
-241:             />
-242:           </div>
+147:     if (!res.ok) {
+148:       console.error(`[eventos-api] GET /events → ${res.status}`)
+149:       return []
+150:     }
+151: 
+152:     const json = await res.json()
+153:     // El back puede devolver array directo o { data: [...] }
+154:     return (Array.isArray(json) ? json : json?.data ?? []) as EventoCiudadano[]
+155:   } catch (err) {
+156:     console.error('[eventos-api] Error:', err)
+157:     return []
+158:   }
+159: }
+160: 
+161: /**
+162:  * Trae un evento por ID (verificando que sea público).
+163:  */
+164: export async function getEventoCiudadano(id: string): Promise<EventoCiudadano | null> {
+165:   try {
+166:     const res = await fetch(url(`/events/ciudadanos`), {
+167:       cache: 'no-store',
+168:       headers: { 'Content-Type': 'application/json' },
+169:     })
+170:     if (!res.ok) return null
+171:     const json = await res.json()
+172:     const lista = (Array.isArray(json) ? json : json?.data ?? []) as EventoCiudadano[]
+173:     return lista.find((e) => e.id === id) ?? null
+174:   } catch {
+175:     return null
+176:   }
+177: }
+178: TS
+179: ok "lib/eventos/api.ts creado"
+180: 
+181: # ─────────────────────────────────────────────────────────────────────────────
+182: # 3. app/eventos/loading.tsx
+183: # ─────────────────────────────────────────────────────────────────────────────
+184: log "Creando app/eventos/loading.tsx..."
+185: mkdir -p "app/eventos"
+186: 
+187: cat > "app/eventos/loading.tsx" << 'TSX'
+188: import { Skeleton } from '@/components/ui/skeleton'
+189: 
+190: export default function EventosLoading() {
+191:   return (
+192:     <main className="min-h-screen pt-28 pb-20 bg-gradient-to-br from-slate-50 via-white to-blue-50">
+193:       <div className="container mx-auto px-4 max-w-5xl space-y-6">
+194:         <Skeleton className="h-8 w-48" />
+195:         <Skeleton className="h-4 w-72" />
+196:         <div className="space-y-3 mt-8">
+197:           {Array.from({ length: 6 }).map((_, i) => (
+198:             <Skeleton key={i} className="h-20 w-full rounded-xl" />
+199:           ))}
+200:         </div>
+201:       </div>
+202:     </main>
+203:   )
+204: }
+205: TSX
+206: ok "app/eventos/loading.tsx creado"
+207: 
+208: # ─────────────────────────────────────────────────────────────────────────────
+209: # 4. app/eventos/page.tsx  ── lista principal con tabla y filtros
+210: # ─────────────────────────────────────────────────────────────────────────────
+211: log "Creando app/eventos/page.tsx..."
+212: 
+213: cat > "app/eventos/page.tsx" << 'TSX'
+214: import type { Metadata } from 'next'
+215: import Link from 'next/link'
+216: import { Calendar, Clock, ChevronRight, Phone, ExternalLink, Search } from 'lucide-react'
+217: import { getEventosCiudadanos } from '@/lib/eventos/api'
+218: import { TIPO_EVENTO_LABEL, TIPO_EVENTO_COLOR, type TipoEvento } from '@/lib/eventos/types'
+219: 
+220: export const metadata: Metadata = {
+221:   title: 'Eventos | NODO Tecnológico',
+222:   description: 'Agenda de eventos públicos del Nodo Tecnológico de Catamarca.',
+223: }
+224: 
+225: // Revalidar cada 60 segundos (ISR)
+226: export const revalidate = 60
+227: 
+228: function formatFecha(iso: string) {
+229:   return new Date(iso).toLocaleDateString('es-AR', {
+230:     weekday: 'long',
+231:     day: 'numeric',
+232:     month: 'long',
+233:     year: 'numeric',
+234:   })
+235: }
+236: 
+237: function formatFechaCorta(iso: string) {
+238:   return new Date(iso).toLocaleDateString('es-AR', {
+239:     day: 'numeric',
+240:     month: 'short',
+241:   })
+242: }
 243: 
-244:           {categorias.length > 0 && (
-245:             <div className="flex flex-col gap-2">
-246:               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Categoría</p>
-247:               <div className="flex flex-wrap gap-2">
-248:                 <button
-249:                   onClick={() => setCategoria("todas")}
-250:                   className={[
-251:                     "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
-252:                     categoriaActiva === "todas"
-253:                       ? "bg-slate-800 text-white border-slate-800"
-254:                       : "bg-white/70 text-slate-600 border-slate-200 hover:border-slate-400",
-255:                   ].join(" ")}
-256:                 >
-257:                   Todas
-258:                 </button>
-259:                 {categorias.map((cat) => {
-260:                   const color  = cat.color ?? "#26a7fc"
-261:                   const active = categoriaActiva === cat.slug
-262:                   return (
-263:                     <button
-264:                       key={cat.id}
-265:                       onClick={() => setCategoria(cat.slug)}
-266:                       style={active
-267:                         ? { backgroundColor: color, borderColor: color, color: "#fff" }
-268:                         : { borderColor: `${color}40`, color }
-269:                       }
-270:                       className={[
-271:                         "rounded-full px-4 py-1.5 text-sm font-medium transition-colors border",
-272:                         active ? "shadow-sm" : "bg-white/70 hover:opacity-80",
-273:                       ].join(" ")}
-274:                     >
-275:                       {cat.nombre}
-276:                     </button>
-277:                   )
-278:                 })}
-279:               </div>
-280:             </div>
-281:           )}
+244: function esMismaFecha(desde: string, hasta: string) {
+245:   return desde.slice(0, 10) === hasta.slice(0, 10)
+246: }
+247: 
+248: export default async function EventosPage() {
+249:   const eventos = await getEventosCiudadanos()
+250: 
+251:   // Separar próximos/en curso de pasados
+252:   const hoy = new Date().toISOString().slice(0, 10)
+253:   const proximos  = eventos.filter((e) => e.fechaHasta.slice(0, 10) >= hoy && e.tipoEvento !== 'CANCELADO')
+254:   const pasados   = eventos.filter((e) => e.fechaHasta.slice(0, 10) < hoy  || e.tipoEvento === 'CANCELADO')
+255: 
+256:   return (
+257:     <main className="min-h-screen pt-28 pb-20 bg-gradient-to-br from-slate-50 via-white to-blue-50">
+258:       <div className="container mx-auto px-4 max-w-5xl">
+259: 
+260:         {/* ── Header ──────────────────────────────────────────────────────── */}
+261:         <div className="mb-10">
+262:           <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#26a7fc] uppercase tracking-widest mb-3">
+263:             <span className="h-px w-6 bg-[#26a7fc]" />
+264:             Agenda
+265:           </div>
+266:           <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
+267:             Eventos del Nodo
+268:           </h1>
+269:           <p className="text-slate-500 text-sm max-w-xl">
+270:             Actividades, talleres y jornadas abiertas a la comunidad. Hacé clic en cada evento para ver el detalle e inscribirte.
+271:           </p>
+272:         </div>
+273: 
+274:         {/* ── Sin eventos ─────────────────────────────────────────────────── */}
+275:         {eventos.length === 0 && (
+276:           <div className="flex flex-col items-center justify-center py-32 text-center">
+277:             <Calendar className="h-12 w-12 text-[#26a7fc]/30 mb-4" strokeWidth={1.5} />
+278:             <h2 className="text-lg font-semibold text-slate-700 mb-1">Sin eventos por ahora</h2>
+279:             <p className="text-sm text-slate-400">Volvé pronto para ver la agenda actualizada.</p>
+280:           </div>
+281:         )}
 282: 
-283:           {tagsDisponibles.length > 0 && (
-284:             <div className="flex flex-col gap-2">
-285:               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-286:                 Tags
-287:                 {categoriaActiva !== "todas" && (
-288:                   <span className="ml-1 font-normal normal-case text-slate-400">— dentro de la categoría</span>
-289:                 )}
-290:               </p>
-291:               <div className="flex flex-wrap gap-2">
-292:                 {tagsDisponibles.map((tag) => (
-293:                   <Badge
-294:                     key={tag}
-295:                     variant={tagsSeleccionados.includes(tag) ? "default" : "outline"}
-296:                     className={[
-297:                       "cursor-pointer transition-colors text-xs select-none",
-298:                       tagsSeleccionados.includes(tag)
-299:                         ? "bg-[#26a7fc] hover:bg-[#1c8fe0] border-transparent text-white"
-300:                         : "bg-white/70 backdrop-blur-sm hover:bg-[#26a7fc]/10 border-[#26a7fc]/20",
-301:                     ].join(" ")}
-302:                     onClick={() => { toggleTag(tag); setPaginaActual(1) }}
-303:                   >
-304:                     {tag}
-305:                   </Badge>
-306:                 ))}
-307:               </div>
-308:             </div>
-309:           )}
-310: 
-311:           {hayFiltrosActivos && (
-312:             <button
-313:               onClick={limpiarFiltros}
-314:               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#26a7fc] w-fit underline underline-offset-2"
-315:             >
-316:               <X className="h-3 w-3" />
-317:               Limpiar filtros
-318:             </button>
-319:           )}
-320:         </div>
-321:       </section>
-322: 
-323:       {/* ── Grid ────────────────────────────────────────────────────────── */}
-324:       <section className="pb-12">
-325:         <div className="container mx-auto px-4">
-326:           <p className="text-sm text-muted-foreground mb-6">
-327:             {noticiasFiltradas.length}{" "}
-328:             {noticiasFiltradas.length === 1 ? "noticia encontrada" : "noticias encontradas"}
-329:           </p>
-330: 
-331:           {noticias.length === 0 ? (
-332:             <div className="flex flex-col items-center justify-center py-24 text-center">
-333:               <span className="text-6xl mb-4">📰</span>
-334:               <h2 className="text-xl font-semibold text-slate-700 mb-2">Próximamente habrá novedades</h2>
-335:               <p className="text-sm text-muted-foreground max-w-xs">Estamos preparando el contenido. ¡Volvé pronto!</p>
-336:             </div>
-337:           ) : noticiasFiltradas.length === 0 ? (
-338:             <div className="py-16 text-center">
-339:               <p className="text-muted-foreground">No se encontraron noticias con los filtros seleccionados.</p>
-340:               <button onClick={limpiarFiltros} className="mt-3 text-sm text-[#26a7fc] hover:underline">
-341:                 Ver todas las noticias
-342:               </button>
-343:             </div>
-344:           ) : (
-345:             <>
-346:               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-347:                 {noticiasPaginadas.map((noticia) => (
-348:                   <Card
-349:                     key={noticia.id}
-350:                     onClick={() => abrirNoticia(noticia)}
-351:                     className="flex flex-col transition-all hover:shadow-lg hover:-translate-y-0.5 bg-white/70 backdrop-blur-sm overflow-hidden cursor-pointer group"
-352:                   >
-353:                     {noticia.imagenUrl ? (
-354:                       <div className="relative h-44 w-full overflow-hidden bg-slate-100">
-355:                         <Image
-356:                           src={noticia.imagenUrl}
-357:                           alt={noticia.titulo}
-358:                           fill
-359:                           className="object-cover transition-transform duration-300 group-hover:scale-105"
-360:                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-361:                           onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-362:                         />
-363:                       </div>
-364:                     ) : (
-365:                       <div className="h-44 w-full bg-gradient-to-br from-[#26a7fc]/10 to-cyan-50 flex items-center justify-center">
-366:                         <ImageOff className="h-8 w-8 text-[#26a7fc]/30" strokeWidth={1.5} />
-367:                       </div>
-368:                     )}
-369: 
-370:                     <CardHeader className="pb-2">
-371:                       <div className="flex flex-wrap items-center gap-2 mb-2">
-372:                         {noticia.categoria && (
-373:                           <Badge
-374:                             className="text-xs rounded-lg font-medium"
-375:                             style={{
-376:                               backgroundColor: `${noticia.categoria.color ?? "#26a7fc"}20`,
-377:                               color:           noticia.categoria.color ?? "#26a7fc",
-378:                               borderColor:     `${noticia.categoria.color ?? "#26a7fc"}40`,
-379:                             }}
-380:                             onClick={(e) => { e.stopPropagation(); setCategoria(noticia.categoria.slug) }}
-381:                           >
-382:                             {noticia.categoria.nombre}
-383:                           </Badge>
-384:                         )}
-385:                         {(noticia.tags ?? []).slice(0, 2).map((tag) => (
-386:                           <Badge
-387:                             key={tag.id}
-388:                             variant="secondary"
-389:                             className="text-xs hover:bg-[#26a7fc]/10"
-390:                             onClick={(e) => { e.stopPropagation(); toggleTag(tag.nombre); setPaginaActual(1) }}
-391:                           >
-392:                             {tag.nombre}
-393:                           </Badge>
-394:                         ))}
-395:                       </div>
-396:                       <CardTitle className="text-base leading-snug line-clamp-2 group-hover:text-[#26a7fc] transition-colors">
-397:                         {noticia.titulo}
-398:                       </CardTitle>
-399:                       {noticia.resumen && (
-400:                         <CardDescription className="leading-relaxed line-clamp-2 text-xs mt-1">
-401:                           {noticia.resumen}
-402:                         </CardDescription>
-403:                       )}
-404:                     </CardHeader>
-405: 
-406:                     <CardContent className="flex-1 pb-2">
-407:                       {noticia.publicadaEn && (
-408:                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-409:                           <Calendar className="h-3.5 w-3.5" strokeWidth={1.5} />
-410:                           <span>{formatFecha(noticia.publicadaEn)}</span>
-411:                         </div>
-412:                       )}
-413:                     </CardContent>
+283:         {/* ── Próximos eventos ────────────────────────────────────────────── */}
+284:         {proximos.length > 0 && (
+285:           <section className="mb-12">
+286:             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+287:               <span className="h-px flex-1 bg-slate-200" />
+288:               Próximos y en curso
+289:               <span className="h-px flex-1 bg-slate-200" />
+290:             </h2>
+291:             <div className="space-y-3">
+292:               {proximos.map((evento) => (
+293:                 <EventoCard key={evento.id} evento={evento} />
+294:               ))}
+295:             </div>
+296:           </section>
+297:         )}
+298: 
+299:         {/* ── Pasados ─────────────────────────────────────────────────────── */}
+300:         {pasados.length > 0 && (
+301:           <section>
+302:             <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+303:               <span className="h-px flex-1 bg-slate-100" />
+304:               Realizados
+305:               <span className="h-px flex-1 bg-slate-100" />
+306:             </h2>
+307:             <div className="space-y-3 opacity-70">
+308:               {pasados.map((evento) => (
+309:                 <EventoCard key={evento.id} evento={evento} pasado />
+310:               ))}
+311:             </div>
+312:           </section>
+313:         )}
+314:       </div>
+315:     </main>
+316:   )
+317: }
+318: 
+319: // ── Card de evento ─────────────────────────────────────────────────────────────
+320: function EventoCard({
+321:   evento,
+322:   pasado = false,
+323: }: {
+324:   evento: Awaited<ReturnType<typeof getEventosCiudadanos>>[number]
+325:   pasado?: boolean
+326: }) {
+327:   const hoy  = new Date().toISOString().slice(0, 10)
+328:   const mismaFecha = evento.fechaDesde.slice(0, 10) === evento.fechaHasta.slice(0, 10)
+329:   const badge = TIPO_EVENTO_COLOR[evento.tipoEvento as TipoEvento] ??
+330:     'bg-slate-100 text-slate-500 border-slate-200'
+331:   const label = TIPO_EVENTO_LABEL[evento.tipoEvento as TipoEvento] ?? evento.tipoEvento
+332: 
+333:   return (
+334:     <Link
+335:       href={`/eventos/${evento.id}`}
+336:       className="group flex items-center gap-4 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl px-5 py-4 hover:border-[#26a7fc]/40 hover:shadow-md hover:-translate-y-0.5 transition-all"
+337:     >
+338:       {/* Fecha */}
+339:       <div className="hidden sm:flex flex-col items-center justify-center w-14 shrink-0 text-center">
+340:         <span className="text-2xl font-bold text-slate-800 leading-none">
+341:           {new Date(evento.fechaDesde).getUTCDate()}
+342:         </span>
+343:         <span className="text-xs text-slate-400 uppercase mt-0.5">
+344:           {new Date(evento.fechaDesde).toLocaleDateString('es-AR', { month: 'short' })}
+345:         </span>
+346:       </div>
+347: 
+348:       <div className="h-10 w-px bg-slate-100 hidden sm:block shrink-0" />
+349: 
+350:       {/* Info */}
+351:       <div className="flex-1 min-w-0">
+352:         <div className="flex items-center gap-2 mb-1 flex-wrap">
+353:           <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badge}`}>
+354:             {label}
+355:           </span>
+356:           <span className="text-xs text-slate-400 flex items-center gap-1">
+357:             <Clock className="h-3 w-3" />
+358:             {evento.horaDesde} – {evento.horaHasta}
+359:           </span>
+360:           {!mismaFecha && (
+361:             <span className="text-xs text-slate-400 flex items-center gap-1">
+362:               <Calendar className="h-3 w-3" />
+363:               hasta {new Date(evento.fechaHasta).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+364:             </span>
+365:           )}
+366:         </div>
+367:         <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-[#26a7fc] transition-colors">
+368:           {evento.titulo}
+369:         </p>
+370:         {evento.descripcion && (
+371:           <p className="text-xs text-slate-400 truncate mt-0.5">{evento.descripcion}</p>
+372:         )}
+373:       </div>
+374: 
+375:       {/* Acciones rápidas */}
+376:       <div className="flex items-center gap-2 shrink-0">
+377:         {evento.linkInscripcion && !pasado && (
+378:           <span className="hidden md:inline-flex items-center gap-1 text-xs text-[#26a7fc] font-medium border border-[#26a7fc]/30 rounded-lg px-2.5 py-1 bg-[#26a7fc]/5">
+379:             Inscribirse
+380:           </span>
+381:         )}
+382:         <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#26a7fc] transition-colors" />
+383:       </div>
+384:     </Link>
+385:   )
+386: }
+387: TSX
+388: ok "app/eventos/page.tsx creado"
+389: 
+390: # ─────────────────────────────────────────────────────────────────────────────
+391: # 5. app/eventos/[id]/loading.tsx
+392: # ─────────────────────────────────────────────────────────────────────────────
+393: log "Creando app/eventos/[id]/loading.tsx..."
+394: mkdir -p "app/eventos/[id]"
+395: 
+396: cat > "app/eventos/[id]/loading.tsx" << 'TSX'
+397: import { Skeleton } from '@/components/ui/skeleton'
+398: 
+399: export default function EventoDetalleLoading() {
+400:   return (
+401:     <main className="min-h-screen pt-28 pb-20 bg-gradient-to-br from-slate-50 via-white to-blue-50">
+402:       <div className="container mx-auto px-4 max-w-3xl space-y-6">
+403:         <Skeleton className="h-4 w-24" />
+404:         <Skeleton className="h-10 w-3/4" />
+405:         <Skeleton className="h-4 w-1/2" />
+406:         <Skeleton className="h-32 w-full rounded-2xl" />
+407:         <Skeleton className="h-12 w-48 rounded-xl" />
+408:       </div>
+409:     </main>
+410:   )
+411: }
+412: TSX
+413: ok "app/eventos/[id]/loading.tsx creado"
 414: 
-415:                     <CardFooter>
-416:                       <Button
-417:                         variant="ghost" size="sm"
-418:                         className="gap-1 text-[#26a7fc] hover:text-[#1c8fe0] hover:bg-[#26a7fc]/10 rounded-xl px-3 -ml-3 pointer-events-none"
-419:                       >
-420:                         Leer más <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-421:                       </Button>
-422:                     </CardFooter>
-423:                   </Card>
-424:                 ))}
-425:               </div>
-426: 
-427:               {totalPaginas > 1 && (
-428:                 <div className="mt-10">
-429:                   <Paginacion
-430:                     paginaActual={paginaActual}
-431:                     totalPaginas={totalPaginas}
-432:                     onPaginaChange={setPaginaActual}
-433:                   />
-434:                 </div>
-435:               )}
-436:             </>
-437:           )}
-438:         </div>
-439:       </section>
-440:     </>
-441:   )
+415: # ─────────────────────────────────────────────────────────────────────────────
+416: # 6. app/eventos/[id]/page.tsx  ── detalle del evento
+417: # ─────────────────────────────────────────────────────────────────────────────
+418: log "Creando app/eventos/[id]/page.tsx..."
+419: 
+420: cat > "app/eventos/[id]/page.tsx" << 'TSX'
+421: import type { Metadata } from 'next'
+422: import Link from 'next/link'
+423: import { notFound } from 'next/navigation'
+424: import {
+425:   ArrowLeft, Calendar, Clock, Phone, Mail, ExternalLink, Info,
+426: } from 'lucide-react'
+427: import { getEventoCiudadano, getEventosCiudadanos } from '@/lib/eventos/api'
+428: import { TIPO_EVENTO_LABEL, TIPO_EVENTO_COLOR, type TipoEvento } from '@/lib/eventos/types'
+429: 
+430: interface Props {
+431:   params: Promise<{ id: string }>
+432: }
+433: 
+434: export async function generateMetadata({ params }: Props): Promise<Metadata> {
+435:   const { id } = await params
+436:   const evento = await getEventoCiudadano(id)
+437:   if (!evento) return { title: 'Evento no encontrado | NODO' }
+438:   return {
+439:     title: `${evento.titulo} | NODO Tecnológico`,
+440:     description: evento.descripcion ?? evento.informacion.slice(0, 160),
+441:   }
 442: }
-443: TSX
-444: 
-445: log "noticias-content.tsx reescrito con modal ✓"
-446: 
-447: echo ""
-448: echo -e "${BOLD}${GREEN}================================================${RESET}"
-449: echo -e "${BOLD}${GREEN}  Modal de noticia agregado correctamente ✅    ${RESET}"
-450: echo -e "${BOLD}${GREEN}================================================${RESET}"
-451: echo ""
-452: echo "  Comportamiento:"
-453: echo "  • Click en la card → abre Dialog con la noticia completa"
-454: echo "  • URL se actualiza a /noticias/[slug] (compartible)"
-455: echo "  • Cerrar modal → URL vuelve a /noticias"
-456: echo "  • Click en tags dentro del modal → cierra y filtra"
-457: echo "  • Click en categoría de la card → filtra (no abre modal)"
-458: echo "  • 'Abrir en página completa ↗' → tab nuevo para la URL estática"
-459: echo "  • Cards con hover -translate-y-0.5 + scale imagen"
-460: echo "  • Solo se toca noticias-content.tsx"
-461: echo ""
+443: 
+444: export const revalidate = 60
+445: 
+446: export default async function EventoDetallePage({ params }: Props) {
+447:   const { id } = await params
+448:   const evento = await getEventoCiudadano(id)
+449: 
+450:   if (!evento) notFound()
+451: 
+452:   const mismaFecha   = evento.fechaDesde.slice(0, 10) === evento.fechaHasta.slice(0, 10)
+453:   const badge        = TIPO_EVENTO_COLOR[evento.tipoEvento as TipoEvento] ?? 'bg-slate-100 text-slate-500 border-slate-200'
+454:   const label        = TIPO_EVENTO_LABEL[evento.tipoEvento as TipoEvento] ?? evento.tipoEvento
+455:   const hoy          = new Date().toISOString().slice(0, 10)
+456:   const esPasado     = evento.fechaHasta.slice(0, 10) < hoy
+457:   const tieneContacto = evento.contactoCiudadano || evento.linkInscripcion
+458: 
+459:   function formatFecha(iso: string) {
+460:     return new Date(iso).toLocaleDateString('es-AR', {
+461:       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+462:     })
+463:   }
+464: 
+465:   // Detectar si el contacto es email o teléfono
+466:   const esEmail = evento.contactoCiudadano?.includes('@')
+467: 
+468:   return (
+469:     <main className="min-h-screen pt-28 pb-20 bg-gradient-to-br from-slate-50 via-white to-blue-50">
+470:       <div className="container mx-auto px-4 max-w-3xl">
+471: 
+472:         {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
+473:         <Link
+474:           href="/eventos"
+475:           className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-[#26a7fc] transition-colors mb-8"
+476:         >
+477:           <ArrowLeft className="h-4 w-4" />
+478:           Volver a eventos
+479:         </Link>
+480: 
+481:         {/* ── Badge estado ─────────────────────────────────────────────────── */}
+482:         <div className="flex items-center gap-3 mb-4 flex-wrap">
+483:           <span className={`inline-flex text-xs font-semibold px-3 py-1 rounded-full border ${badge}`}>
+484:             {label}
+485:           </span>
+486:           {esPasado && (
+487:             <span className="text-xs text-slate-400 font-medium">Este evento ya finalizó</span>
+488:           )}
+489:         </div>
+490: 
+491:         {/* ── Título ───────────────────────────────────────────────────────── */}
+492:         <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 leading-snug">
+493:           {evento.titulo}
+494:         </h1>
+495:         {evento.descripcion && (
+496:           <p className="text-slate-500 text-base mb-8">{evento.descripcion}</p>
+497:         )}
+498: 
+499:         {/* ── Fecha y hora ─────────────────────────────────────────────────── */}
+500:         <div className="flex flex-col sm:flex-row gap-4 mb-8">
+501:           <div className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl px-5 py-4 flex-1">
+502:             <Calendar className="h-5 w-5 text-[#26a7fc] shrink-0 mt-0.5" strokeWidth={1.5} />
+503:             <div>
+504:               <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Fecha</p>
+505:               <p className="text-sm font-semibold text-slate-800 capitalize">
+506:                 {formatFecha(evento.fechaDesde)}
+507:               </p>
+508:               {!mismaFecha && (
+509:                 <p className="text-xs text-slate-400 mt-0.5">
+510:                   hasta el {formatFecha(evento.fechaHasta)}
+511:                 </p>
+512:               )}
+513:             </div>
+514:           </div>
+515: 
+516:           <div className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl px-5 py-4 flex-1">
+517:             <Clock className="h-5 w-5 text-[#26a7fc] shrink-0 mt-0.5" strokeWidth={1.5} />
+518:             <div>
+519:               <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Horario</p>
+520:               <p className="text-sm font-semibold text-slate-800">
+521:                 {evento.horaDesde} – {evento.horaHasta} hs
+522:               </p>
+523:             </div>
+524:           </div>
+525:         </div>
+526: 
+527:         {/* ── Información ──────────────────────────────────────────────────── */}
+528:         {evento.informacion && (
+529:           <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 mb-8">
+530:             <div className="flex items-center gap-2 mb-3">
+531:               <Info className="h-4 w-4 text-[#26a7fc]" strokeWidth={1.5} />
+532:               <h2 className="text-sm font-semibold text-slate-700">Información</h2>
+533:             </div>
+534:             <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+535:               {evento.informacion}
+536:             </p>
+537:           </div>
+538:         )}
+539: 
+540:         {/* ── Contacto e inscripción ────────────────────────────────────────── */}
+541:         {tieneContacto && !esPasado && (
+542:           <div className="bg-[#26a7fc]/5 border border-[#26a7fc]/20 rounded-2xl px-6 py-5 space-y-4">
+543:             <h2 className="text-sm font-semibold text-[#26a7fc]">Participar</h2>
+544: 
+545:             {evento.contactoCiudadano && (
+546:               <div className="flex items-center gap-3">
+547:                 {esEmail
+548:                   ? <Mail className="h-4 w-4 text-[#26a7fc] shrink-0" strokeWidth={1.5} />
+549:                   : <Phone className="h-4 w-4 text-[#26a7fc] shrink-0" strokeWidth={1.5} />
+550:                 }
+551:                 <div>
+552:                   <p className="text-xs text-slate-400 mb-0.5">
+553:                     {esEmail ? 'Email de contacto' : 'Teléfono de contacto'}
+554:                   </p>
+555:                   {esEmail ? (
+556:                     <a
+557:                       href={`mailto:${evento.contactoCiudadano}`}
+558:                       className="text-sm font-medium text-[#26a7fc] hover:underline"
+559:                     >
+560:                       {evento.contactoCiudadano}
+561:                     </a>
+562:                   ) : (
+563:                     <a
+564:                       href={`tel:${evento.contactoCiudadano}`}
+565:                       className="text-sm font-medium text-[#26a7fc] hover:underline"
+566:                     >
+567:                       {evento.contactoCiudadano}
+568:                     </a>
+569:                   )}
+570:                 </div>
+571:               </div>
+572:             )}
+573: 
+574:             {evento.linkInscripcion && (
+575:               <a
+576:                 href={evento.linkInscripcion}
+577:                 target="_blank"
+578:                 rel="noopener noreferrer"
+579:                 className="inline-flex items-center gap-2 bg-[#26a7fc] hover:bg-[#1c8fe0] text-white text-sm font-semibold px-6 py-3 rounded-xl transition-colors shadow-sm shadow-[#26a7fc]/30"
+580:               >
+581:                 Inscribirse
+582:                 <ExternalLink className="h-4 w-4" />
+583:               </a>
+584:             )}
+585:           </div>
+586:         )}
+587: 
+588:         {/* Mensaje si es pasado pero tiene contacto */}
+589:         {tieneContacto && esPasado && (
+590:           <div className="bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm text-slate-400 text-center">
+591:             Este evento ya finalizó. Seguí la agenda para próximas ediciones.
+592:           </div>
+593:         )}
+594: 
+595:       </div>
+596:     </main>
+597:   )
+598: }
+599: TSX
+600: ok "app/eventos/[id]/page.tsx creado"
+601: 
+602: # ─────────────────────────────────────────────────────────────────────────────
+603: # 7. Actualizar Dockerfile  ── agregar NEXT_PUBLIC_CALENDARIO_API_URL
+604: # ─────────────────────────────────────────────────────────────────────────────
+605: log "Actualizando Dockerfile..."
+606: 
+607: if [[ ! -f "Dockerfile" ]]; then
+608:   warn "Dockerfile no encontrado — omitido"
+609: else
+610:   cp Dockerfile Dockerfile.bak.$(date +%Y%m%d_%H%M%S)
+611: 
+612:   node << 'JSEOF'
+613: const fs  = require('fs')
+614: const src = fs.readFileSync('Dockerfile', 'utf8')
+615: 
+616: // ── 1. Agregar mount en el bloque RUN --mount ─────────────────────────────
+617: const mountAnchor = '--mount=type=secret,id=NEXT_PUBLIC_COWORKING_URL \\'
+618: const mountNew    = '--mount=type=secret,id=NEXT_PUBLIC_COWORKING_URL \\\n    --mount=type=secret,id=NEXT_PUBLIC_CALENDARIO_API_URL \\'
+619: 
+620: // ── 2. Agregar la variable de entorno en el bloque ENV del RUN ────────────
+621: const envAnchor = 'NEXT_PUBLIC_COWORKING_URL=$(cat /run/secrets/NEXT_PUBLIC_COWORKING_URL) \\'
+622: const envNew    = 'NEXT_PUBLIC_COWORKING_URL=$(cat /run/secrets/NEXT_PUBLIC_COWORKING_URL) \\\n    NEXT_PUBLIC_CALENDARIO_API_URL=$(cat /run/secrets/NEXT_PUBLIC_CALENDARIO_API_URL) \\'
+623: 
+624: let out = src
+625: let changed = false
+626: 
+627: if (!src.includes('NEXT_PUBLIC_CALENDARIO_API_URL')) {
+628:   if (src.includes(mountAnchor)) {
+629:     out = out.replace(mountAnchor, mountNew)
+630:     changed = true
+631:     console.log('✅ Mount agregado al Dockerfile')
+632:   } else {
+633:     console.log('⚠️  No se encontró anchor de mount en Dockerfile — revisá manualmente')
+634:   }
+635: 
+636:   if (out.includes(envAnchor)) {
+637:     out = out.replace(envAnchor, envNew)
+638:     changed = true
+639:     console.log('✅ ENV NEXT_PUBLIC_CALENDARIO_API_URL agregado al Dockerfile')
+640:   } else {
+641:     console.log('⚠️  No se encontró anchor de ENV en Dockerfile — revisá manualmente')
+642:   }
+643: 
+644:   if (changed) fs.writeFileSync('Dockerfile', out)
+645: } else {
+646:   console.log('ℹ️  Dockerfile ya tiene NEXT_PUBLIC_CALENDARIO_API_URL')
+647: }
+648: JSEOF
+649:   ok "Dockerfile actualizado"
+650: fi
+651: 
+652: # ─────────────────────────────────────────────────────────────────────────────
+653: # 8. Actualizar .github/workflows/deploy.yml
+654: # ─────────────────────────────────────────────────────────────────────────────
+655: log "Actualizando .github/workflows/deploy.yml..."
+656: 
+657: DEPLOY_YML=".github/workflows/deploy.yml"
+658: if [[ ! -f "$DEPLOY_YML" ]]; then
+659:   warn "$DEPLOY_YML no encontrado — omitido"
+660: else
+661:   cp "$DEPLOY_YML" "${DEPLOY_YML}.bak.$(date +%Y%m%d_%H%M%S)"
+662: 
+663:   node << 'JSEOF'
+664: const fs   = require('fs')
+665: const path = '.github/workflows/deploy.yml'
+666: let src    = fs.readFileSync(path, 'utf8')
+667: 
+668: if (src.includes('NEXT_PUBLIC_CALENDARIO_API_URL')) {
+669:   console.log('ℹ️  deploy.yml ya tiene NEXT_PUBLIC_CALENDARIO_API_URL')
+670:   process.exit(0)
+671: }
+672: 
+673: // Agregar en la sección secrets del build step
+674: const secretsAnchor = 'NEXT_PUBLIC_COWORKING_URL=${{ secrets.NEXT_PUBLIC_COWORKING_URL }}'
+675: const secretsNew    = `NEXT_PUBLIC_COWORKING_URL=\${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
+676:             NEXT_PUBLIC_CALENDARIO_API_URL=\${{ secrets.NEXT_PUBLIC_CALENDARIO_API_URL }}`
+677: 
+678: if (src.includes(secretsAnchor)) {
+679:   src = src.replace(secretsAnchor, secretsNew)
+680:   console.log('✅ Secret NEXT_PUBLIC_CALENDARIO_API_URL agregado a deploy.yml (build secrets)')
+681: } else {
+682:   console.log('⚠️  No se encontró anchor en deploy.yml — agregá manualmente:')
+683:   console.log('    NEXT_PUBLIC_CALENDARIO_API_URL=${{ secrets.NEXT_PUBLIC_CALENDARIO_API_URL }}')
+684:   console.log('    bajo la sección secrets del step "Build y push imagen"')
+685: }
+686: 
+687: fs.writeFileSync(path, src)
+688: JSEOF
+689:   ok "deploy.yml actualizado"
+690: fi
+691: 
+692: # ─────────────────────────────────────────────────────────────────────────────
+693: # 9. Agregar /eventos al header de navegación si existe lib/header.ts
+694: # ─────────────────────────────────────────────────────────────────────────────
+695: log "Verificando lib/header.ts para agregar /eventos..."
+696: 
+697: if [[ -f "lib/header.ts" ]]; then
+698:   node << 'JSEOF'
+699: const fs  = require('fs')
+700: const src = fs.readFileSync('lib/header.ts', 'utf8')
+701: 
+702: if (src.includes('/eventos')) {
+703:   console.log('ℹ️  /eventos ya está en header.ts')
+704:   process.exit(0)
+705: }
+706: 
+707: // Intentar insertar después de /noticias o antes del cierre del array de nav
+708: const anchor1 = `{ href: '/noticias',`
+709: const anchor2 = `href: '/noticias'`
+710: 
+711: if (src.includes(anchor1)) {
+712:   // Buscar el cierre de ese objeto y agregar /eventos después
+713:   const newEntry = `{ href: '/eventos', label: 'Eventos' },\n  `
+714:   // Insertar antes de la línea de noticias para que quede en orden
+715:   const noticiaIdx = src.indexOf(anchor1)
+716:   const lineStart = src.lastIndexOf('\n', noticiaIdx) + 1
+717:   const newSrc = src.slice(0, lineStart) + newEntry + src.slice(lineStart)
+718:   fs.writeFileSync('lib/header.ts', newSrc)
+719:   console.log('✅ /eventos agregado al nav en header.ts')
+720: } else {
+721:   console.log('⚠️  No se pudo agregar /eventos automáticamente a header.ts — agregá manualmente:')
+722:   console.log('    { href: "/eventos", label: "Eventos" }')
+723: }
+724: JSEOF
+725: else
+726:   warn "lib/header.ts no encontrado — agregá /eventos al nav manualmente"
+727: fi
+728: 
+729: # ─────────────────────────────────────────────────────────────────────────────
+730: # 10. Verificar TypeScript
+731: # ─────────────────────────────────────────────────────────────────────────────
+732: echo ""
+733: log "Verificando TypeScript..."
+734: if command -v pnpm &>/dev/null; then
+735:   pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -30 || true
+736: else
+737:   warn "pnpm no encontrado — omitiendo verificación TypeScript"
+738: fi
+739: 
+740: # ─────────────────────────────────────────────────────────────────────────────
+741: # Resumen
+742: # ─────────────────────────────────────────────────────────────────────────────
+743: echo ""
+744: echo -e "${BOLD}${GREEN}════════════════════════════════════════════════════${RESET}"
+745: echo -e "${BOLD}${GREEN}  ✅  ciudadano-front: sección /eventos lista        ${RESET}"
+746: echo -e "${BOLD}${GREEN}════════════════════════════════════════════════════${RESET}"
+747: echo ""
+748: echo "  Archivos creados:"
+749: echo "    lib/eventos/types.ts"
+750: echo "    lib/eventos/api.ts"
+751: echo "    app/eventos/page.tsx"
+752: echo "    app/eventos/loading.tsx"
+753: echo "    app/eventos/[id]/page.tsx"
+754: echo "    app/eventos/[id]/loading.tsx"
+755: echo ""
+756: echo "  Archivos modificados:"
+757: echo "    Dockerfile"
+758: echo "    .github/workflows/deploy.yml"
+759: echo "    lib/header.ts  (si existía)"
+760: echo ""
+761: echo -e "${YELLOW}  ⚠️  ACCIÓN MANUAL requerida:${RESET}"
+762: echo ""
+763: echo "  Agregar en GitHub Secrets del repo ciudadano-front:"
+764: echo "    NEXT_PUBLIC_CALENDARIO_API_URL = https://TU_URL_CALENDARIO_BACK"
+765: echo ""
+766: echo "  Ejemplo: https://calendario.nodo.cc.gob.ar"
+767: echo "           (la misma URL que tiene NEXT_PUBLIC_API_URL en calendario-front)"
+768: echo ""
+769: echo "  Rutas disponibles:"
+770: echo "    /eventos          → lista de todos los eventos públicos"
+771: echo "    /eventos/[id]     → detalle con contacto e inscripción"
+772: echo ""
+773: echo -e "${BOLD}  Git commit:${RESET}"
+774: echo ""
+775: echo "  git add . && git commit -m \"feat(eventos): sección eventos públicos en ciudadano-front\" && git push origin main"
+776: echo ""
 ```

@@ -40,7 +40,8 @@ export async function getEventosCiudadanos(params?: {
 
     const json = await res.json()
     // El back puede devolver array directo o { data: [...] }
-    return (Array.isArray(json) ? json : json?.data ?? []) as EventoCiudadano[]
+    const lista = (Array.isArray(json) ? json : json?.data ?? []) as EventoCiudadano[]
+    return lista.filter(e => e.mostrarEnCiudadanos === true)
   } catch (err) {
     console.error('[eventos-api] Error:', err)
     return []
