@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Bot, X, Send, Loader2 } from "lucide-react"
-import Image from "next/image"
 import { SiriFrame, type SiriFrameState } from "@/components/chatbot/siri-frame"
 
 // ── Tipos ─────────────────────────────────────────────────────────────────
@@ -161,16 +160,10 @@ export function ChatbotWidget() {
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label="Abrir asistente virtual"
-        className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer overflow-hidden bg-transparent border-0 p-0"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer flex items-center justify-center border-0"
+        style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
       >
-        <Image
-          src="/excited.png"
-          alt="Asistente virtual"
-          width={64}
-          height={64}
-          className="h-full w-full object-contain"
-          priority
-        />
+        <Bot className="h-6 w-6 text-white" />
       </button>
 
       {/* Overlay full-screen */}

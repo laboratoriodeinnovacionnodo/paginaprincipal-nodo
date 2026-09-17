@@ -1,252 +1,113 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  v33-ciudadano-chatbot-groq.sh  — ciudadano-front
-#  Activa el chatbot con IA (Groq) manteniendo el SiriFrame como fondo.
-#  - idle/greeting: fondo suave animado
-#  - thinking: fondo intenso mientras espera respuesta
-#  - El chat funciona contra /api/chat (ya existe con Groq)
+#  v33b-ciudadano-chatbot-fixes.sh  — ciudadano-front
+#  Fix 1: Dockerfile → NEXT_GROQ_* como ENV en el runner stage
+#  Fix 2: chatbot-widget → reemplaza excited.png por botón con ícono Bot
 # ============================================================================
 set -euo pipefail
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
 ok()   { echo -e "${GREEN}✅  $*${RESET}"; }
+warn() { echo -e "${YELLOW}⚠️   $*${RESET}"; }
 fail() { echo -e "${RED}❌  $*${RESET}"; exit 1; }
 
 [[ -f "package.json" && -d "app" ]] || fail "Corré desde la raíz de ciudadano-front"
 
 echo ""
 echo "════════════════════════════════════════════════════════════"
-echo "  v33 · ciudadano-front · chatbot Groq + SiriFrame"
+echo "  v33b · fix Groq runtime + botón chatbot sin imagen"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
-# ── app/api/chat/route.ts — aseguramos que el system prompt sea correcto ─
-echo "📄  app/api/chat/route.ts"
-cat > app/api/chat/route.ts << 'TSEOF'
-import { NextRequest, NextResponse } from "next/server"
-import Groq from "groq-sdk"
+# ── Fix 1: Dockerfile ─────────────────────────────────────────────────────
+# Agregar NEXT_GROQ_* como ENV en el runner stage para que Next.js
+# los lea en runtime (igual que NOTICIAS_API_URL ya lo hace)
+echo "📄  Dockerfile — agregar ENV NEXT_GROQ_* en runner stage"
 
-const groq = new Groq({
-  apiKey: process.env.NEXT_GROQ_API_KEY || "BUILD_TIME_PLACEHOLDER",
-})
+node << 'JSEOF'
+const fs  = require('fs')
+const src = fs.readFileSync('Dockerfile', 'utf8')
 
-const MODEL = process.env.NEXT_GROQ_MODEL || "llama-3.3-70b-versatile"
+const anchor = 'ARG NOTICIAS_API_URL\nENV NOTICIAS_API_URL=$NOTICIAS_API_URL'
 
-const SYSTEM_PROMPT = `Sos el asistente virtual del Nodo Tecnológico de Catamarca, un centro de innovación y educación digital de Argentina.
-Tu rol es ayudar a los ciudadanos con información sobre:
-- Cursos y talleres de tecnología, programación e inteligencia artificial
-- El espacio de coworking y sus zonas disponibles
-- El laboratorio de innovación y sus proyectos
-- Eventos y actividades públicas del Nodo
-- Cómo inscribirse o contactarse
-
-Reglas:
-- Respondé siempre en español argentino, de manera amigable, clara y concisa
-- Si no sabés algo específico, decí que el ciudadano puede consultar en recepción o en el sitio web
-- No inventes información. Sé honesto cuando no tenés datos
-- Mantené las respuestas cortas (máximo 3-4 oraciones salvo que te pidan más detalle)
-- No uses markdown con asteriscos — solo texto plano`
-
-interface GroqMessage {
-  role: "user" | "assistant"
-  content: string
+if (src.includes('NEXT_GROQ_API_KEY') && src.includes('ARG NEXT_GROQ_API_KEY')) {
+  console.log('ℹ️  Dockerfile ya tiene NEXT_GROQ_API_KEY en runner stage')
+  process.exit(0)
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const { messages } = (await req.json()) as { messages: GroqMessage[] }
+const addition = `ARG NOTICIAS_API_URL
+ENV NOTICIAS_API_URL=$NOTICIAS_API_URL
+ARG NEXT_GROQ_API_KEY
+ENV NEXT_GROQ_API_KEY=$NEXT_GROQ_API_KEY
+ARG NEXT_GROQ_MODEL
+ENV NEXT_GROQ_MODEL=$NEXT_GROQ_MODEL`
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: "messages requerido" }, { status: 400 })
-    }
-
-    const completion = await groq.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...messages,
-      ],
-      max_tokens: 512,
-      temperature: 0.7,
-    })
-
-    const reply = completion.choices[0]?.message?.content ?? "No pude generar una respuesta."
-
-    return NextResponse.json({ reply })
-  } catch (err) {
-    console.error("[chat/route]", err)
-    return NextResponse.json(
-      { error: "Error al procesar la consulta" },
-      { status: 500 },
-    )
-  }
-}
-TSEOF
-ok "app/api/chat/route.ts"
-
-# ── components/chatbot/chatbot-widget.tsx ─────────────────────────────────
-echo "📄  components/chatbot/chatbot-widget.tsx"
-cat > components/chatbot/chatbot-widget.tsx << 'TSEOF'
-"use client"
-
-import { useState, useEffect, useRef, useCallback } from "react"
-import { Bot, X, Send, Loader2 } from "lucide-react"
-import Image from "next/image"
-import { SiriFrame, type SiriFrameState } from "@/components/chatbot/siri-frame"
-
-// ── Tipos ─────────────────────────────────────────────────────────────────
-
-interface Message {
-  id:        string
-  text:      string
-  sender:    "user" | "bot"
-  timestamp: Date
+if (!src.includes(anchor)) {
+  console.log('⚠️  No se encontró el anchor exacto en Dockerfile — agregá manualmente:')
+  console.log('    ARG NEXT_GROQ_API_KEY')
+  console.log('    ENV NEXT_GROQ_API_KEY=$NEXT_GROQ_API_KEY')
+  console.log('    ARG NEXT_GROQ_MODEL')
+  console.log('    ENV NEXT_GROQ_MODEL=$NEXT_GROQ_MODEL')
+  console.log('    (después de ARG NOTICIAS_API_URL / ENV NOTICIAS_API_URL)')
+  process.exit(0)
 }
 
-interface GroqMessage {
-  role:    "user" | "assistant"
-  content: string
+const updated = src.replace(anchor, addition)
+fs.writeFileSync('Dockerfile', updated)
+console.log('✅  NEXT_GROQ_API_KEY y NEXT_GROQ_MODEL agregados al runner stage')
+JSEOF
+
+# También necesitamos agregarlos como build-args en deploy.yml
+echo ""
+echo "📄  .github/workflows/deploy.yml — agregar NEXT_GROQ_* a build-args"
+
+node << 'JSEOF'
+const fs  = require('fs')
+const src = fs.readFileSync('.github/workflows/deploy.yml', 'utf8')
+
+if (src.includes('NEXT_GROQ_API_KEY') && src.match(/build-args[\s\S]*?NEXT_GROQ_API_KEY/)) {
+  console.log('ℹ️  deploy.yml ya tiene NEXT_GROQ_API_KEY en build-args')
+  process.exit(0)
 }
 
-// ── Sugerencias iniciales ─────────────────────────────────────────────────
+// Anchor en build-args (la última línea de secrets del build step)
+const anchor = 'NEXT_PUBLIC_CALENDARIO_API_URL=${{ secrets.NEXT_PUBLIC_CALENDARIO_API_URL }}'
+const addition = `NEXT_PUBLIC_CALENDARIO_API_URL=\${{ secrets.NEXT_PUBLIC_CALENDARIO_API_URL }}
+            NEXT_GROQ_API_KEY=\${{ secrets.NEXT_GROQ_API_KEY }}
+            NEXT_GROQ_MODEL=\${{ secrets.NEXT_GROQ_MODEL }}`
 
-const SUGGESTIONS = [
-  "¿Qué cursos tienen disponibles?",
-  "¿Cómo funciona el coworking?",
-  "¿Cuándo son los próximos eventos?",
-  "¿Qué es el Laboratorio de Innovación?",
-]
-
-const GREETING = "¡Hola! Soy el asistente virtual del Nodo Tecnológico. ¿En qué puedo ayudarte hoy?"
-
-// ── Helper ────────────────────────────────────────────────────────────────
-
-function uid() {
-  return Math.random().toString(36).slice(2)
+if (!src.includes(anchor)) {
+  console.log('⚠️  Anchor no encontrado en deploy.yml')
+  console.log('    Agregá manualmente en la sección build-args:')
+  console.log('            NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}')
+  console.log('            NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}')
+  process.exit(0)
 }
 
-// ── Componente ────────────────────────────────────────────────────────────
+const updated = src.replace(anchor, addition)
+fs.writeFileSync('.github/workflows/deploy.yml', updated)
+console.log('✅  NEXT_GROQ_API_KEY y NEXT_GROQ_MODEL agregados a build-args')
+JSEOF
 
-export function ChatbotWidget() {
-  const [isOpen,      setIsOpen]      = useState(false)
-  const [messages,    setMessages]    = useState<Message[]>([])
-  const [history,     setHistory]     = useState<GroqMessage[]>([])
-  const [inputValue,  setInputValue]  = useState("")
-  const [isLoading,   setIsLoading]   = useState(false)
-  const [hasStarted,  setHasStarted]  = useState(false)
-  const [frameState,  setFrameState]  = useState<SiriFrameState>("idle")
+ok "Dockerfile y deploy.yml actualizados"
 
-  const inputRef    = useRef<HTMLInputElement>(null)
-  const messagesRef = useRef<HTMLDivElement>(null)
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+# ── Fix 2: chatbot-widget — botón sin imagen externa ─────────────────────
+echo ""
+echo "📄  components/chatbot/chatbot-widget.tsx — reemplazar botón excited.png"
 
-  // Saludo al abrir
-  useEffect(() => {
-    if (!isOpen) return
-    setFrameState("greeting")
-    const t = setTimeout(() => setFrameState("idle"), 800)
-    return () => clearTimeout(t)
-  }, [isOpen])
+# Solo parchear el botón flotante — reemplazar la parte de Image por ícono Bot
+node << 'JSEOF'
+const fs  = require('fs')
+let   src = fs.readFileSync('components/chatbot/chatbot-widget.tsx', 'utf8')
 
-  // Scroll al último mensaje
-  useEffect(() => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTop = messagesRef.current.scrollHeight
-    }
-  }, [messages])
+// Verificar si tiene la imagen
+if (!src.includes('excited.png') && !src.includes('<Image')) {
+  console.log('ℹ️  El widget ya no usa Image para el botón flotante')
+  process.exit(0)
+}
 
-  // Focus al input al abrir el chat
-  useEffect(() => {
-    if (isOpen && hasStarted) {
-      setTimeout(() => inputRef.current?.focus(), 100)
-    }
-  }, [isOpen, hasStarted])
-
-  const startChat = useCallback(() => {
-    setHasStarted(true)
-    setMessages([{
-      id:        uid(),
-      text:      GREETING,
-      sender:    "bot",
-      timestamp: new Date(),
-    }])
-  }, [])
-
-  const sendMessage = useCallback(async (text: string) => {
-    const trimmed = text.trim()
-    if (!trimmed || isLoading) return
-
-    // Agregar mensaje del usuario
-    const userMsg: Message = { id: uid(), text: trimmed, sender: "user", timestamp: new Date() }
-    setMessages((prev) => [...prev, userMsg])
-    setInputValue("")
-
-    // Actualizar historial para Groq
-    const newHistory: GroqMessage[] = [...history, { role: "user", content: trimmed }]
-    setHistory(newHistory)
-
-    setIsLoading(true)
-    setFrameState("thinking")
-
-    try {
-      const res = await fetch("/api/chat", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ messages: newHistory }),
-      })
-
-      if (!res.ok) throw new Error(`Error ${res.status}`)
-
-      const data = await res.json()
-      const replyText = data.reply ?? "No pude generar una respuesta."
-
-      const botMsg: Message = { id: uid(), text: replyText, sender: "bot", timestamp: new Date() }
-      setMessages((prev) => [...prev, botMsg])
-      setHistory((prev) => [...prev, { role: "assistant", content: replyText }])
-      setFrameState("speaking")
-
-      // Volver a idle después de "hablar"
-      setTimeout(() => setFrameState("idle"), 1500)
-    } catch {
-      const errMsg: Message = {
-        id:        uid(),
-        text:      "Ocurrió un error. Por favor, intentá nuevamente.",
-        sender:    "bot",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errMsg])
-      setFrameState("error")
-
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
-      errorTimerRef.current = setTimeout(() => {
-        setFrameState((cur) => cur === "error" ? "idle" : cur)
-      }, 1800)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [history, isLoading])
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage(inputValue)
-    }
-  }
-
-  const handleClose = () => {
-    setIsOpen(false)
-    // Resetear para próxima apertura
-    setHasStarted(false)
-    setMessages([])
-    setHistory([])
-    setFrameState("idle")
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
-  }
-
-  return (
-    <>
-      {/* Botón flotante */}
-      <button
+// Reemplazar el botón flotante completo que usa <Image>
+const oldBtn = `      <button
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label="Abrir asistente virtual"
@@ -260,174 +121,39 @@ export function ChatbotWidget() {
           className="h-full w-full object-contain"
           priority
         />
-      </button>
+      </button>`
 
-      {/* Overlay full-screen */}
-      {isOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Asistente Virtual del Nodo Tecnológico"
-          className="fixed inset-0 z-[100] flex flex-col"
-        >
-          {/* Fondo SiriFrame — se ve la página + glow animado */}
-          <div className="absolute inset-0">
-            <SiriFrame state={frameState} />
-          </div>
+const newBtn = `      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        aria-label="Abrir asistente virtual"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer flex items-center justify-center border-0"
+        style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
+      >
+        <Bot className="h-6 w-6 text-white" />
+      </button>`
 
-          {/* Vidrio esmerilado leve */}
-          <div className="pointer-events-none absolute inset-0 bg-white/8 backdrop-blur-[2px]" />
-
-          {/* Botón cerrar */}
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Cerrar asistente"
-            className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center transition-colors"
-          >
-            <X className="h-5 w-5 text-white" />
-          </button>
-
-          {/* Header */}
-          <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
-            <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
-              <Bot className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h2 className="text-white text-base font-semibold leading-tight">
-                Asistente NODO
-              </h2>
-              <p className="text-xs text-white/60 leading-tight flex items-center gap-1.5">
-                {frameState === "thinking" && (
-                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                )}
-                {frameState === "thinking" ? "Pensando..." : "En línea"}
-              </p>
-            </div>
-          </div>
-
-          {/* ── Pantalla de bienvenida ── */}
-          {!hasStarted && (
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 gap-6 animate-in fade-in duration-500">
-              <div className="text-center space-y-3 max-w-sm">
-                <div className="mx-auto h-16 w-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
-                  <Bot className="h-8 w-8 text-white" />
-                </div>
-                <h3 className="text-white text-xl font-bold">¿En qué puedo ayudarte?</h3>
-                <p className="text-white/60 text-sm">
-                  Soy el asistente del Nodo Tecnológico. Puedo ayudarte con cursos, eventos, coworking y más.
-                </p>
-              </div>
-
-              {/* Sugerencias */}
-              <div className="flex flex-col gap-2 w-full max-w-sm">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => { startChat(); setTimeout(() => sendMessage(s), 100) }}
-                    className="text-left px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/15 text-white/90 text-sm transition-all duration-200 hover:border-white/30"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={startChat}
-                className="px-6 py-2.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 text-white text-sm font-medium transition-all duration-200"
-              >
-                Iniciar conversación
-              </button>
-            </div>
-          )}
-
-          {/* ── Chat activo ── */}
-          {hasStarted && (
-            <div className="relative z-10 flex-1 flex flex-col min-h-0 px-4 sm:px-6 pb-4 pt-4 max-w-2xl w-full mx-auto">
-
-              {/* Mensajes */}
-              <div
-                ref={messagesRef}
-                className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20"
-              >
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
-                  >
-                    {msg.sender === "bot" && (
-                      <div className="h-7 w-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 mr-2 mt-1">
-                        <Bot className="h-3.5 w-3.5 text-white" />
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed backdrop-blur-md ${
-                        msg.sender === "user"
-                          ? "bg-[#26a7fc]/80 text-white rounded-br-sm border border-[#26a7fc]/40"
-                          : "bg-white/12 text-white/90 rounded-bl-sm border border-white/15"
-                      }`}
-                    >
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Indicador de typing */}
-                {isLoading && (
-                  <div className="flex justify-start animate-in fade-in duration-300">
-                    <div className="h-7 w-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 mr-2 mt-1">
-                      <Bot className="h-3.5 w-3.5 text-white" />
-                    </div>
-                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/12 border border-white/15 backdrop-blur-md flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:300ms]" />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Input */}
-              <div className="mt-3 flex gap-2 shrink-0">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Escribí tu consulta..."
-                  disabled={isLoading}
-                  className="flex-1 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 focus:bg-white/15 backdrop-blur-md border border-white/20 focus:border-white/35 text-white placeholder-white/40 text-sm outline-none transition-all disabled:opacity-50"
-                />
-                <button
-                  type="button"
-                  onClick={() => sendMessage(inputValue)}
-                  disabled={isLoading || !inputValue.trim()}
-                  aria-label="Enviar mensaje"
-                  className="h-12 w-12 rounded-2xl bg-[#26a7fc]/70 hover:bg-[#26a7fc]/90 backdrop-blur-md border border-[#26a7fc]/40 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                >
-                  {isLoading
-                    ? <Loader2 className="h-4 w-4 text-white animate-spin" />
-                    : <Send className="h-4 w-4 text-white" />
-                  }
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  )
+if (src.includes(oldBtn)) {
+  src = src.replace(oldBtn, newBtn)
+  // Quitar import de Image si ya no se usa
+  if (!src.includes('<Image') && src.includes("import Image from")) {
+    src = src.replace(/^import Image from "next\/image"\n/m, '')
+  }
+  fs.writeFileSync('components/chatbot/chatbot-widget.tsx', src)
+  console.log('✅  Botón flotante actualizado: ícono Bot en lugar de excited.png')
+} else {
+  console.log('⚠️  No se encontró el bloque exacto del botón — revisá manualmente')
+  console.log('    Reemplazá el <Image src="/excited.png"> por:')
+  console.log('    <Bot className="h-6 w-6 text-white" />')
 }
-TSEOF
-ok "components/chatbot/chatbot-widget.tsx"
+JSEOF
+
+ok "chatbot-widget.tsx actualizado"
 
 # ── TypeScript check ──────────────────────────────────────────────────────
 echo ""
 echo "🔨  TypeScript check..."
-pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -40 || true
+pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -30 || true
 
 echo ""
 echo "🔨  Build..."
@@ -435,17 +161,13 @@ pnpm build
 
 echo ""
 echo -e "\033[0;32m════════════════════════════════════════════════════════════\033[0m"
-echo -e "\033[0;32m  ✅  v33 completado\033[0m"
+echo -e "\033[0;32m  ✅  v33b completado\033[0m"
 echo -e "\033[0;32m════════════════════════════════════════════════════════════\033[0m"
 echo ""
-echo "  Archivos tocados:"
-echo "    app/api/chat/route.ts           → system prompt mejorado, usa NEXT_GROQ_MODEL"
-echo "    components/chatbot/chatbot-widget.tsx → chat completo con Groq + SiriFrame"
+echo "  Fix 1 — API 500 (Groq):"
+echo "    Dockerfile: NEXT_GROQ_API_KEY y NEXT_GROQ_MODEL como ARG/ENV en runner"
+echo "    deploy.yml: agregados a build-args para pasar al runner stage"
 echo ""
-echo "  Flujo:"
-echo "    1. Botón → overlay con SiriFrame idle (glow suave)"
-echo "    2. Pantalla de bienvenida con 4 sugerencias rápidas"
-echo "    3. Al iniciar chat → mensajes sobre el fondo animado"
-echo "    4. Mientras espera Groq → SiriFrame cambia a thinking (glow intenso)"
-echo "    5. Al recibir respuesta → speaking (pulse rápido) → idle"
+echo "  Fix 2 — excited.png 404:"
+echo "    Botón flotante usa ícono Bot de lucide (sin depender de archivos externos)"
 echo ""
