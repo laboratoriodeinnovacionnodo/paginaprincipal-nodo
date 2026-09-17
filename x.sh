@@ -1,95 +1,287 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  v28b-ciudadano-coworking-fix-estilo.sh  — ciudadano-front
-#  Restaura la estética original de las cards de asiento:
-#  card blanca + punto de color + badge suave.
-#  Mantiene el botón "Ver zona" y modal del v28.
+#  v31-ciudadano-evento-activo-banner.sh  — ciudadano-front
+#  Muestra el banner de evento activo en /coworking igual que coworking-front.
+#
+#  Crea:
+#    hooks/coworking/use-evento-activo-coworking.ts  → polling del calendario
+#    components/coworking/evento-activo-banner.tsx   → banner naranja
+#  Modifica:
+#    app/coworking/page.tsx  → agrega el banner y marca zonas bloqueadas
+#
+#  Variable de entorno requerida (ya existente en el Dockerfile):
+#    NEXT_PUBLIC_EVENTOS_API_URL
 # ============================================================================
 set -euo pipefail
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
 ok()   { echo -e "${GREEN}✅  $*${RESET}"; }
+warn() { echo -e "${YELLOW}⚠️   $*${RESET}"; }
 fail() { echo -e "${RED}❌  $*${RESET}"; exit 1; }
 
 [[ -f "package.json" && -d "app" ]] || fail "Corré desde la raíz de ciudadano-front"
 
 echo ""
 echo "════════════════════════════════════════════════════════════"
-echo "  v28b · ciudadano-front · fix estética asientos"
+echo "  v31 · ciudadano-front · banner evento activo en /coworking"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
-# ── lib/coworking/utils.ts — colores suaves para los badges ───────────────
-echo "📄  lib/coworking/utils.ts"
-cat > lib/coworking/utils.ts << 'TSEOF'
-import type { EstadoAsiento } from "./types"
+mkdir -p hooks/coworking
+mkdir -p components/coworking
 
-/** Color del PUNTO de estado (pequeño, sólido) */
-export const obtenerColorPunto = (estado: EstadoAsiento): string => {
-  switch (estado) {
-    case "LIBRE":             return "bg-green-500"
-    case "OCUPADO":           return "bg-red-400"
-    case "FUERA_DE_SERVICIO": return "bg-gray-400"
-    case "LIMPIANDO":         return "bg-blue-400"
-    case "PARA_COMPARTIR":    return "bg-orange-400"
-    case "COMPARTIDO":        return "bg-orange-500"
-    default:                  return "bg-gray-300"
+# ── hooks/coworking/use-evento-activo-coworking.ts ───────────────────────
+echo "📄  hooks/coworking/use-evento-activo-coworking.ts"
+cat > hooks/coworking/use-evento-activo-coworking.ts << 'TSEOF'
+"use client"
+
+/**
+ * hooks/coworking/use-evento-activo-coworking.ts
+ *
+ * Detecta si hay un evento del calendario-back activo AHORA en el área
+ * COWORKING (horario Argentina UTC-3). Polling cada 60s con AbortController.
+ *
+ * Misma lógica que coworking-front/hooks/use-evento-activo.ts.
+ * Variable requerida: NEXT_PUBLIC_EVENTOS_API_URL
+ */
+
+import { useState, useEffect, useRef } from "react"
+
+const EVENTOS_BASE      = process.env.NEXT_PUBLIC_EVENTOS_API_URL ?? ""
+const INTERVALO_MS      = 60_000
+const ESTADOS_INACTIVOS = new Set(["CANCELADO", "FINALIZADO"])
+
+export interface EventoActivoCoworking {
+  id:         string
+  titulo:     string
+  fechaDesde: string
+  fechaHasta: string
+  horaDesde:  string
+  horaHasta:  string
+  tipoEvento: string
+  areas?:     string[]
+  organizadorSolicitante?: string
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function timeToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number)
+  return h * 60 + m
+}
+
+function ahoraArgentina(): { fecha: string; minutos: number } {
+  const ar      = new Date(Date.now() - 3 * 60 * 60 * 1000)
+  const fecha   = ar.toISOString().split("T")[0]
+  const minutos = ar.getUTCHours() * 60 + ar.getUTCMinutes()
+  return { fecha, minutos }
+}
+
+function estaActivoAhora(ev: EventoActivoCoworking): boolean {
+  if (ESTADOS_INACTIVOS.has(ev.tipoEvento)) return false
+  if (!Array.isArray(ev.areas) || !ev.areas.includes("COWORKING")) return false
+
+  const { fecha, minutos } = ahoraArgentina()
+  const evDesde = ev.fechaDesde.split("T")[0]
+  const evHasta = ev.fechaHasta.split("T")[0]
+
+  if (fecha < evDesde || fecha > evHasta) return false
+
+  const inicioMin = timeToMinutes(ev.horaDesde)
+  const finMin    = timeToMinutes(ev.horaHasta)
+
+  if (evDesde === evHasta) return minutos >= inicioMin && minutos < finMin
+  if (fecha === evDesde)   return minutos >= inicioMin
+  if (fecha === evHasta)   return minutos < finMin
+  return true
+}
+
+async function fetchEventoActivo(
+  signal: AbortSignal,
+): Promise<EventoActivoCoworking | null> {
+  if (!EVENTOS_BASE) return null
+
+  try {
+    const { fecha } = ahoraArgentina()
+    const [y, m]    = fecha.split("-").map(Number)
+
+    // Consultar mes actual y el siguiente si estamos al final del mes
+    const meses: { y: number; m: number }[] = [{ y, m }]
+    const diasEnMes = new Date(y, m, 0).getDate()
+    const diaActual = Number(fecha.split("-")[2])
+    if (diasEnMes - diaActual <= 3) {
+      meses.push(m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 })
+    }
+
+    const resultados = await Promise.all(
+      meses.map(async ({ y, m }) => {
+        try {
+          const res = await fetch(
+            `${EVENTOS_BASE}/calendar?year=${y}&month=${m}`,
+            { cache: "no-store", signal },
+          )
+          if (!res.ok) return []
+          const data = await res.json()
+          return (data.events ?? []) as EventoActivoCoworking[]
+        } catch {
+          return []
+        }
+      }),
+    )
+
+    const todos = resultados.flat()
+
+    // Deduplicar
+    const vistos = new Set<string>()
+    const unicos = todos.filter((e) => {
+      if (vistos.has(e.id)) return false
+      vistos.add(e.id)
+      return true
+    })
+
+    return unicos.find(estaActivoAhora) ?? null
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") return null
+    return null
   }
 }
 
-/** Clases del BADGE de estado (fondo suave, texto de color) */
-export const obtenerColorBadge = (estado: EstadoAsiento): string => {
-  switch (estado) {
-    case "LIBRE":             return "bg-green-100 text-green-700"
-    case "OCUPADO":           return "bg-red-100 text-red-600"
-    case "FUERA_DE_SERVICIO": return "bg-gray-100 text-gray-500"
-    case "LIMPIANDO":         return "bg-blue-100 text-blue-600"
-    case "PARA_COMPARTIR":    return "bg-orange-100 text-orange-600"
-    case "COMPARTIDO":        return "bg-orange-100 text-orange-700"
-    default:                  return "bg-gray-100 text-gray-400"
-  }
-}
+// ── Hook ──────────────────────────────────────────────────────────────────
 
-export const obtenerTextoEstado = (estado: EstadoAsiento): string => {
-  switch (estado) {
-    case "LIBRE":             return "Libre"
-    case "OCUPADO":           return "Ocupado"
-    case "FUERA_DE_SERVICIO": return "Fuera de servicio"
-    case "LIMPIANDO":         return "Limpiando"
-    case "PARA_COMPARTIR":    return "Para compartir"
-    case "COMPARTIDO":        return "Compartido"
-    default:                  return "Desconocido"
-  }
-}
+export function useEventoActivoCoworking() {
+  const [eventoActivo, setEventoActivo] = useState<EventoActivoCoworking | null>(null)
+  const [cargando,     setCargando]     = useState(true)
 
-export const obtenerIconoEstado = (estado: EstadoAsiento): string => {
-  switch (estado) {
-    case "LIBRE":             return "✅"
-    case "OCUPADO":           return "🔴"
-    case "FUERA_DE_SERVICIO": return "⚫"
-    case "LIMPIANDO":         return "🔵"
-    case "PARA_COMPARTIR":    return "🟠"
-    case "COMPARTIDO":        return "🟠"
-    default:                  return "⚪"
-  }
-}
+  const abortRef    = useRef<AbortController | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-export const contarPorEstado = (
-  areas: { estado: EstadoAsiento }[],
-  estado: EstadoAsiento,
-): number => areas.filter((a) => a.estado === estado).length
+  useEffect(() => {
+    let montado = true
+
+    const ejecutar = async () => {
+      if (abortRef.current) abortRef.current.abort()
+      abortRef.current = new AbortController()
+
+      const activo = await fetchEventoActivo(abortRef.current.signal)
+
+      if (montado) {
+        setEventoActivo(activo)
+        setCargando(false)
+      }
+    }
+
+    ejecutar()
+    intervalRef.current = setInterval(ejecutar, INTERVALO_MS)
+
+    return () => {
+      montado = false
+      if (abortRef.current) { abortRef.current.abort(); abortRef.current = null }
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+    }
+  }, [])
+
+  return { eventoActivo, cargando }
+}
 TSEOF
-ok "lib/coworking/utils.ts"
+ok "hooks/coworking/use-evento-activo-coworking.ts"
 
-# ── app/coworking/page.tsx ────────────────────────────────────────────────
+# ── components/coworking/evento-activo-banner.tsx ─────────────────────────
+echo "📄  components/coworking/evento-activo-banner.tsx"
+cat > components/coworking/evento-activo-banner.tsx << 'TSEOF'
+"use client"
+
+/**
+ * components/coworking/evento-activo-banner.tsx
+ * Banner naranja que avisa al ciudadano que el coworking está bloqueado
+ * por un evento en curso. Misma estética que coworking-front.
+ */
+
+import type { EventoActivoCoworking } from "@/hooks/coworking/use-evento-activo-coworking"
+import { AlertTriangle, CalendarDays, Clock } from "lucide-react"
+
+const TIPO_LABEL: Record<string, string> = {
+  PENDIENTE:  "Pendiente",
+  EN_CURSO:   "En curso",
+  FINALIZADO: "Finalizado",
+  CANCELADO:  "Cancelado",
+  MASIVO:     "Masivo",
+  ESCOLAR:    "Escolar",
+}
+
+function formatFecha(iso: string): string {
+  const [y, m, d] = iso.split("T")[0].split("-").map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString("es-AR", {
+    weekday: "short", day: "numeric", month: "short",
+  })
+}
+
+interface EventoActivoBannerProps {
+  evento: EventoActivoCoworking
+}
+
+export function EventoActivoBannerCoworking({ evento }: EventoActivoBannerProps) {
+  const mismaFecha =
+    evento.fechaDesde.split("T")[0] === evento.fechaHasta.split("T")[0]
+
+  return (
+    <div
+      role="alert"
+      className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3.5 flex items-start gap-3"
+    >
+      {/* Ícono */}
+      <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+
+      {/* Contenido */}
+      <div className="flex-1 min-w-0 space-y-1">
+        {/* Título + badge tipo */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-semibold text-orange-900">
+            Coworking no disponible — evento en curso
+          </p>
+          <span className="text-[10px] font-semibold border border-orange-300 text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">
+            {TIPO_LABEL[evento.tipoEvento] ?? evento.tipoEvento}
+          </span>
+        </div>
+
+        {/* Nombre del evento */}
+        <p className="text-sm font-medium text-orange-800 truncate">
+          {evento.titulo}
+        </p>
+
+        {/* Fecha y horario */}
+        <div className="flex items-center gap-3 flex-wrap text-xs text-orange-700">
+          <span className="flex items-center gap-1">
+            <CalendarDays className="w-3 h-3" />
+            {mismaFecha
+              ? formatFecha(evento.fechaDesde)
+              : `${formatFecha(evento.fechaDesde)} → ${formatFecha(evento.fechaHasta)}`}
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {evento.horaDesde} – {evento.horaHasta}
+          </span>
+          {evento.organizadorSolicitante && (
+            <span className="text-orange-600 truncate max-w-[180px]">
+              {evento.organizadorSolicitante}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+TSEOF
+ok "components/coworking/evento-activo-banner.tsx"
+
+# ── app/coworking/page.tsx — integrar hook + banner ──────────────────────
 echo "📄  app/coworking/page.tsx"
 cat > app/coworking/page.tsx << 'TSEOF'
 "use client"
 
 import { useState } from "react"
 import Image        from "next/image"
-import { Badge }           from "@/components/ui/badge"
-import { Button }          from "@/components/ui/button"
+import { Badge }    from "@/components/ui/badge"
+import { Button }   from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -97,7 +289,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { useCoworking } from "@/hooks/coworking/use-coworking"
+import { useCoworking }   from "@/hooks/coworking/use-coworking"
+import { useEventoActivoCoworking } from "@/hooks/coworking/use-evento-activo-coworking"
+import { EventoActivoBannerCoworking } from "@/components/coworking/evento-activo-banner"
 import {
   obtenerColorBadge,
   obtenerColorPunto,
@@ -131,7 +325,6 @@ const ESTADOS: { estado: EstadoAsiento; label: string }[] = [
   { estado: "FUERA_DE_SERVICIO", label: "Fuera de servicio" },
 ]
 
-// ─── Tipo interno ──────────────────────────────────────────────────────────
 interface ZonaInfo {
   letra:       string
   label:       string
@@ -141,10 +334,11 @@ interface ZonaInfo {
 }
 
 // ─── Modal de zona ─────────────────────────────────────────────────────────
-function ZonaModal({ zona, open, onClose }: {
-  zona:    ZonaInfo | null
-  open:    boolean
-  onClose: () => void
+function ZonaModal({ zona, open, onClose, bloqueada }: {
+  zona:      ZonaInfo | null
+  open:      boolean
+  onClose:   () => void
+  bloqueada: boolean
 }) {
   if (!zona) return null
   const libres   = zona.areas.filter((a) => a.estado === "LIBRE").length
@@ -184,6 +378,14 @@ function ZonaModal({ zona, open, onClose }: {
             <DialogDescription className="sr-only">Información de {zona.label}</DialogDescription>
           </DialogHeader>
 
+          {/* Aviso si está bloqueada por evento */}
+          {bloqueada && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-xs font-medium">
+              <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+              Esta zona está bloqueada por un evento en curso
+            </div>
+          )}
+
           {zona.descripcion && (
             <p className="text-sm text-slate-600 leading-relaxed">{zona.descripcion}</p>
           )}
@@ -214,9 +416,12 @@ function ZonaModal({ zona, open, onClose }: {
               <div
                 className={cn(
                   "h-full rounded-full transition-all",
-                  pct === 100 ? "bg-red-400" : pct > 50 ? "bg-yellow-400" : "bg-green-400"
+                  bloqueada ? "bg-orange-400"
+                    : pct === 100 ? "bg-red-400"
+                    : pct > 50 ? "bg-yellow-400"
+                    : "bg-green-400"
                 )}
-                style={{ width: `${pct}%` }}
+                style={{ width: bloqueada ? "100%" : `${pct}%` }}
               />
             </div>
           </div>
@@ -233,7 +438,10 @@ function ZonaModal({ zona, open, onClose }: {
 // ─── Página ────────────────────────────────────────────────────────────────
 export default function CoworkingPage() {
   const { areas, loading, error, ultimaActualizacion, refetch } = useCoworking()
+  const { eventoActivo, cargando: cargandoEvento }              = useEventoActivoCoworking()
   const [zonaModal, setZonaModal] = useState<ZonaInfo | null>(null)
+
+  const hayEventoActivo = eventoActivo !== null
 
   // Agrupar por zona (letra del nombre: A1→"A")
   const zonaMap = areas.reduce<Record<string, AreaBackendResponse[]>>((acc, area) => {
@@ -287,6 +495,13 @@ export default function CoworkingPage() {
           </Button>
         </div>
 
+        {/* ── Banner evento activo ──────────────────────────────────────── */}
+        {eventoActivo && (
+          <div className="mb-6">
+            <EventoActivoBannerCoworking evento={eventoActivo} />
+          </div>
+        )}
+
         {/* ── Resumen global ─────────────────────────────────────────────*/}
         {!loading && total > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-8">
@@ -294,8 +509,15 @@ export default function CoworkingPage() {
               <p className="text-2xl font-bold text-gray-800">{total}</p>
               <p className="text-xs text-gray-400 mt-0.5">Total</p>
             </div>
-            <div className="bg-green-50 rounded-2xl border border-green-100 shadow-sm p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{totalLibres}</p>
+            <div className={cn(
+              "rounded-2xl border shadow-sm p-4 text-center",
+              hayEventoActivo
+                ? "bg-orange-50 border-orange-100"
+                : "bg-green-50 border-green-100"
+            )}>
+              <p className={cn("text-2xl font-bold", hayEventoActivo ? "text-orange-500" : "text-green-600")}>
+                {hayEventoActivo ? 0 : totalLibres}
+              </p>
               <p className="text-xs text-gray-400 mt-0.5">Libres</p>
             </div>
             <div className="bg-red-50 rounded-2xl border border-red-100 shadow-sm p-4 text-center">
@@ -327,64 +549,78 @@ export default function CoworkingPage() {
         {/* ── Zonas ──────────────────────────────────────────────────────*/}
         {!loading && !error && (
           <div className="space-y-10">
-            {zonas.map((zona) => (
-              <section key={zona.letra}>
+            {zonas.map((zona) => {
+              const libres   = zona.areas.filter((a) => a.estado === "LIBRE").length
+              const ocupados = zona.areas.filter((a) => a.estado === "OCUPADO").length
+              const total    = zona.areas.length
+              const pct      = total > 0 ? Math.round((ocupados / total) * 100) : 0
 
-                {/* Cabecera de zona */}
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest pl-1">
-                    {zona.label}
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 text-xs h-7 px-2.5 text-[#26a7fc] hover:bg-[#26a7fc]/8"
-                    onClick={() => setZonaModal(zona)}
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                    Ver zona
-                  </Button>
-                </div>
-
-                {/* Grid de cards — estilo original */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {zona.areas
-                    .sort((a, b) => a.nombre.localeCompare(b.nombre, undefined, { numeric: true }))
-                    .map((area) => (
-                      <div
-                        key={area.id}
-                        className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2 hover:shadow-md transition-shadow"
-                      >
-                        {/* Punto de color */}
-                        <span
-                          className={cn(
-                            "w-3 h-3 rounded-full flex-shrink-0",
-                            obtenerColorPunto(area.estado),
-                          )}
-                        />
-                        {/* Nombre del área */}
-                        <span className="text-sm font-bold text-gray-800 tracking-wide">
-                          {area.nombre}
+              return (
+                <section key={zona.letra}>
+                  {/* Cabecera de zona */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest pl-1">
+                        {zona.label}
+                      </h2>
+                      {/* Indicador de bloqueada por evento */}
+                      {hayEventoActivo && (
+                        <span className="text-[10px] font-semibold bg-orange-100 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded-full">
+                          No disponible
                         </span>
-                        {/* Badge suave */}
-                        <Badge
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-xs h-7 px-2.5 text-[#26a7fc] hover:bg-[#26a7fc]/8"
+                      onClick={() => setZonaModal(zona)}
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                      Ver zona
+                    </Button>
+                  </div>
+
+                  {/* Grid de cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {zona.areas
+                      .sort((a, b) => a.nombre.localeCompare(b.nombre, undefined, { numeric: true }))
+                      .map((area) => (
+                        <div
+                          key={area.id}
                           className={cn(
-                            "text-[10px] px-2 py-0.5 rounded-full border-0 font-medium",
-                            obtenerColorBadge(area.estado),
+                            "bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2 hover:shadow-md transition-shadow",
+                            hayEventoActivo && "opacity-50",
                           )}
                         >
-                          {obtenerTextoEstado(area.estado)}
-                        </Badge>
-                      </div>
-                    ))}
-                </div>
-              </section>
-            ))}
+                          <span className={cn(
+                            "w-3 h-3 rounded-full flex-shrink-0",
+                            hayEventoActivo ? "bg-orange-400" : obtenerColorPunto(area.estado),
+                          )} />
+                          <span className="text-sm font-bold text-gray-800 tracking-wide">
+                            {area.nombre}
+                          </span>
+                          <Badge
+                            className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full border-0 font-medium",
+                              hayEventoActivo
+                                ? "bg-orange-100 text-orange-600"
+                                : obtenerColorBadge(area.estado),
+                            )}
+                          >
+                            {hayEventoActivo ? "No disponible" : obtenerTextoEstado(area.estado)}
+                          </Badge>
+                        </div>
+                      ))}
+                  </div>
+                </section>
+              )
+            })}
           </div>
         )}
 
         {/* ── Leyenda ────────────────────────────────────────────────────*/}
-        {!loading && total > 0 && (
+        {!loading && total > 0 && !hayEventoActivo && (
           <div className="mt-10 flex flex-wrap items-center gap-3 justify-center">
             {ESTADOS.map(({ estado, label }) => {
               const count = contarPorEstado(areas, estado)
@@ -406,7 +642,7 @@ export default function CoworkingPage() {
             {ultimaActualizacion
               ? `Actualizado ${ultimaActualizacion}`
               : "Se actualiza automáticamente cada 30 segundos"}
-            . Para reservar un espacio acercate a recepción.
+            . Para reservar acercate a recepción.
           </p>
         )}
 
@@ -417,6 +653,7 @@ export default function CoworkingPage() {
         zona={zonaModal}
         open={zonaModal !== null}
         onClose={() => setZonaModal(null)}
+        bloqueada={hayEventoActivo}
       />
     </div>
   )
@@ -424,6 +661,7 @@ export default function CoworkingPage() {
 TSEOF
 ok "app/coworking/page.tsx"
 
+# ── TypeScript check ──────────────────────────────────────────────────────
 echo ""
 echo "🔨  TypeScript check..."
 pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -40 || true
@@ -434,11 +672,16 @@ pnpm build
 
 echo ""
 echo -e "\033[0;32m════════════════════════════════════════════════════════════\033[0m"
-echo -e "\033[0;32m  ✅  v28b completado\033[0m"
+echo -e "\033[0;32m  ✅  v31 completado\033[0m"
 echo -e "\033[0;32m════════════════════════════════════════════════════════════\033[0m"
 echo ""
-echo "  Cambios:"
-echo "    lib/coworking/utils.ts    → obtenerColorBadge ahora devuelve colores suaves"
-echo "    app/coworking/page.tsx    → cards originales (blanco + punto + badge suave)"
-echo "                               + botón 'Ver zona' en cabecera de cada sección"
+echo "  Archivos creados:"
+echo "    hooks/coworking/use-evento-activo-coworking.ts"
+echo "    components/coworking/evento-activo-banner.tsx"
+echo ""
+echo "  Archivos modificados:"
+echo "    app/coworking/page.tsx → banner + zonas con badge 'No disponible'"
+echo ""
+echo -e "\033[1;33m  ⚠️  Variable requerida (ya en Dockerfile):\033[0m"
+echo "    NEXT_PUBLIC_EVENTOS_API_URL"
 echo ""

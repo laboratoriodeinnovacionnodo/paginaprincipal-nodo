@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import Image        from "next/image"
-import { Badge }           from "@/components/ui/badge"
-import { Button }          from "@/components/ui/button"
+import { Badge }    from "@/components/ui/badge"
+import { Button }   from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { useCoworking } from "@/hooks/coworking/use-coworking"
+import { useCoworking }   from "@/hooks/coworking/use-coworking"
+import { useEventoActivoCoworking } from "@/hooks/coworking/use-evento-activo-coworking"
+import { EventoActivoBannerCoworking } from "@/components/coworking/evento-activo-banner"
 import {
   obtenerColorBadge,
   obtenerColorPunto,
@@ -45,7 +47,6 @@ const ESTADOS: { estado: EstadoAsiento; label: string }[] = [
   { estado: "FUERA_DE_SERVICIO", label: "Fuera de servicio" },
 ]
 
-// ─── Tipo interno ──────────────────────────────────────────────────────────
 interface ZonaInfo {
   letra:       string
   label:       string
@@ -55,10 +56,11 @@ interface ZonaInfo {
 }
 
 // ─── Modal de zona ─────────────────────────────────────────────────────────
-function ZonaModal({ zona, open, onClose }: {
-  zona:    ZonaInfo | null
-  open:    boolean
-  onClose: () => void
+function ZonaModal({ zona, open, onClose, bloqueada }: {
+  zona:      ZonaInfo | null
+  open:      boolean
+  onClose:   () => void
+  bloqueada: boolean
 }) {
   if (!zona) return null
   const libres   = zona.areas.filter((a) => a.estado === "LIBRE").length
@@ -98,6 +100,14 @@ function ZonaModal({ zona, open, onClose }: {
             <DialogDescription className="sr-only">Información de {zona.label}</DialogDescription>
           </DialogHeader>
 
+          {/* Aviso si está bloqueada por evento */}
+          {bloqueada && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-xs font-medium">
+              <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+              Esta zona está bloqueada por un evento en curso
+            </div>
+          )}
+
           {zona.descripcion && (
             <p className="text-sm text-slate-600 leading-relaxed">{zona.descripcion}</p>
           )}
@@ -128,9 +138,12 @@ function ZonaModal({ zona, open, onClose }: {
               <div
                 className={cn(
                   "h-full rounded-full transition-all",
-                  pct === 100 ? "bg-red-400" : pct > 50 ? "bg-yellow-400" : "bg-green-400"
+                  bloqueada ? "bg-orange-400"
+                    : pct === 100 ? "bg-red-400"
+                    : pct > 50 ? "bg-yellow-400"
+                    : "bg-green-400"
                 )}
-                style={{ width: `${pct}%` }}
+                style={{ width: bloqueada ? "100%" : `${pct}%` }}
               />
             </div>
           </div>
@@ -147,7 +160,10 @@ function ZonaModal({ zona, open, onClose }: {
 // ─── Página ────────────────────────────────────────────────────────────────
 export default function CoworkingPage() {
   const { areas, loading, error, ultimaActualizacion, refetch } = useCoworking()
+  const { eventoActivo, cargando: cargandoEvento }              = useEventoActivoCoworking()
   const [zonaModal, setZonaModal] = useState<ZonaInfo | null>(null)
+
+  const hayEventoActivo = eventoActivo !== null
 
   // Agrupar por zona (letra del nombre: A1→"A")
   const zonaMap = areas.reduce<Record<string, AreaBackendResponse[]>>((acc, area) => {
@@ -201,6 +217,13 @@ export default function CoworkingPage() {
           </Button>
         </div>
 
+        {/* ── Banner evento activo ──────────────────────────────────────── */}
+        {eventoActivo && (
+          <div className="mb-6">
+            <EventoActivoBannerCoworking evento={eventoActivo} />
+          </div>
+        )}
+
         {/* ── Resumen global ─────────────────────────────────────────────*/}
         {!loading && total > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-8">
@@ -208,8 +231,15 @@ export default function CoworkingPage() {
               <p className="text-2xl font-bold text-gray-800">{total}</p>
               <p className="text-xs text-gray-400 mt-0.5">Total</p>
             </div>
-            <div className="bg-green-50 rounded-2xl border border-green-100 shadow-sm p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{totalLibres}</p>
+            <div className={cn(
+              "rounded-2xl border shadow-sm p-4 text-center",
+              hayEventoActivo
+                ? "bg-orange-50 border-orange-100"
+                : "bg-green-50 border-green-100"
+            )}>
+              <p className={cn("text-2xl font-bold", hayEventoActivo ? "text-orange-500" : "text-green-600")}>
+                {hayEventoActivo ? 0 : totalLibres}
+              </p>
               <p className="text-xs text-gray-400 mt-0.5">Libres</p>
             </div>
             <div className="bg-red-50 rounded-2xl border border-red-100 shadow-sm p-4 text-center">
@@ -241,64 +271,78 @@ export default function CoworkingPage() {
         {/* ── Zonas ──────────────────────────────────────────────────────*/}
         {!loading && !error && (
           <div className="space-y-10">
-            {zonas.map((zona) => (
-              <section key={zona.letra}>
+            {zonas.map((zona) => {
+              const libres   = zona.areas.filter((a) => a.estado === "LIBRE").length
+              const ocupados = zona.areas.filter((a) => a.estado === "OCUPADO").length
+              const total    = zona.areas.length
+              const pct      = total > 0 ? Math.round((ocupados / total) * 100) : 0
 
-                {/* Cabecera de zona */}
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest pl-1">
-                    {zona.label}
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 text-xs h-7 px-2.5 text-[#26a7fc] hover:bg-[#26a7fc]/8"
-                    onClick={() => setZonaModal(zona)}
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                    Ver zona
-                  </Button>
-                </div>
-
-                {/* Grid de cards — estilo original */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {zona.areas
-                    .sort((a, b) => a.nombre.localeCompare(b.nombre, undefined, { numeric: true }))
-                    .map((area) => (
-                      <div
-                        key={area.id}
-                        className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2 hover:shadow-md transition-shadow"
-                      >
-                        {/* Punto de color */}
-                        <span
-                          className={cn(
-                            "w-3 h-3 rounded-full flex-shrink-0",
-                            obtenerColorPunto(area.estado),
-                          )}
-                        />
-                        {/* Nombre del área */}
-                        <span className="text-sm font-bold text-gray-800 tracking-wide">
-                          {area.nombre}
+              return (
+                <section key={zona.letra}>
+                  {/* Cabecera de zona */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest pl-1">
+                        {zona.label}
+                      </h2>
+                      {/* Indicador de bloqueada por evento */}
+                      {hayEventoActivo && (
+                        <span className="text-[10px] font-semibold bg-orange-100 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded-full">
+                          No disponible
                         </span>
-                        {/* Badge suave */}
-                        <Badge
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-xs h-7 px-2.5 text-[#26a7fc] hover:bg-[#26a7fc]/8"
+                      onClick={() => setZonaModal(zona)}
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                      Ver zona
+                    </Button>
+                  </div>
+
+                  {/* Grid de cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {zona.areas
+                      .sort((a, b) => a.nombre.localeCompare(b.nombre, undefined, { numeric: true }))
+                      .map((area) => (
+                        <div
+                          key={area.id}
                           className={cn(
-                            "text-[10px] px-2 py-0.5 rounded-full border-0 font-medium",
-                            obtenerColorBadge(area.estado),
+                            "bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex flex-col items-center gap-2 hover:shadow-md transition-shadow",
+                            hayEventoActivo && "opacity-50",
                           )}
                         >
-                          {obtenerTextoEstado(area.estado)}
-                        </Badge>
-                      </div>
-                    ))}
-                </div>
-              </section>
-            ))}
+                          <span className={cn(
+                            "w-3 h-3 rounded-full flex-shrink-0",
+                            hayEventoActivo ? "bg-orange-400" : obtenerColorPunto(area.estado),
+                          )} />
+                          <span className="text-sm font-bold text-gray-800 tracking-wide">
+                            {area.nombre}
+                          </span>
+                          <Badge
+                            className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full border-0 font-medium",
+                              hayEventoActivo
+                                ? "bg-orange-100 text-orange-600"
+                                : obtenerColorBadge(area.estado),
+                            )}
+                          >
+                            {hayEventoActivo ? "No disponible" : obtenerTextoEstado(area.estado)}
+                          </Badge>
+                        </div>
+                      ))}
+                  </div>
+                </section>
+              )
+            })}
           </div>
         )}
 
         {/* ── Leyenda ────────────────────────────────────────────────────*/}
-        {!loading && total > 0 && (
+        {!loading && total > 0 && !hayEventoActivo && (
           <div className="mt-10 flex flex-wrap items-center gap-3 justify-center">
             {ESTADOS.map(({ estado, label }) => {
               const count = contarPorEstado(areas, estado)
@@ -320,7 +364,7 @@ export default function CoworkingPage() {
             {ultimaActualizacion
               ? `Actualizado ${ultimaActualizacion}`
               : "Se actualiza automáticamente cada 30 segundos"}
-            . Para reservar un espacio acercate a recepción.
+            . Para reservar acercate a recepción.
           </p>
         )}
 
@@ -331,6 +375,7 @@ export default function CoworkingPage() {
         zona={zonaModal}
         open={zonaModal !== null}
         onClose={() => setZonaModal(null)}
+        bloqueada={hayEventoActivo}
       />
     </div>
   )
