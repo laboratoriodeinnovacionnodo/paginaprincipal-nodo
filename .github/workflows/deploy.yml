@@ -33,6 +33,8 @@ jobs:
           # NOTICIAS_API_URL va en build-args para el ARG del runner stage
           build-args: |
             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
+            NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
+            NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
           secrets: |
             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
