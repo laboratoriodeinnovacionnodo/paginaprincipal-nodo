@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useRef } from "react"
 
-const EVENTOS_BASE      = process.env.NEXT_PUBLIC_EVENTOS_API_URL ?? ""
+const EVENTOS_BASE      = process.env.NEXT_PUBLIC_CALENDARIO_API_URL?? ""
 const INTERVALO_MS      = 60_000
 const ESTADOS_INACTIVOS = new Set(["CANCELADO", "FINALIZADO"])
 
