@@ -5,38 +5,54 @@ const groq = new Groq({
   apiKey: process.env.NEXT_GROQ_API_KEY || "BUILD_TIME_PLACEHOLDER",
 })
 
-const SYSTEM_PROMPT = `Eres el asistente virtual del Nodo Tecnológico, un centro de innovación y educación digital en Argentina. 
-Tu rol es ayudar a los usuarios con información sobre cursos, talleres, capacitaciones en programación, inteligencia artificial y tecnologías emergentes.
-Respondé siempre en español argentino, de manera amigable, clara y concisa.
-Si no sabés algo específico sobre el Nodo, ofrecé orientar al usuario para que contacte directamente al centro.`
+const MODEL = process.env.NEXT_GROQ_MODEL || "llama-3.3-70b-versatile"
+
+const SYSTEM_PROMPT = `Sos el asistente virtual del Nodo Tecnológico de Catamarca, un centro de innovación y educación digital de Argentina.
+Tu rol es ayudar a los ciudadanos con información sobre:
+- Cursos y talleres de tecnología, programación e inteligencia artificial
+- El espacio de coworking y sus zonas disponibles
+- El laboratorio de innovación y sus proyectos
+- Eventos y actividades públicas del Nodo
+- Cómo inscribirse o contactarse
+
+Reglas:
+- Respondé siempre en español argentino, de manera amigable, clara y concisa
+- Si no sabés algo específico, decí que el ciudadano puede consultar en recepción o en el sitio web
+- No inventes información. Sé honesto cuando no tenés datos
+- Mantené las respuestas cortas (máximo 3-4 oraciones salvo que te pidan más detalle)
+- No uses markdown con asteriscos — solo texto plano`
+
+interface GroqMessage {
+  role: "user" | "assistant"
+  content: string
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json()
+    const { messages } = (await req.json()) as { messages: GroqMessage[] }
 
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: "Mensajes inválidos" }, { status: 400 })
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json({ error: "messages requerido" }, { status: 400 })
     }
 
     const completion = await groq.chat.completions.create({
-      model: process.env.NEXT_GROQ_MODEL || "llama-3.3-70b-versatile",
+      model: MODEL,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         ...messages,
       ],
-      max_tokens: 1024,
+      max_tokens: 512,
       temperature: 0.7,
     })
 
-    const response = completion.choices[0]?.message?.content
+    const reply = completion.choices[0]?.message?.content ?? "No pude generar una respuesta."
 
-    if (!response) {
-      return NextResponse.json({ error: "Sin respuesta del modelo" }, { status: 500 })
-    }
-
-    return NextResponse.json({ response })
-  } catch (error) {
-    console.error("Groq API error:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    return NextResponse.json({ reply })
+  } catch (err) {
+    console.error("[chat/route]", err)
+    return NextResponse.json(
+      { error: "Error al procesar la consulta" },
+      { status: 500 },
+    )
   }
 }
