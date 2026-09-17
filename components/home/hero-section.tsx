@@ -84,10 +84,10 @@ export async function HeroSection() {
             </Link>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-8 justify-center">
+          {/* <div className="flex flex-col sm:flex-row gap-8 justify-center">
             <CounterStat end={12000} suffix="+" label="Egresados" />
             <CounterStat end={25}    suffix="+" label="Cursos disponibles" />
-          </div>
+          </div> */}
 
         </div>
       </div>
