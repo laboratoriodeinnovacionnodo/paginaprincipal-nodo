@@ -25,10 +25,6 @@ export const navLinks = [
     href: "/laboratorio",
   },
   {
-    label: "CatamarcaOpen",
-    href: "/catamarcaopen",
-  },
-  {
     label: "Sobre Nosotros",
     href: "/sobre-nosotros",
   },
