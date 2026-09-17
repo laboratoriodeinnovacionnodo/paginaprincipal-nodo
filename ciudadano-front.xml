@@ -9253,52 +9253,6 @@ x.sh
 97: }
 ```
 
-## File: app/api/chat/route.ts
-```typescript
- 1: import { NextRequest, NextResponse } from "next/server"
- 2: import Groq from "groq-sdk"
- 3: 
- 4: const groq = new Groq({
- 5:   apiKey: process.env.NEXT_GROQ_API_KEY || "BUILD_TIME_PLACEHOLDER",
- 6: })
- 7: 
- 8: const SYSTEM_PROMPT = `Eres el asistente virtual del Nodo Tecnológico, un centro de innovación y educación digital en Argentina. 
- 9: Tu rol es ayudar a los usuarios con información sobre cursos, talleres, capacitaciones en programación, inteligencia artificial y tecnologías emergentes.
-10: Respondé siempre en español argentino, de manera amigable, clara y concisa.
-11: Si no sabés algo específico sobre el Nodo, ofrecé orientar al usuario para que contacte directamente al centro.`
-12: 
-13: export async function POST(req: NextRequest) {
-14:   try {
-15:     const { messages } = await req.json()
-16: 
-17:     if (!messages || !Array.isArray(messages)) {
-18:       return NextResponse.json({ error: "Mensajes inválidos" }, { status: 400 })
-19:     }
-20: 
-21:     const completion = await groq.chat.completions.create({
-22:       model: process.env.NEXT_GROQ_MODEL || "llama-3.3-70b-versatile",
-23:       messages: [
-24:         { role: "system", content: SYSTEM_PROMPT },
-25:         ...messages,
-26:       ],
-27:       max_tokens: 1024,
-28:       temperature: 0.7,
-29:     })
-30: 
-31:     const response = completion.choices[0]?.message?.content
-32: 
-33:     if (!response) {
-34:       return NextResponse.json({ error: "Sin respuesta del modelo" }, { status: 500 })
-35:     }
-36: 
-37:     return NextResponse.json({ response })
-38:   } catch (error) {
-39:     console.error("Groq API error:", error)
-40:     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
-41:   }
-42: }
-```
-
 ## File: app/catamarcaopen/proyectos/page.tsx
 ```typescript
   1: // app/catamarcaopen/proyectos/page.tsx
@@ -9818,6 +9772,68 @@ x.sh
 43: export function getCategoriaColor(color?: string): string {
 44:   return color ?? '#26a7fc'
 45: }
+```
+
+## File: app/api/chat/route.ts
+```typescript
+ 1: import { NextRequest, NextResponse } from "next/server"
+ 2: import Groq from "groq-sdk"
+ 3: 
+ 4: const groq = new Groq({
+ 5:   apiKey: process.env.NEXT_GROQ_API_KEY || "BUILD_TIME_PLACEHOLDER",
+ 6: })
+ 7: 
+ 8: const MODEL = process.env.NEXT_GROQ_MODEL || "llama-3.3-70b-versatile"
+ 9: 
+10: const SYSTEM_PROMPT = `Sos el asistente virtual del Nodo Tecnológico de Catamarca, un centro de innovación y educación digital de Argentina.
+11: Tu rol es ayudar a los ciudadanos con información sobre:
+12: - Cursos y talleres de tecnología, programación e inteligencia artificial
+13: - El espacio de coworking y sus zonas disponibles
+14: - El laboratorio de innovación y sus proyectos
+15: - Eventos y actividades públicas del Nodo
+16: - Cómo inscribirse o contactarse
+17: 
+18: Reglas:
+19: - Respondé siempre en español argentino, de manera amigable, clara y concisa
+20: - Si no sabés algo específico, decí que el ciudadano puede consultar en recepción o en el sitio web
+21: - No inventes información. Sé honesto cuando no tenés datos
+22: - Mantené las respuestas cortas (máximo 3-4 oraciones salvo que te pidan más detalle)
+23: - No uses markdown con asteriscos — solo texto plano`
+24: 
+25: interface GroqMessage {
+26:   role: "user" | "assistant"
+27:   content: string
+28: }
+29: 
+30: export async function POST(req: NextRequest) {
+31:   try {
+32:     const { messages } = (await req.json()) as { messages: GroqMessage[] }
+33: 
+34:     if (!Array.isArray(messages) || messages.length === 0) {
+35:       return NextResponse.json({ error: "messages requerido" }, { status: 400 })
+36:     }
+37: 
+38:     const completion = await groq.chat.completions.create({
+39:       model: MODEL,
+40:       messages: [
+41:         { role: "system", content: SYSTEM_PROMPT },
+42:         ...messages,
+43:       ],
+44:       max_tokens: 512,
+45:       temperature: 0.7,
+46:     })
+47: 
+48:     const reply = completion.choices[0]?.message?.content ?? "No pude generar una respuesta."
+49: 
+50:     return NextResponse.json({ reply })
+51:   } catch (err) {
+52:     console.error("[chat/route]", err)
+53:     return NextResponse.json(
+54:       { error: "Error al procesar la consulta" },
+55:       { status: 500 },
+56:     )
+57:   }
+58: }
 ```
 
 ## File: app/catamarcaopen/proyectos/nuevo/page.tsx
@@ -10342,182 +10358,6 @@ x.sh
 32: }
 ```
 
-## File: components/header.tsx
-```typescript
-  1: "use client"
-  2: 
-  3: import { useState, useEffect } from "react"
-  4: import { usePathname } from "next/navigation"
-  5: import { Menu, Newspaper, Bot, GraduationCap, Award, Users, Calendar, Briefcase, Code2, FlaskConical } from "lucide-react"
-  6: import Link from "next/link"
-  7: import { logo, navLinks, ctaButton } from "@/lib/header"
-  8: import { HeaderAuth, HeaderAuthMobileCard } from "@/components/auth/header-auth"
-  9: import {
- 10:   Drawer,
- 11:   DrawerContent,
- 12:   DrawerHeader,
- 13:   DrawerTitle,
- 14:   DrawerDescription,
- 15:   DrawerClose,
- 16: } from "@/components/ui/drawer"
- 17: 
- 18: const navIcons: Record<string, any> = {
- 19:   "/noticias": Newspaper,
- 20:   "/coworking": Briefcase,
- 21:   "/eventos": Calendar,
- 22:   "/laboratorio": FlaskConical,
- 23:   "/sobre-nosotros": Users
- 24: }
- 25: 
- 26: export function Header() {
- 27:   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
- 28:   const [scrolled, setScrolled] = useState(false)
- 29:   const pathname = usePathname()
- 30: 
- 31:   const LogoIcon = logo.icon
- 32: 
- 33:   useEffect(() => {
- 34:     if (pathname !== "/") return
- 35: 
- 36:     const handleScroll = () => {
- 37:       const scrollPosition = window.scrollY
- 38:       const windowHeight = window.innerHeight
- 39:       setScrolled(scrollPosition > windowHeight * 0.9)
- 40:     }
- 41: 
- 42:     window.addEventListener("scroll", handleScroll)
- 43:     return () => window.removeEventListener("scroll", handleScroll)
- 44:   }, [pathname])
- 45: 
- 46:   const headerBg =
- 47:     pathname === "/" ? (scrolled ? "bg-white/25 backdrop-blur-lg" : "bg-transparent") : "bg-white/25 backdrop-blur-lg"
- 48: 
- 49:   // TEXT COLORS WITHOUT HOVER COLOR CHANGE
- 50:   const textColor = pathname === "/" ? (scrolled ? "text-gray-700" : "text-white") : "text-gray-700"
- 51: 
- 52:   const logoTitleColor = pathname === "/" ? (scrolled ? "text-gray-900" : "text-white") : "text-gray-900"
- 53: 
- 54:   const logoSubtitleColor = pathname === "/" ? (scrolled ? "text-gray-500" : "text-gray-200") : "text-gray-500"
- 55: 
- 56:   const iconColor = pathname === "/" && !scrolled ? "text-white" : "text-gray-700"
- 57: 
- 58:   return (
- 59:     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${headerBg}`}>
- 60:       <nav className="container mx-auto px-6 lg:px-8">
- 61:         <div className="flex items-center justify-between h-20 transition-colors duration-500">
- 62:           {/* Logo */}
- 63:           <Link href={logo.href} className="flex items-center gap-2.5 group">
- 64:             <div
- 65:               className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
- 66:               style={{
- 67:                 backgroundImage: `linear-gradient(to bottom right, ${logo.gradientFrom}, ${logo.gradientTo})`,
- 68:               }}
- 69:             >
- 70:               <LogoIcon className="h-6 w-6 text-white" />
- 71:             </div>
- 72:             <div className="hidden lg:flex flex-col transition-colors duration-500">
- 73:               <span className={`text-xl font-bold leading-tight ${logoTitleColor}`}>
- 74:                 {logo.title.split("Tech")[0]}
- 75:                 <span className="text-[#26a7fc]"> Tecnologico</span>
- 76:               </span>
- 77:               <span className={`text-[10px] font-medium tracking-wide ${logoSubtitleColor}`}>{logo.subtitle}</span>
- 78:             </div>
- 79:           </Link>
- 80: 
- 81:           {/* Derecha: nav desktop + avatar/ingresar + botón mobile */}
- 82:           <div className="flex items-center gap-2 sm:gap-3">
- 83:             {/* Desktop Navigation */}
- 84:             <div className="hidden lg:flex items-center gap-1 transition-colors duration-500">
- 85:               {navLinks.map((link) => (
- 86:                 <Link
- 87:                   key={link.href}
- 88:                   href={link.href}
- 89:                   className={`group relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${textColor}`}
- 90:                 >
- 91:                   {link.label}
- 92:                   <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#26a7fc] rounded-full opacity-0 transition-all duration-300 group-hover:w-1/2 group-hover:opacity-100" />
- 93:                 </Link>
- 94:               ))}
- 95: 
- 96:               <Link
- 97:                 href={ctaButton.href}
- 98:                 className="ml-3 px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-all duration-200 hover:scale-105"
- 99:                 style={{
-100:                   backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})`,
-101:                 }}
-102:               >
-103:                 {ctaButton.label}
-104:               </Link>
-105:             </div>
-106: 
-107:             {/* Avatar del ciudadano / botón Ingresar — visible en TODAS las pantallas */}
-108:             <HeaderAuth textColor={textColor} />
-109: 
-110:             {/* Mobile Menu Button */}
-111:             <button
-112:               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-113:               className="lg:hidden p-2.5 rounded-lg hover:bg-gray-100 transition-colors"
-114:               aria-label="Toggle menu"
-115:             >
-116:               <Menu className={`h-6 w-6 transition-colors duration-300 ${iconColor}`} />
-117:             </button>
-118:           </div>
-119:         </div>
-120:       </nav>
-121: 
-122:       <Drawer open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} direction="bottom">
-123:         <DrawerContent className="bg-gradient-to-b from-white to-cyan-50/30 backdrop-blur-xl border-t border-[#26a7fc]/10">
-124:           <DrawerHeader className="sr-only">
-125:             <DrawerTitle>Menu de navegación</DrawerTitle>
-126:             <DrawerDescription>Opciones de navegación del sitio</DrawerDescription>
-127:           </DrawerHeader>
-128: 
-129:           <DrawerClose className="mx-auto w-full py-3 flex justify-center cursor-pointer active:bg-gray-50/50 transition-colors">
-130:             <div className="w-12 h-1.5 rounded-full bg-gray-300" />
-131:           </DrawerClose>
-132: 
-133:           <div className="px-6 pb-8">
-134:             {/* Tarjeta de perfil / login del ciudadano */}
-135:             <div className="mb-4">
-136:               <HeaderAuthMobileCard onNavigate={() => setMobileMenuOpen(false)} />
-137:             </div>
-138: 
-139:             <div className="flex flex-col gap-2">
-140:               {navLinks.map((link) => {
-141:                 const Icon = navIcons[link.href]
-142:                 return (
-143:                   <Link
-144:                     key={link.href}
-145:                     href={link.href}
-146:                     className="flex items-center gap-3 px-4 py-3.5 text-base font-semibold rounded-xl text-gray-700 hover:bg-[#26a7fc]/10 active:bg-[#26a7fc]/10 transition-all duration-200"
-147:                     onClick={() => setMobileMenuOpen(false)}
-148:                   >
-149:                     {Icon && <Icon className="h-5 w-5 text-[#26a7fc]" />}
-150:                     {link.label}
-151:                   </Link>
-152:                 )
-153:               })}
-154: 
-155:               <Link
-156:                 href={ctaButton.href}
-157:                 className="flex items-center justify-center gap-2 mt-3 px-4 py-3.5 text-white text-base font-semibold rounded-xl text-center shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 active:scale-95 transition-all duration-200"
-158:                 style={{
-159:                   backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})`,
-160:                 }}
-161:                 onClick={() => setMobileMenuOpen(false)}
-162:               >
-163:                 <GraduationCap className="h-5 w-5" />
-164:                 {ctaButton.label}
-165:               </Link>
-166:             </div>
-167:           </div>
-168:         </DrawerContent>
-169:       </Drawer>
-170:     </header>
-171:   )
-172: }
-```
-
 ## File: lib/header.ts
 ```typescript
  1: // lib/headerData.ts
@@ -10585,6 +10425,160 @@ x.sh
 13: export default function CursosPage() {
 14:   return <CursosClient />
 15: }
+```
+
+## File: components/header.tsx
+```typescript
+  1: "use client"
+  2: 
+  3: import { useState, useEffect } from "react"
+  4: import { usePathname } from "next/navigation"
+  5: import { Menu, Newspaper, Users, Calendar, Briefcase, Code2, FlaskConical } from "lucide-react"
+  6: import Link from "next/link"
+  7: import { logo, navLinks, ctaButton } from "@/lib/header"
+  8: import {
+  9:   Drawer,
+ 10:   DrawerContent,
+ 11:   DrawerHeader,
+ 12:   DrawerTitle,
+ 13:   DrawerDescription,
+ 14:   DrawerClose,
+ 15: } from "@/components/ui/drawer"
+ 16: 
+ 17: const navIcons: Record<string, any> = {
+ 18:   "/noticias":       Newspaper,
+ 19:   "/coworking":      Briefcase,
+ 20:   "/eventos":        Calendar,
+ 21:   "/laboratorio":    FlaskConical,
+ 22:   "/sobre-nosotros": Users,
+ 23: }
+ 24: 
+ 25: export function Header() {
+ 26:   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+ 27:   const [scrolled, setScrolled]             = useState(false)
+ 28:   const pathname = usePathname()
+ 29: 
+ 30:   const LogoIcon = logo.icon
+ 31: 
+ 32:   useEffect(() => {
+ 33:     if (pathname !== "/") return
+ 34:     const handleScroll = () => {
+ 35:       setScrolled(window.scrollY > window.innerHeight * 0.9)
+ 36:     }
+ 37:     window.addEventListener("scroll", handleScroll)
+ 38:     return () => window.removeEventListener("scroll", handleScroll)
+ 39:   }, [pathname])
+ 40: 
+ 41:   const headerBg       = pathname === "/" ? (scrolled ? "bg-white/25 backdrop-blur-lg" : "bg-transparent") : "bg-white/25 backdrop-blur-lg"
+ 42:   const textColor      = pathname === "/" ? (scrolled ? "text-gray-700" : "text-white")  : "text-gray-700"
+ 43:   const logoTitleColor = pathname === "/" ? (scrolled ? "text-gray-900" : "text-white")  : "text-gray-900"
+ 44:   const logoSubColor   = pathname === "/" ? (scrolled ? "text-gray-500" : "text-gray-200") : "text-gray-500"
+ 45:   const iconColor      = pathname === "/" && !scrolled ? "text-white" : "text-gray-700"
+ 46: 
+ 47:   return (
+ 48:     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${headerBg}`}>
+ 49:       <nav className="container mx-auto px-6 lg:px-8">
+ 50:         <div className="flex items-center justify-between h-20 transition-colors duration-500">
+ 51: 
+ 52:           {/* Logo */}
+ 53:           <Link href={logo.href} className="flex items-center gap-2.5 group">
+ 54:             <div
+ 55:               className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
+ 56:               style={{ backgroundImage: `linear-gradient(to bottom right, ${logo.gradientFrom}, ${logo.gradientTo})` }}
+ 57:             >
+ 58:               <LogoIcon className="h-6 w-6 text-white" />
+ 59:             </div>
+ 60:             <div className="hidden lg:flex flex-col transition-colors duration-500">
+ 61:               <span className={`text-xl font-bold leading-tight ${logoTitleColor}`}>
+ 62:                 {logo.title.split("Tech")[0]}
+ 63:                 <span className="text-[#26a7fc]"> Tecnologico</span>
+ 64:               </span>
+ 65:               <span className={`text-[10px] font-medium tracking-wide ${logoSubColor}`}>
+ 66:                 {logo.subtitle}
+ 67:               </span>
+ 68:             </div>
+ 69:           </Link>
+ 70: 
+ 71:           {/* Derecha */}
+ 72:           <div className="flex items-center gap-2 sm:gap-3">
+ 73: 
+ 74:             {/* Desktop nav */}
+ 75:             <div className="hidden lg:flex items-center gap-1 transition-colors duration-500">
+ 76:               {navLinks.map((link) => (
+ 77:                 <Link
+ 78:                   key={link.href}
+ 79:                   href={link.href}
+ 80:                   className={`group relative px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${textColor}`}
+ 81:                 >
+ 82:                   {link.label}
+ 83:                   <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#26a7fc] rounded-full opacity-0 transition-all duration-300 group-hover:w-1/2 group-hover:opacity-100" />
+ 84:                 </Link>
+ 85:               ))}
+ 86:               <Link
+ 87:                 href={ctaButton.href}
+ 88:                 className="ml-3 px-6 py-2.5 text-white text-sm font-semibold rounded-lg transition-all duration-200 hover:scale-105"
+ 89:                 style={{ backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})` }}
+ 90:               >
+ 91:                 {ctaButton.label}
+ 92:               </Link>
+ 93:             </div>
+ 94: 
+ 95:             {/* Botón hamburguesa mobile */}
+ 96:             <button
+ 97:               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+ 98:               className="lg:hidden p-2.5 rounded-lg hover:bg-gray-100 transition-colors"
+ 99:               aria-label="Toggle menu"
+100:             >
+101:               <Menu className={`h-6 w-6 transition-colors duration-300 ${iconColor}`} />
+102:             </button>
+103:           </div>
+104:         </div>
+105:       </nav>
+106: 
+107:       {/* Drawer mobile */}
+108:       <Drawer open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} direction="bottom">
+109:         <DrawerContent className="bg-gradient-to-b from-white to-cyan-50/30 backdrop-blur-xl border-t border-[#26a7fc]/10">
+110:           <DrawerHeader className="sr-only">
+111:             <DrawerTitle>Menu de navegación</DrawerTitle>
+112:             <DrawerDescription>Opciones de navegación del sitio</DrawerDescription>
+113:           </DrawerHeader>
+114: 
+115:           <DrawerClose className="mx-auto w-full py-3 flex justify-center cursor-pointer active:bg-gray-50/50 transition-colors">
+116:             <div className="w-12 h-1.5 rounded-full bg-gray-300" />
+117:           </DrawerClose>
+118: 
+119:           <div className="px-6 pb-8">
+120:             <div className="flex flex-col gap-2">
+121:               {navLinks.map((link) => {
+122:                 const Icon = navIcons[link.href]
+123:                 return (
+124:                   <Link
+125:                     key={link.href}
+126:                     href={link.href}
+127:                     className="flex items-center gap-3 px-4 py-3.5 text-base font-semibold rounded-xl text-gray-700 hover:bg-[#26a7fc]/10 active:bg-[#26a7fc]/10 transition-all duration-200"
+128:                     onClick={() => setMobileMenuOpen(false)}
+129:                   >
+130:                     {Icon && <Icon className="h-5 w-5 text-[#26a7fc]" />}
+131:                     {link.label}
+132:                   </Link>
+133:                 )
+134:               })}
+135: 
+136:               <Link
+137:                 href={ctaButton.href}
+138:                 className="flex items-center justify-center gap-2 mt-3 px-4 py-3.5 text-white text-base font-semibold rounded-xl text-center shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 active:scale-95 transition-all duration-200"
+139:                 style={{ backgroundImage: `linear-gradient(to right, ${ctaButton.gradientFrom}, ${ctaButton.gradientTo})` }}
+140:                 onClick={() => setMobileMenuOpen(false)}
+141:               >
+142:                 {ctaButton.label}
+143:               </Link>
+144:             </div>
+145:           </div>
+146:         </DrawerContent>
+147:       </Drawer>
+148:     </header>
+149:   )
+150: }
 ```
 
 ## File: app/coworking/page.tsx
@@ -11114,338 +11108,6 @@ x.sh
 137:     </main>
 138:   )
 139: }
-```
-
-## File: components/chatbot/chatbot-widget.tsx
-```typescript
-  1: "use client"
-  2: 
-  3: import { useState, useEffect, useRef } from "react"
-  4: import { Bot, X } from "lucide-react"
-  5: import Image from "next/image"
-  6: import { SiriFrame, type SiriFrameState } from "@/components/chatbot/siri-frame"
-  7: 
-  8: // interface Message {
-  9: //   id: string
- 10: //   text: string
- 11: //   sender: "user" | "bot"
- 12: //   timestamp: Date
- 13: // }
- 14: 
- 15: // interface GroqMessage {
- 16: //   role: "user" | "assistant"
- 17: //   content: string
- 18: // }
- 19: 
- 20: // const SUGGESTIONS = [
- 21: //   "¿Qué cursos tienen disponibles?",
- 22: //   "Contame sobre el Nodo Tecnológico",
- 23: //   "¿Cómo me inscribo a un curso?",
- 24: // ]
- 25: 
- 26: // function WelcomeIntro({ onPick }: { onPick: (text: string) => void }) {
- 27: //   return (
- 28: //     <div className="flex h-full flex-col items-center justify-center gap-6 px-2 text-center animate-in fade-in zoom-in-95 duration-500">
- 29: //       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 shadow-lg backdrop-blur-md">
- 30: //         <Bot className="h-8 w-8 text-primary" />
- 31: //       </div>
- 32: 
- 33: //       <div className="space-y-2">
- 34: //         <h3 className="text-xl font-semibold text-balance text-white">
- 35: //           ¡Hola! Soy el asistente virtual del Nodo Tecnológico
- 36: //         </h3>
- 37: //         <p className="text-sm text-white/70">¿En qué puedo ayudarte hoy?</p>
- 38: //       </div>
- 39: 
- 40: //       <div className="flex w-full max-w-xs flex-col gap-2">
- 41: //         {SUGGESTIONS.map((suggestion) => (
- 42: //           <button
- 43: //             key={suggestion}
- 44: //             type="button"
- 45: //             onClick={() => onPick(suggestion)}
- 46: //             className="rounded-full bg-card px-4 py-2.5 text-sm font-medium text-card-foreground shadow-lg transition-colors hover:bg-card/90"
- 47: //           >
- 48: //             {suggestion}
- 49: //           </button>
- 50: //         ))}
- 51: //       </div>
- 52: //     </div>
- 53: //   )
- 54: // }
- 55: 
- 56: // ── Botonera de prueba — dispara cada estado del SiriFrame manualmente ──────
- 57: const STATE_OPTIONS: { key: SiriFrameState; label: string }[] = [
- 58:   { key: "idle", label: "Idle" },
- 59:   { key: "thinking", label: "Pensando" },
- 60:   { key: "speaking", label: "Hablando" },
- 61:   { key: "error", label: "Error" },
- 62:   { key: "greeting", label: "Saludo" },
- 63: ]
- 64: 
- 65: function StateDebugPanel({
- 66:   current,
- 67:   onSelect,
- 68: }: {
- 69:   current: SiriFrameState
- 70:   onSelect: (state: SiriFrameState) => void
- 71: }) {
- 72:   return (
- 73:     <div className="flex flex-col items-center gap-4">
- 74:       <p className="text-xs uppercase tracking-widest text-white/50">
- 75:         Estado actual: <span className="text-white font-semibold">{current}</span>
- 76:       </p>
- 77:       <div className="flex flex-wrap items-center justify-center gap-2">
- 78:         {STATE_OPTIONS.map((opt) => (
- 79:           <button
- 80:             key={opt.key}
- 81:             type="button"
- 82:             onClick={() => onSelect(opt.key)}
- 83:             className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
- 84:               current === opt.key
- 85:                 ? "bg-white text-slate-900"
- 86:                 : "bg-white/10 text-white hover:bg-white/20"
- 87:             }`}
- 88:           >
- 89:             {opt.label}
- 90:           </button>
- 91:         ))}
- 92:       </div>
- 93:     </div>
- 94:   )
- 95: }
- 96: 
- 97: export function ChatbotWidget() {
- 98:   const [isOpen, setIsOpen] = useState(false)
- 99:   // const [messages, setMessages] = useState<Message[]>([])
-100:   // const [conversationHistory, setConversationHistory] = useState<GroqMessage[]>([])
-101:   // const [inputValue, setInputValue] = useState("")
-102:   // const [isLoading, setIsLoading] = useState(false)
-103:   const [frameState, setFrameState] = useState<SiriFrameState>("idle")
-104:   // const messagesEndRef = useRef<HTMLDivElement>(null)
-105:   // const inputRef = useRef<HTMLInputElement>(null)
-106:   // const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-107:   // const greetingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-108: 
-109:   // const hasStarted = messages.length > 0
-110: 
-111:   useEffect(() => {
-112:     const handleOpenChatbot = () => setIsOpen(true)
-113:     window.addEventListener("open-chatbot", handleOpenChatbot)
-114:     return () => window.removeEventListener("open-chatbot", handleOpenChatbot)
-115:   }, [])
-116: 
-117:   // useEffect(() => {
-118:   //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-119:   // }, [messages])
-120: 
-121:   // Bloquear scroll del body mientras el overlay está abierto
-122:   useEffect(() => {
-123:     if (!isOpen) return
-124:     const original = document.body.style.overflow
-125:     document.body.style.overflow = "hidden"
-126:     return () => {
-127:       document.body.style.overflow = original
-128:     }
-129:   }, [isOpen])
-130: 
-131:   // Cerrar con Escape
-132:   useEffect(() => {
-133:     if (!isOpen) return
-134:     const handleKeyDown = (e: KeyboardEvent) => {
-135:       if (e.key === "Escape") setIsOpen(false)
-136:     }
-137:     window.addEventListener("keydown", handleKeyDown)
-138:     return () => window.removeEventListener("keydown", handleKeyDown)
-139:   }, [isOpen])
-140: 
-141:   // ── Lógica real del chatbot — comentada mientras probamos los estados ──
-142:   // useEffect(() => {
-143:   //   if (!isOpen) return
-144:   //   setFrameState("greeting")
-145:   //   greetingTimeoutRef.current = setTimeout(() => {
-146:   //     setFrameState((current) => (current === "greeting" ? "idle" : current))
-147:   //   }, 400)
-148:   //   return () => {
-149:   //     if (greetingTimeoutRef.current) clearTimeout(greetingTimeoutRef.current)
-150:   //   }
-151:   // }, [isOpen])
-152: 
-153:   // useEffect(() => {
-154:   //   if (isLoading) {
-155:   //     setFrameState("thinking")
-156:   //   } else {
-157:   //     setFrameState((current) => (current === "thinking" ? "idle" : current))
-158:   //   }
-159:   // }, [isLoading])
-160: 
-161:   // useEffect(() => {
-162:   //   return () => {
-163:   //     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current)
-164:   //     if (greetingTimeoutRef.current) clearTimeout(greetingTimeoutRef.current)
-165:   //   }
-166:   // }, [])
-167: 
-168:   // const sendMessage = async (rawText: string) => {
-169:   //   const userText = rawText.trim()
-170:   //   if (!userText || isLoading) return
-171: 
-172:   //   const userMessage: Message = {
-173:   //     id: Date.now().toString(),
-174:   //     text: userText,
-175:   //     sender: "user",
-176:   //     timestamp: new Date(),
-177:   //   }
-178: 
-179:   //   const newHistory: GroqMessage[] = [
-180:   //     ...conversationHistory,
-181:   //     { role: "user", content: userText },
-182:   //   ]
-183: 
-184:   //   setMessages((prev) => [...prev, userMessage])
-185:   //   setInputValue("")
-186:   //   setIsLoading(true)
-187: 
-188:   //   try {
-189:   //     const res = await fetch("/api/chat", {
-190:   //       method: "POST",
-191:   //       headers: { "Content-Type": "application/json" },
-192:   //       body: JSON.stringify({ messages: newHistory }),
-193:   //     })
-194: 
-195:   //     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-196: 
-197:   //     const data = await res.json()
-198: 
-199:   //     if (data.response) {
-200:   //       const botMessage: Message = {
-201:   //         id: (Date.now() + 1).toString(),
-202:   //         text: data.response,
-203:   //         sender: "bot",
-204:   //         timestamp: new Date(),
-205:   //       }
-206: 
-207:   //       setMessages((prev) => [...prev, botMessage])
-208:   //       setConversationHistory([
-209:   //         ...newHistory,
-210:   //         { role: "assistant", content: data.response },
-211:   //       ])
-212:   //     } else {
-213:   //       throw new Error("Respuesta inválida")
-214:   //     }
-215:   //   } catch (error) {
-216:   //     console.error("Error:", error)
-217:   //     const errorMessage: Message = {
-218:   //       id: (Date.now() + 1).toString(),
-219:   //       text: "Lo siento, hubo un error al procesar tu mensaje. Por favor, intentá nuevamente.",
-220:   //       sender: "bot",
-221:   //       timestamp: new Date(),
-222:   //     }
-223:   //     setMessages((prev) => [...prev, errorMessage])
-224: 
-225:   //     setFrameState("error")
-226:   //     errorTimeoutRef.current = setTimeout(() => {
-227:   //       setFrameState((current) => (current === "error" ? "idle" : current))
-228:   //     }, 1800)
-229:   //   } finally {
-230:   //     setIsLoading(false)
-231:   //   }
-232:   // }
-233: 
-234:   // const handleSendMessage = () => sendMessage(inputValue)
-235: 
-236:   return (
-237:     <>
-238:       <button
-239:         type="button"
-240:         onClick={() => setIsOpen(true)}
-241:         aria-label="Abrir asistente virtual"
-242:         className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer overflow-hidden bg-transparent border-0 p-0"
-243:       >
-244:         <Image
-245:           src="/excited.png"
-246:           alt="Asistente virtual"
-247:           width={64}
-248:           height={64}
-249:           className="h-full w-full object-contain"
-250:           priority
-251:         />
-252:       </button>
-253: 
-254:       {/* Overlay full-screen — fondo Siri de pared a pared, chat flotando SIN card */}
-255:       {isOpen && (
-256:         <div
-257:           role="dialog"
-258:           aria-modal="true"
-259:           aria-label="Asistente Virtual del Nodo Tecnológico — modo prueba de estados"
-260:           className="fixed inset-0 z-[100] flex flex-col"
-261:         >
-262:           {/* Fondo 100% transparente — se ve la página de atrás sin blur.
-263:               El único color viene del glow tipo Siri. */}
-264:           <div className="absolute inset-0">
-265:             <SiriFrame state={frameState} />
-266:           </div>
-267: 
-268:           {/* Vidrio esmerilado — cubre TODA la pantalla parejo, un
-269:               blur/tinte leve sobre la página y el glow de Siri */}
-270:           <div className="pointer-events-none absolute inset-0 bg-white/10 backdrop-blur-sm" />
-271: 
-272:           {/* Click afuera del área de contenido para cerrar */}
-273:           <button
-274:             type="button"
-275:             aria-label="Cerrar asistente virtual"
-276:             onClick={() => setIsOpen(false)}
-277:             className="absolute inset-0 cursor-default"
-278:           />
-279: 
-280:           {/* Botón cerrar — esquina superior derecha */}
-281:           <button
-282:             type="button"
-283:             onClick={() => setIsOpen(false)}
-284:             aria-label="Cerrar"
-285:             className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center transition-colors"
-286:           >
-287:             <X className="h-5 w-5 text-white" />
-288:           </button>
-289: 
-290:           {/* Título flotante */}
-291:           <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
-292:             <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center">
-293:               <Bot className="h-4.5 w-4.5 text-white" />
-294:             </div>
-295:             <div>
-296:               <h2 className="text-white text-base font-semibold leading-tight">Modo prueba — SiriFrame</h2>
-297:               <p className="text-xs text-white/60 leading-tight">Tocá un botón para cambiar de estado</p>
-298:             </div>
-299:           </div>
-300: 
-301:           {/* ── Solo la botonera de estados, sin chat ── */}
-302:           <div className="relative z-10 flex-1 flex items-center justify-center px-4">
-303:             <StateDebugPanel current={frameState} onSelect={setFrameState} />
-304:           </div>
-305: 
-306:           {/* ── Contenido real del chat — comentado ──
-307:           <div className="relative z-10 flex-1 min-h-0 mx-auto w-full max-w-xl px-4 sm:px-6">
-308:             {!hasStarted ? (
-309:               <WelcomeIntro onPick={(text) => sendMessage(text)} />
-310:             ) : (
-311:               <ScrollArea className="h-full">
-312:                 ...
-313:               </ScrollArea>
-314:             )}
-315:           </div>
-316: 
-317:           <div className="relative z-10 mx-auto w-full max-w-xl px-4 sm:px-6 pb-6 sm:pb-10 shrink-0">
-318:             <form onSubmit={(e) => { e.preventDefault(); handleSendMessage() }} className="flex gap-3">
-319:               <Input ... />
-320:               <Button ... />
-321:             </form>
-322:           </div>
-323:           */}
-324:         </div>
-325:       )}
-326:     </>
-327:   )
-328: }
 ```
 
 ## File: components/noticias/noticias-content.tsx
@@ -12080,6 +11742,337 @@ x.sh
 109: }
 ```
 
+## File: components/chatbot/chatbot-widget.tsx
+```typescript
+  1: "use client"
+  2: 
+  3: import { useState, useEffect, useRef, useCallback } from "react"
+  4: import { Bot, X, Send, Loader2 } from "lucide-react"
+  5: import { SiriFrame, type SiriFrameState } from "@/components/chatbot/siri-frame"
+  6: 
+  7: // ── Tipos ─────────────────────────────────────────────────────────────────
+  8: 
+  9: interface Message {
+ 10:   id:        string
+ 11:   text:      string
+ 12:   sender:    "user" | "bot"
+ 13:   timestamp: Date
+ 14: }
+ 15: 
+ 16: interface GroqMessage {
+ 17:   role:    "user" | "assistant"
+ 18:   content: string
+ 19: }
+ 20: 
+ 21: // ── Sugerencias iniciales ─────────────────────────────────────────────────
+ 22: 
+ 23: const SUGGESTIONS = [
+ 24:   "¿Qué cursos tienen disponibles?",
+ 25:   "¿Cómo funciona el coworking?",
+ 26:   "¿Cuándo son los próximos eventos?",
+ 27:   "¿Qué es el Laboratorio de Innovación?",
+ 28: ]
+ 29: 
+ 30: const GREETING = "¡Hola! Soy el asistente virtual del Nodo Tecnológico. ¿En qué puedo ayudarte hoy?"
+ 31: 
+ 32: // ── Helper ────────────────────────────────────────────────────────────────
+ 33: 
+ 34: function uid() {
+ 35:   return Math.random().toString(36).slice(2)
+ 36: }
+ 37: 
+ 38: // ── Componente ────────────────────────────────────────────────────────────
+ 39: 
+ 40: export function ChatbotWidget() {
+ 41:   const [isOpen,      setIsOpen]      = useState(false)
+ 42:   const [messages,    setMessages]    = useState<Message[]>([])
+ 43:   const [history,     setHistory]     = useState<GroqMessage[]>([])
+ 44:   const [inputValue,  setInputValue]  = useState("")
+ 45:   const [isLoading,   setIsLoading]   = useState(false)
+ 46:   const [hasStarted,  setHasStarted]  = useState(false)
+ 47:   const [frameState,  setFrameState]  = useState<SiriFrameState>("idle")
+ 48: 
+ 49:   const inputRef    = useRef<HTMLInputElement>(null)
+ 50:   const messagesRef = useRef<HTMLDivElement>(null)
+ 51:   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+ 52: 
+ 53:   // Saludo al abrir
+ 54:   useEffect(() => {
+ 55:     if (!isOpen) return
+ 56:     setFrameState("greeting")
+ 57:     const t = setTimeout(() => setFrameState("idle"), 800)
+ 58:     return () => clearTimeout(t)
+ 59:   }, [isOpen])
+ 60: 
+ 61:   // Scroll al último mensaje
+ 62:   useEffect(() => {
+ 63:     if (messagesRef.current) {
+ 64:       messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+ 65:     }
+ 66:   }, [messages])
+ 67: 
+ 68:   // Focus al input al abrir el chat
+ 69:   useEffect(() => {
+ 70:     if (isOpen && hasStarted) {
+ 71:       setTimeout(() => inputRef.current?.focus(), 100)
+ 72:     }
+ 73:   }, [isOpen, hasStarted])
+ 74: 
+ 75:   const startChat = useCallback(() => {
+ 76:     setHasStarted(true)
+ 77:     setMessages([{
+ 78:       id:        uid(),
+ 79:       text:      GREETING,
+ 80:       sender:    "bot",
+ 81:       timestamp: new Date(),
+ 82:     }])
+ 83:   }, [])
+ 84: 
+ 85:   const sendMessage = useCallback(async (text: string) => {
+ 86:     const trimmed = text.trim()
+ 87:     if (!trimmed || isLoading) return
+ 88: 
+ 89:     // Agregar mensaje del usuario
+ 90:     const userMsg: Message = { id: uid(), text: trimmed, sender: "user", timestamp: new Date() }
+ 91:     setMessages((prev) => [...prev, userMsg])
+ 92:     setInputValue("")
+ 93: 
+ 94:     // Actualizar historial para Groq
+ 95:     const newHistory: GroqMessage[] = [...history, { role: "user", content: trimmed }]
+ 96:     setHistory(newHistory)
+ 97: 
+ 98:     setIsLoading(true)
+ 99:     setFrameState("thinking")
+100: 
+101:     try {
+102:       const res = await fetch("/api/chat", {
+103:         method:  "POST",
+104:         headers: { "Content-Type": "application/json" },
+105:         body:    JSON.stringify({ messages: newHistory }),
+106:       })
+107: 
+108:       if (!res.ok) throw new Error(`Error ${res.status}`)
+109: 
+110:       const data = await res.json()
+111:       const replyText = data.reply ?? "No pude generar una respuesta."
+112: 
+113:       const botMsg: Message = { id: uid(), text: replyText, sender: "bot", timestamp: new Date() }
+114:       setMessages((prev) => [...prev, botMsg])
+115:       setHistory((prev) => [...prev, { role: "assistant", content: replyText }])
+116:       setFrameState("speaking")
+117: 
+118:       // Volver a idle después de "hablar"
+119:       setTimeout(() => setFrameState("idle"), 1500)
+120:     } catch {
+121:       const errMsg: Message = {
+122:         id:        uid(),
+123:         text:      "Ocurrió un error. Por favor, intentá nuevamente.",
+124:         sender:    "bot",
+125:         timestamp: new Date(),
+126:       }
+127:       setMessages((prev) => [...prev, errMsg])
+128:       setFrameState("error")
+129: 
+130:       if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+131:       errorTimerRef.current = setTimeout(() => {
+132:         setFrameState((cur) => cur === "error" ? "idle" : cur)
+133:       }, 1800)
+134:     } finally {
+135:       setIsLoading(false)
+136:     }
+137:   }, [history, isLoading])
+138: 
+139:   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+140:     if (e.key === "Enter" && !e.shiftKey) {
+141:       e.preventDefault()
+142:       sendMessage(inputValue)
+143:     }
+144:   }
+145: 
+146:   const handleClose = () => {
+147:     setIsOpen(false)
+148:     // Resetear para próxima apertura
+149:     setHasStarted(false)
+150:     setMessages([])
+151:     setHistory([])
+152:     setFrameState("idle")
+153:     if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+154:   }
+155: 
+156:   return (
+157:     <>
+158:       {/* Botón flotante */}
+159:       <button
+160:         type="button"
+161:         onClick={() => setIsOpen(true)}
+162:         aria-label="Abrir asistente virtual"
+163:         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer flex items-center justify-center border-0"
+164:         style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
+165:       >
+166:         <Bot className="h-6 w-6 text-white" />
+167:       </button>
+168: 
+169:       {/* Overlay full-screen */}
+170:       {isOpen && (
+171:         <div
+172:           role="dialog"
+173:           aria-modal="true"
+174:           aria-label="Asistente Virtual del Nodo Tecnológico"
+175:           className="fixed inset-0 z-[100] flex flex-col"
+176:         >
+177:           {/* Fondo SiriFrame — se ve la página + glow animado */}
+178:           <div className="absolute inset-0">
+179:             <SiriFrame state={frameState} />
+180:           </div>
+181: 
+182:           {/* Vidrio esmerilado leve */}
+183:           <div className="pointer-events-none absolute inset-0 bg-white/8 backdrop-blur-[2px]" />
+184: 
+185:           {/* Botón cerrar */}
+186:           <button
+187:             type="button"
+188:             onClick={handleClose}
+189:             aria-label="Cerrar asistente"
+190:             className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center transition-colors"
+191:           >
+192:             <X className="h-5 w-5 text-white" />
+193:           </button>
+194: 
+195:           {/* Header */}
+196:           <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
+197:             <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
+198:               <Bot className="h-4 w-4 text-white" />
+199:             </div>
+200:             <div>
+201:               <h2 className="text-white text-base font-semibold leading-tight">
+202:                 Asistente NODO
+203:               </h2>
+204:               <p className="text-xs text-white/60 leading-tight flex items-center gap-1.5">
+205:                 {frameState === "thinking" && (
+206:                   <Loader2 className="h-2.5 w-2.5 animate-spin" />
+207:                 )}
+208:                 {frameState === "thinking" ? "Pensando..." : "En línea"}
+209:               </p>
+210:             </div>
+211:           </div>
+212: 
+213:           {/* ── Pantalla de bienvenida ── */}
+214:           {!hasStarted && (
+215:             <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 gap-6 animate-in fade-in duration-500">
+216:               <div className="text-center space-y-3 max-w-sm">
+217:                 <div className="mx-auto h-16 w-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
+218:                   <Bot className="h-8 w-8 text-white" />
+219:                 </div>
+220:                 <h3 className="text-white text-xl font-bold">¿En qué puedo ayudarte?</h3>
+221:                 <p className="text-white/60 text-sm">
+222:                   Soy el asistente del Nodo Tecnológico. Puedo ayudarte con cursos, eventos, coworking y más.
+223:                 </p>
+224:               </div>
+225: 
+226:               {/* Sugerencias */}
+227:               <div className="flex flex-col gap-2 w-full max-w-sm">
+228:                 {SUGGESTIONS.map((s) => (
+229:                   <button
+230:                     key={s}
+231:                     type="button"
+232:                     onClick={() => { startChat(); setTimeout(() => sendMessage(s), 100) }}
+233:                     className="text-left px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/15 text-white/90 text-sm transition-all duration-200 hover:border-white/30"
+234:                   >
+235:                     {s}
+236:                   </button>
+237:                 ))}
+238:               </div>
+239: 
+240:               <button
+241:                 type="button"
+242:                 onClick={startChat}
+243:                 className="px-6 py-2.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 text-white text-sm font-medium transition-all duration-200"
+244:               >
+245:                 Iniciar conversación
+246:               </button>
+247:             </div>
+248:           )}
+249: 
+250:           {/* ── Chat activo ── */}
+251:           {hasStarted && (
+252:             <div className="relative z-10 flex-1 flex flex-col min-h-0 px-4 sm:px-6 pb-4 pt-4 max-w-2xl w-full mx-auto">
+253: 
+254:               {/* Mensajes */}
+255:               <div
+256:                 ref={messagesRef}
+257:                 className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20"
+258:               >
+259:                 {messages.map((msg) => (
+260:                   <div
+261:                     key={msg.id}
+262:                     className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
+263:                   >
+264:                     {msg.sender === "bot" && (
+265:                       <div className="h-7 w-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 mr-2 mt-1">
+266:                         <Bot className="h-3.5 w-3.5 text-white" />
+267:                       </div>
+268:                     )}
+269:                     <div
+270:                       className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed backdrop-blur-md ${
+271:                         msg.sender === "user"
+272:                           ? "bg-[#26a7fc]/80 text-white rounded-br-sm border border-[#26a7fc]/40"
+273:                           : "bg-white/12 text-white/90 rounded-bl-sm border border-white/15"
+274:                       }`}
+275:                     >
+276:                       {msg.text}
+277:                     </div>
+278:                   </div>
+279:                 ))}
+280: 
+281:                 {/* Indicador de typing */}
+282:                 {isLoading && (
+283:                   <div className="flex justify-start animate-in fade-in duration-300">
+284:                     <div className="h-7 w-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 mr-2 mt-1">
+285:                       <Bot className="h-3.5 w-3.5 text-white" />
+286:                     </div>
+287:                     <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/12 border border-white/15 backdrop-blur-md flex items-center gap-1.5">
+288:                       <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:0ms]" />
+289:                       <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:150ms]" />
+290:                       <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:300ms]" />
+291:                     </div>
+292:                   </div>
+293:                 )}
+294:               </div>
+295: 
+296:               {/* Input */}
+297:               <div className="mt-3 flex gap-2 shrink-0">
+298:                 <input
+299:                   ref={inputRef}
+300:                   type="text"
+301:                   value={inputValue}
+302:                   onChange={(e) => setInputValue(e.target.value)}
+303:                   onKeyDown={handleKeyDown}
+304:                   placeholder="Escribí tu consulta..."
+305:                   disabled={isLoading}
+306:                   className="flex-1 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 focus:bg-white/15 backdrop-blur-md border border-white/20 focus:border-white/35 text-white placeholder-white/40 text-sm outline-none transition-all disabled:opacity-50"
+307:                 />
+308:                 <button
+309:                   type="button"
+310:                   onClick={() => sendMessage(inputValue)}
+311:                   disabled={isLoading || !inputValue.trim()}
+312:                   aria-label="Enviar mensaje"
+313:                   className="h-12 w-12 rounded-2xl bg-[#26a7fc]/70 hover:bg-[#26a7fc]/90 backdrop-blur-md border border-[#26a7fc]/40 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+314:                 >
+315:                   {isLoading
+316:                     ? <Loader2 className="h-4 w-4 text-white animate-spin" />
+317:                     : <Send className="h-4 w-4 text-white" />
+318:                   }
+319:                 </button>
+320:               </div>
+321:             </div>
+322:           )}
+323:         </div>
+324:       )}
+325:     </>
+326:   )
+327: }
+```
+
 ## File: .github/workflows/deploy.yml
 ```yaml
  1: name: 🧑‍🤝‍🧑 Deploy — ciudadano-front
@@ -12117,62 +12110,64 @@ x.sh
 33:           # NOTICIAS_API_URL va en build-args para el ARG del runner stage
 34:           build-args: |
 35:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
-36:           secrets: |
-37:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
-38:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
-39:             NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-40:             NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-41:             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-42:             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
-43:             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
-44:             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
-45:             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
-46:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
-47:             NEXT_PUBLIC_COWORKING_URL=${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
-48:             NEXT_PUBLIC_CALENDARIO_API_URL=${{ secrets.NEXT_PUBLIC_CALENDARIO_API_URL }}
-49: 
-50:       - name: Deploy en servidor
-51:         uses: appleboy/ssh-action@v1
-52:         env:
-53:           NEXT_GROQ_API_KEY:  ${{ secrets.NEXT_GROQ_API_KEY }}
-54:           NEXT_GROQ_MODEL:    ${{ secrets.NEXT_GROQ_MODEL }}
-55:           NOTICIAS_API_URL:   ${{ secrets.NOTICIAS_API_URL }}
-56:           NEXT_PUBLIC_COWORKING_URL: ${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
-57:         with:
-58:           host:     ${{ secrets.DO_HOST }}
-59:           username: ${{ secrets.DO_USER }}
-60:           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
-61:           port:     ${{ secrets.DO_PORT }}
-62:           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL,NOTICIAS_API_URL,NEXT_PUBLIC_COWORKING_URL
-63:           script: |
-64:             set -e
-65:             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
-66:             docker pull ghcr.io/${{ github.repository }}:latest
-67: 
-68:             docker network inspect red_interna >/dev/null 2>&1 || \
-69:               docker network create --driver bridge red_interna
-70: 
-71:             mkdir -p /etc/ciudadano-front
-72:             printf '%s\n' \
-73:               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
-74:               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
-75:               "NOTICIAS_API_URL=${NOTICIAS_API_URL}" \
-76:               > /etc/ciudadano-front/.env
-77:             chmod 600 /etc/ciudadano-front/.env
-78: 
-79:             docker stop ciudadano-front || true
-80:             docker rm   ciudadano-front || true
-81: 
-82:             docker run -d \
-83:               --name    ciudadano-front \
-84:               --restart always \
-85:               --network red_interna \
-86:               --env-file /etc/ciudadano-front/.env \
-87:               ghcr.io/${{ github.repository }}:latest
-88: 
-89:             sleep 3
-90:             docker logs ciudadano-front --tail 20
-91:             docker image prune -f
+36:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
+37:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
+38:           secrets: |
+39:             NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}
+40:             NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}
+41:             NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+42:             NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+43:             NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+44:             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+45:             NEXT_PUBLIC_CIUDADANO_API_URL=${{ secrets.NEXT_PUBLIC_CIUDADANO_API_URL }}
+46:             NEXT_PUBLIC_CURSOS_API_URL=${{ secrets.NEXT_PUBLIC_CURSOS_API_URL }}
+47:             NEXT_PUBLIC_REGISTRO_URL=${{ secrets.NEXT_PUBLIC_REGISTRO_URL }}
+48:             NOTICIAS_API_URL=${{ secrets.NOTICIAS_API_URL }}
+49:             NEXT_PUBLIC_COWORKING_URL=${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
+50:             NEXT_PUBLIC_CALENDARIO_API_URL=${{ secrets.NEXT_PUBLIC_CALENDARIO_API_URL }}
+51: 
+52:       - name: Deploy en servidor
+53:         uses: appleboy/ssh-action@v1
+54:         env:
+55:           NEXT_GROQ_API_KEY:  ${{ secrets.NEXT_GROQ_API_KEY }}
+56:           NEXT_GROQ_MODEL:    ${{ secrets.NEXT_GROQ_MODEL }}
+57:           NOTICIAS_API_URL:   ${{ secrets.NOTICIAS_API_URL }}
+58:           NEXT_PUBLIC_COWORKING_URL: ${{ secrets.NEXT_PUBLIC_COWORKING_URL }}
+59:         with:
+60:           host:     ${{ secrets.DO_HOST }}
+61:           username: ${{ secrets.DO_USER }}
+62:           key:      ${{ secrets.DO_SSH_PRIVATE_KEY }}
+63:           port:     ${{ secrets.DO_PORT }}
+64:           envs: NEXT_GROQ_API_KEY,NEXT_GROQ_MODEL,NOTICIAS_API_URL,NEXT_PUBLIC_COWORKING_URL
+65:           script: |
+66:             set -e
+67:             docker login ghcr.io -u ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
+68:             docker pull ghcr.io/${{ github.repository }}:latest
+69: 
+70:             docker network inspect red_interna >/dev/null 2>&1 || \
+71:               docker network create --driver bridge red_interna
+72: 
+73:             mkdir -p /etc/ciudadano-front
+74:             printf '%s\n' \
+75:               "NEXT_GROQ_API_KEY=${NEXT_GROQ_API_KEY}" \
+76:               "NEXT_GROQ_MODEL=${NEXT_GROQ_MODEL}" \
+77:               "NOTICIAS_API_URL=${NOTICIAS_API_URL}" \
+78:               > /etc/ciudadano-front/.env
+79:             chmod 600 /etc/ciudadano-front/.env
+80: 
+81:             docker stop ciudadano-front || true
+82:             docker rm   ciudadano-front || true
+83: 
+84:             docker run -d \
+85:               --name    ciudadano-front \
+86:               --restart always \
+87:               --network red_interna \
+88:               --env-file /etc/ciudadano-front/.env \
+89:               ghcr.io/${{ github.repository }}:latest
+90: 
+91:             sleep 3
+92:             docker logs ciudadano-front --tail 20
+93:             docker image prune -f
 ```
 
 ## File: Dockerfile
@@ -12225,69 +12220,196 @@ x.sh
 46: ENV NEXT_TELEMETRY_DISABLED=1
 47: ARG NOTICIAS_API_URL
 48: ENV NOTICIAS_API_URL=$NOTICIAS_API_URL
-49: RUN addgroup --system --gid 1001 nodejs
-50: RUN adduser  --system --uid 1001 nextjs
-51: COPY --from=builder /app/public ./public
-52: RUN mkdir .next && chown nextjs:nodejs .next
-53: COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-54: COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-55: USER nextjs
-56: EXPOSE 3000
-57: ENV PORT=3000
-58: ENV HOSTNAME="0.0.0.0"
-59: CMD ["node", "server.js"]
+49: ARG NEXT_GROQ_API_KEY
+50: ENV NEXT_GROQ_API_KEY=$NEXT_GROQ_API_KEY
+51: ARG NEXT_GROQ_MODEL
+52: ENV NEXT_GROQ_MODEL=$NEXT_GROQ_MODEL
+53: RUN addgroup --system --gid 1001 nodejs
+54: RUN adduser  --system --uid 1001 nextjs
+55: COPY --from=builder /app/public ./public
+56: RUN mkdir .next && chown nextjs:nodejs .next
+57: COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+58: COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+59: USER nextjs
+60: EXPOSE 3000
+61: ENV PORT=3000
+62: ENV HOSTNAME="0.0.0.0"
+63: CMD ["node", "server.js"]
 ```
 
 ## File: x.sh
 ```bash
- 1: #!/usr/bin/env bash
- 2: # ============================================================================
- 3: #  v31b-ciudadano-fix-calendario-url.sh  — ciudadano-front
- 4: #  Fix: el hook usaba NEXT_PUBLIC_EVENTOS_API_URL que no existe en este repo.
- 5: #  La variable correcta es NEXT_PUBLIC_CALENDARIO_API_URL (ya en Dockerfile).
- 6: # ============================================================================
- 7: set -euo pipefail
- 8: 
- 9: GREEN='\033[0;32m'; RESET='\033[0m'
-10: ok()   { echo -e "${GREEN}✅  $*${RESET}"; }
-11: fail() { echo -e "\033[0;31m❌  $*${RESET}"; exit 1; }
-12: 
-13: [[ -f "package.json" && -d "app" ]] || fail "Corré desde la raíz de ciudadano-front"
-14: 
-15: echo ""
-16: echo "════════════════════════════════════════════════════════════"
-17: echo "  v31b · fix variable calendario en use-evento-activo"
-18: echo "════════════════════════════════════════════════════════════"
-19: echo ""
-20: 
-21: # ── Corregir la variable en el hook ──────────────────────────────────────
-22: echo "🔧  hooks/coworking/use-evento-activo-coworking.ts"
-23: 
-24: sed -i 's/process\.env\.NEXT_PUBLIC_EVENTOS_API_URL/process.env.NEXT_PUBLIC_CALENDARIO_API_URL/g' \
-25:   hooks/coworking/use-evento-activo-coworking.ts
-26: 
-27: ok "Variable corregida: NEXT_PUBLIC_EVENTOS_API_URL → NEXT_PUBLIC_CALENDARIO_API_URL"
-28: 
-29: # ── Verificar que quedó bien ──────────────────────────────────────────────
-30: grep "NEXT_PUBLIC_CALENDARIO_API_URL" hooks/coworking/use-evento-activo-coworking.ts \
-31:   && ok "Confirmado en el archivo" \
-32:   || { echo "❌ No se encontró la variable — revisá manualmente"; exit 1; }
-33: 
-34: # ── TypeScript check ──────────────────────────────────────────────────────
-35: echo ""
-36: echo "🔨  TypeScript check..."
-37: pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -30 || true
-38: 
-39: echo ""
-40: echo "🔨  Build..."
-41: pnpm build
-42: 
-43: echo ""
-44: echo -e "\033[0;32m════════════════════════════════════════════════════════════\033[0m"
-45: echo -e "\033[0;32m  ✅  v31b completado\033[0m"
-46: echo -e "\033[0;32m════════════════════════════════════════════════════════════\033[0m"
-47: echo ""
-48: echo "  El hook ahora usa NEXT_PUBLIC_CALENDARIO_API_URL"
-49: echo "  (la misma que usan lib/eventos/api.ts y lib/coworking/eventos-api.ts)"
-50: echo ""
+  1: #!/usr/bin/env bash
+  2: # ============================================================================
+  3: #  v33b-ciudadano-chatbot-fixes.sh  — ciudadano-front
+  4: #  Fix 1: Dockerfile → NEXT_GROQ_* como ENV en el runner stage
+  5: #  Fix 2: chatbot-widget → reemplaza excited.png por botón con ícono Bot
+  6: # ============================================================================
+  7: set -euo pipefail
+  8: 
+  9: GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
+ 10: ok()   { echo -e "${GREEN}✅  $*${RESET}"; }
+ 11: warn() { echo -e "${YELLOW}⚠️   $*${RESET}"; }
+ 12: fail() { echo -e "${RED}❌  $*${RESET}"; exit 1; }
+ 13: 
+ 14: [[ -f "package.json" && -d "app" ]] || fail "Corré desde la raíz de ciudadano-front"
+ 15: 
+ 16: echo ""
+ 17: echo "════════════════════════════════════════════════════════════"
+ 18: echo "  v33b · fix Groq runtime + botón chatbot sin imagen"
+ 19: echo "════════════════════════════════════════════════════════════"
+ 20: echo ""
+ 21: 
+ 22: # ── Fix 1: Dockerfile ─────────────────────────────────────────────────────
+ 23: # Agregar NEXT_GROQ_* como ENV en el runner stage para que Next.js
+ 24: # los lea en runtime (igual que NOTICIAS_API_URL ya lo hace)
+ 25: echo "📄  Dockerfile — agregar ENV NEXT_GROQ_* en runner stage"
+ 26: 
+ 27: node << 'JSEOF'
+ 28: const fs  = require('fs')
+ 29: const src = fs.readFileSync('Dockerfile', 'utf8')
+ 30: 
+ 31: const anchor = 'ARG NOTICIAS_API_URL\nENV NOTICIAS_API_URL=$NOTICIAS_API_URL'
+ 32: 
+ 33: if (src.includes('NEXT_GROQ_API_KEY') && src.includes('ARG NEXT_GROQ_API_KEY')) {
+ 34:   console.log('ℹ️  Dockerfile ya tiene NEXT_GROQ_API_KEY en runner stage')
+ 35:   process.exit(0)
+ 36: }
+ 37: 
+ 38: const addition = `ARG NOTICIAS_API_URL
+ 39: ENV NOTICIAS_API_URL=$NOTICIAS_API_URL
+ 40: ARG NEXT_GROQ_API_KEY
+ 41: ENV NEXT_GROQ_API_KEY=$NEXT_GROQ_API_KEY
+ 42: ARG NEXT_GROQ_MODEL
+ 43: ENV NEXT_GROQ_MODEL=$NEXT_GROQ_MODEL`
+ 44: 
+ 45: if (!src.includes(anchor)) {
+ 46:   console.log('⚠️  No se encontró el anchor exacto en Dockerfile — agregá manualmente:')
+ 47:   console.log('    ARG NEXT_GROQ_API_KEY')
+ 48:   console.log('    ENV NEXT_GROQ_API_KEY=$NEXT_GROQ_API_KEY')
+ 49:   console.log('    ARG NEXT_GROQ_MODEL')
+ 50:   console.log('    ENV NEXT_GROQ_MODEL=$NEXT_GROQ_MODEL')
+ 51:   console.log('    (después de ARG NOTICIAS_API_URL / ENV NOTICIAS_API_URL)')
+ 52:   process.exit(0)
+ 53: }
+ 54: 
+ 55: const updated = src.replace(anchor, addition)
+ 56: fs.writeFileSync('Dockerfile', updated)
+ 57: console.log('✅  NEXT_GROQ_API_KEY y NEXT_GROQ_MODEL agregados al runner stage')
+ 58: JSEOF
+ 59: 
+ 60: # También necesitamos agregarlos como build-args en deploy.yml
+ 61: echo ""
+ 62: echo "📄  .github/workflows/deploy.yml — agregar NEXT_GROQ_* a build-args"
+ 63: 
+ 64: node << 'JSEOF'
+ 65: const fs  = require('fs')
+ 66: const src = fs.readFileSync('.github/workflows/deploy.yml', 'utf8')
+ 67: 
+ 68: if (src.includes('NEXT_GROQ_API_KEY') && src.match(/build-args[\s\S]*?NEXT_GROQ_API_KEY/)) {
+ 69:   console.log('ℹ️  deploy.yml ya tiene NEXT_GROQ_API_KEY en build-args')
+ 70:   process.exit(0)
+ 71: }
+ 72: 
+ 73: // Anchor en build-args (la última línea de secrets del build step)
+ 74: const anchor = 'NEXT_PUBLIC_CALENDARIO_API_URL=${{ secrets.NEXT_PUBLIC_CALENDARIO_API_URL }}'
+ 75: const addition = `NEXT_PUBLIC_CALENDARIO_API_URL=\${{ secrets.NEXT_PUBLIC_CALENDARIO_API_URL }}
+ 76:             NEXT_GROQ_API_KEY=\${{ secrets.NEXT_GROQ_API_KEY }}
+ 77:             NEXT_GROQ_MODEL=\${{ secrets.NEXT_GROQ_MODEL }}`
+ 78: 
+ 79: if (!src.includes(anchor)) {
+ 80:   console.log('⚠️  Anchor no encontrado en deploy.yml')
+ 81:   console.log('    Agregá manualmente en la sección build-args:')
+ 82:   console.log('            NEXT_GROQ_API_KEY=${{ secrets.NEXT_GROQ_API_KEY }}')
+ 83:   console.log('            NEXT_GROQ_MODEL=${{ secrets.NEXT_GROQ_MODEL }}')
+ 84:   process.exit(0)
+ 85: }
+ 86: 
+ 87: const updated = src.replace(anchor, addition)
+ 88: fs.writeFileSync('.github/workflows/deploy.yml', updated)
+ 89: console.log('✅  NEXT_GROQ_API_KEY y NEXT_GROQ_MODEL agregados a build-args')
+ 90: JSEOF
+ 91: 
+ 92: ok "Dockerfile y deploy.yml actualizados"
+ 93: 
+ 94: # ── Fix 2: chatbot-widget — botón sin imagen externa ─────────────────────
+ 95: echo ""
+ 96: echo "📄  components/chatbot/chatbot-widget.tsx — reemplazar botón excited.png"
+ 97: 
+ 98: # Solo parchear el botón flotante — reemplazar la parte de Image por ícono Bot
+ 99: node << 'JSEOF'
+100: const fs  = require('fs')
+101: let   src = fs.readFileSync('components/chatbot/chatbot-widget.tsx', 'utf8')
+102: 
+103: // Verificar si tiene la imagen
+104: if (!src.includes('excited.png') && !src.includes('<Image')) {
+105:   console.log('ℹ️  El widget ya no usa Image para el botón flotante')
+106:   process.exit(0)
+107: }
+108: 
+109: // Reemplazar el botón flotante completo que usa <Image>
+110: const oldBtn = `      <button
+111:         type="button"
+112:         onClick={() => setIsOpen(true)}
+113:         aria-label="Abrir asistente virtual"
+114:         className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer overflow-hidden bg-transparent border-0 p-0"
+115:       >
+116:         <Image
+117:           src="/excited.png"
+118:           alt="Asistente virtual"
+119:           width={64}
+120:           height={64}
+121:           className="h-full w-full object-contain"
+122:           priority
+123:         />
+124:       </button>`
+125: 
+126: const newBtn = `      <button
+127:         type="button"
+128:         onClick={() => setIsOpen(true)}
+129:         aria-label="Abrir asistente virtual"
+130:         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer flex items-center justify-center border-0"
+131:         style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
+132:       >
+133:         <Bot className="h-6 w-6 text-white" />
+134:       </button>`
+135: 
+136: if (src.includes(oldBtn)) {
+137:   src = src.replace(oldBtn, newBtn)
+138:   // Quitar import de Image si ya no se usa
+139:   if (!src.includes('<Image') && src.includes("import Image from")) {
+140:     src = src.replace(/^import Image from "next\/image"\n/m, '')
+141:   }
+142:   fs.writeFileSync('components/chatbot/chatbot-widget.tsx', src)
+143:   console.log('✅  Botón flotante actualizado: ícono Bot en lugar de excited.png')
+144: } else {
+145:   console.log('⚠️  No se encontró el bloque exacto del botón — revisá manualmente')
+146:   console.log('    Reemplazá el <Image src="/excited.png"> por:')
+147:   console.log('    <Bot className="h-6 w-6 text-white" />')
+148: }
+149: JSEOF
+150: 
+151: ok "chatbot-widget.tsx actualizado"
+152: 
+153: # ── TypeScript check ──────────────────────────────────────────────────────
+154: echo ""
+155: echo "🔨  TypeScript check..."
+156: pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -30 || true
+157: 
+158: echo ""
+159: echo "🔨  Build..."
+160: pnpm build
+161: 
+162: echo ""
+163: echo -e "\033[0;32m════════════════════════════════════════════════════════════\033[0m"
+164: echo -e "\033[0;32m  ✅  v33b completado\033[0m"
+165: echo -e "\033[0;32m════════════════════════════════════════════════════════════\033[0m"
+166: echo ""
+167: echo "  Fix 1 — API 500 (Groq):"
+168: echo "    Dockerfile: NEXT_GROQ_API_KEY y NEXT_GROQ_MODEL como ARG/ENV en runner"
+169: echo "    deploy.yml: agregados a build-args para pasar al runner stage"
+170: echo ""
+171: echo "  Fix 2 — excited.png 404:"
+172: echo "    Botón flotante usa ícono Bot de lucide (sin depender de archivos externos)"
+173: echo ""
 ```

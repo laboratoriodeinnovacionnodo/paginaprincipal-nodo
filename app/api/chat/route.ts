@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import Groq from "groq-sdk"
 
-const groq = new Groq({
-  apiKey: process.env.NEXT_GROQ_API_KEY || "BUILD_TIME_PLACEHOLDER",
-})
-
+const GROQ_API_KEY = process.env.NEXT_GROQ_API_KEY ?? ""
 const MODEL = process.env.NEXT_GROQ_MODEL || "llama-3.3-70b-versatile"
 
 const SYSTEM_PROMPT = `Sos el asistente virtual del Nodo Tecnológico de Catamarca, un centro de innovación y educación digital de Argentina.
@@ -29,11 +26,21 @@ interface GroqMessage {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!GROQ_API_KEY) {
+      console.error("[chat/route] NEXT_GROQ_API_KEY no está configurada en runtime")
+      return NextResponse.json(
+        { error: "Configuración del servidor incompleta (API key ausente)" },
+        { status: 500 },
+      )
+    }
+
     const { messages } = (await req.json()) as { messages: GroqMessage[] }
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "messages requerido" }, { status: 400 })
     }
+
+    const groq = new Groq({ apiKey: GROQ_API_KEY })
 
     const completion = await groq.chat.completions.create({
       model: MODEL,
@@ -48,10 +55,21 @@ export async function POST(req: NextRequest) {
     const reply = completion.choices[0]?.message?.content ?? "No pude generar una respuesta."
 
     return NextResponse.json({ reply })
-  } catch (err) {
-    console.error("[chat/route]", err)
+  } catch (err: unknown) {
+    // Log completo en el servidor para diagnosticar (Groq SDK expone status/error)
+    const groqErr = err as { status?: number; error?: unknown; message?: string }
+    console.error("[chat/route] Error de Groq:", {
+      status: groqErr?.status,
+      message: groqErr?.message,
+      detail: groqErr?.error,
+    })
+
     return NextResponse.json(
-      { error: "Error al procesar la consulta" },
+      {
+        error: "Error al procesar la consulta",
+        // Solo en desarrollo mostramos detalle al cliente
+        ...(process.env.NODE_ENV !== "production" && { detail: groqErr?.message }),
+      },
       { status: 500 },
     )
   }
