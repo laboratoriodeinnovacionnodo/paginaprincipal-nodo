@@ -6,17 +6,15 @@
  * Mismo criterio que coworking-front.
  */
 export const ZONA_IMAGES: Record<string, string> = {
-  A: "/areas/zona-a.jpg",
-  B: "/areas/zona-b.jpg",
-  C: "/areas/zona-c.jpg",
-  D: "/areas/zona-d.jpg",
+  A: "/areas/zona-a.jpeg",
+  B: "/areas/zona-b.jpeg",
+  C: "/areas/zona-c.jpeg",
 }
 
 export const ZONA_LABELS: Record<string, string> = {
   A: "Zona A",
   B: "Zona B",
   C: "Zona C",
-  D: "Zona D",
 }
 
 /** Extrae la letra de zona del nombre del área (ej: "A1" → "A", "B5" → "B") */
