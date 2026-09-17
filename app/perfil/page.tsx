@@ -53,7 +53,8 @@ function formatDate(dateStr: string | null | undefined, locale = "es-AR") {
 const SYSTEM_LABEL: Record<string, string> = {
   cursos: "Cursos",
   eventos: "Eventos",
-  "profe-ia: "Profe IA",
+  "profe-ia": "Profe IA",
+  catamarcaopen: "CatamarcaOpen",
   laboratorio: "Laboratorio",
   aula: "Aula Virtual",
   registro: "Registro",
