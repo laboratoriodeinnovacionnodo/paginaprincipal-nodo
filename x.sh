@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  fix-chatbot-white-theme.sh — ciudadano-front  v1.4.0
-#  - Pantalla bienvenida: sugerencias + botón en glass blanco
-#  - Burbujas bot: glass blanco texto oscuro
-#  - Burbuja usuario: azul sólido texto blanco (como antes)
-#  - Input: glass blanco texto oscuro, más opaco
-#  - Botón X: glass blanco texto oscuro
-#  - Fondo SiriFrame: intacto
+#  fix-chatbot-white-theme.sh — ciudadano-front  v1.5.0
+#  - Botón "Iniciar conversación" → azul igual al botón enviar
+#  - Cards sugerencias + burbujas + input → bg-white/95 (bien blancos)
+#  - Título y descripción bienvenida → dentro de card glass blanco
 # ============================================================================
 set -euo pipefail
 
@@ -186,20 +183,20 @@ export function ChatbotWidget() {
             <SiriFrame state={frameState} />
           </div>
 
-          {/* Velo mínimo — igual que el original */}
+          {/* Velo mínimo — intacto */}
           <div className="pointer-events-none absolute inset-0 bg-white/8 backdrop-blur-[2px]" />
 
-          {/* Botón cerrar — glass blanco, X oscura */}
+          {/* Botón cerrar */}
           <button
             type="button"
             onClick={handleClose}
             aria-label="Cerrar asistente"
-            className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-white/80 hover:bg-white/95 backdrop-blur-md border border-white/60 flex items-center justify-center transition-colors shadow-sm"
+            className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-white/95 hover:bg-white backdrop-blur-md border border-white/60 flex items-center justify-center transition-colors shadow-sm"
           >
             <X className="h-5 w-5 text-slate-700" />
           </button>
 
-          {/* Header — sin cambios */}
+          {/* Header */}
           <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
             <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
               <Bot className="h-4 w-4 text-white" />
@@ -219,37 +216,43 @@ export function ChatbotWidget() {
 
           {/* ── Pantalla de bienvenida ── */}
           {!hasStarted && (
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 gap-6 animate-in fade-in duration-500">
-              <div className="text-center space-y-3 max-w-sm">
-                {/* Ícono — glass blanco */}
-                <div className="mx-auto h-16 w-16 rounded-2xl bg-white/80 backdrop-blur-md border border-white/60 shadow-sm flex items-center justify-center">
-                  <Bot className="h-8 w-8 text-[#26a7fc]" />
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 gap-4 animate-in fade-in duration-500">
+
+              {/* Card de presentación */}
+              <div className="w-full max-w-sm bg-white/95 backdrop-blur-md border border-white/60 rounded-2xl px-6 py-5 shadow-md text-center space-y-3">
+                <div className="mx-auto h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm"
+                  style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
+                >
+                  <Bot className="h-7 w-7 text-white" />
                 </div>
-                <h3 className="text-white text-xl font-bold">¿En qué puedo ayudarte?</h3>
-                <p className="text-white/70 text-sm">
+                <h3 className="text-slate-800 text-lg font-bold leading-snug">
+                  ¿En qué puedo ayudarte?
+                </h3>
+                <p className="text-slate-500 text-sm leading-relaxed">
                   Soy el asistente del Nodo Tecnológico. Puedo ayudarte con cursos, eventos, coworking y más.
                 </p>
               </div>
 
-              {/* Sugerencias — glass blanco, texto oscuro */}
+              {/* Sugerencias */}
               <div className="flex flex-col gap-2 w-full max-w-sm">
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => { startChat(); setTimeout(() => sendMessage(s), 100) }}
-                    className="text-left px-4 py-3 rounded-2xl bg-white/80 hover:bg-white/95 backdrop-blur-md border border-white/60 text-slate-800 text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+                    className="text-left px-4 py-3 rounded-2xl bg-white/95 hover:bg-white backdrop-blur-md border border-white/60 text-slate-700 text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
                   >
                     {s}
                   </button>
                 ))}
               </div>
 
-              {/* Botón iniciar — glass blanco, texto oscuro */}
+              {/* Botón iniciar — mismo estilo que botón enviar */}
               <button
                 type="button"
                 onClick={startChat}
-                className="px-6 py-2.5 rounded-full bg-white/80 hover:bg-white/95 backdrop-blur-md border border-white/60 text-slate-700 text-sm font-medium transition-all duration-200 shadow-sm"
+                className="px-8 py-2.5 rounded-full text-white text-sm font-semibold transition-all duration-200 shadow-md shadow-[#26a7fc]/30 hover:opacity-90"
+                style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
               >
                 Iniciar conversación
               </button>
@@ -270,18 +273,20 @@ export function ChatbotWidget() {
                     className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
                   >
                     {msg.sender === "bot" && (
-                      <div className="h-7 w-7 rounded-full bg-white/80 border border-white/60 backdrop-blur-md shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
+                      <div className="h-7 w-7 rounded-full bg-white/95 border border-white/60 backdrop-blur-md shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
                         <Bot className="h-3.5 w-3.5 text-[#26a7fc]" />
                       </div>
                     )}
                     <div
                       className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                         msg.sender === "user"
-                          // Usuario: azul sólido, texto blanco
-                          ? "bg-[#26a7fc] text-white rounded-br-sm shadow-md shadow-[#26a7fc]/30"
-                          // Bot: glass blanco dominante, texto oscuro
-                          : "bg-white/82 backdrop-blur-md text-slate-800 rounded-bl-sm border border-white/60 shadow-sm"
+                          ? "text-white rounded-br-sm shadow-md shadow-[#26a7fc]/30"
+                          : "bg-white/95 backdrop-blur-md text-slate-800 rounded-bl-sm border border-white/60 shadow-sm"
                       }`}
+                      style={msg.sender === "user"
+                        ? { backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }
+                        : undefined
+                      }
                     >
                       {msg.text}
                     </div>
@@ -291,10 +296,10 @@ export function ChatbotWidget() {
                 {/* Typing */}
                 {isLoading && (
                   <div className="flex justify-start animate-in fade-in duration-300">
-                    <div className="h-7 w-7 rounded-full bg-white/80 border border-white/60 backdrop-blur-md shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
+                    <div className="h-7 w-7 rounded-full bg-white/95 border border-white/60 backdrop-blur-md shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
                       <Bot className="h-3.5 w-3.5 text-[#26a7fc]" />
                     </div>
-                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/82 border border-white/60 backdrop-blur-md shadow-sm flex items-center gap-1.5">
+                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/95 border border-white/60 backdrop-blur-md shadow-sm flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]" />
                       <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]" />
                       <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]" />
@@ -313,14 +318,15 @@ export function ChatbotWidget() {
                   onKeyDown={handleKeyDown}
                   placeholder="Escribí tu consulta..."
                   disabled={isLoading}
-                  className="flex-1 px-4 py-3 rounded-2xl bg-white/82 hover:bg-white/90 focus:bg-white/95 backdrop-blur-md border border-white/60 focus:border-white/80 text-slate-800 placeholder-slate-400 text-sm outline-none transition-all disabled:opacity-50 shadow-sm"
+                  className="flex-1 px-4 py-3 rounded-2xl bg-white/95 hover:bg-white focus:bg-white backdrop-blur-md border border-white/60 focus:border-white/80 text-slate-800 placeholder-slate-400 text-sm outline-none transition-all disabled:opacity-50 shadow-sm"
                 />
                 <button
                   type="button"
                   onClick={() => sendMessage(inputValue)}
                   disabled={isLoading || !inputValue.trim()}
                   aria-label="Enviar mensaje"
-                  className="h-12 w-12 rounded-2xl bg-[#26a7fc] hover:bg-[#1c8fe0] flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-md shadow-[#26a7fc]/30"
+                  className="h-12 w-12 rounded-2xl flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-md shadow-[#26a7fc]/30 hover:opacity-90"
+                  style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
                 >
                   {isLoading
                     ? <Loader2 className="h-4 w-4 text-white animate-spin" />
@@ -337,7 +343,7 @@ export function ChatbotWidget() {
 }
 ENDOFFILE
 
-ok "chatbot-widget.tsx actualizado"
+ok "chatbot-widget.tsx v1.5.0 actualizado"
 
 echo ""
 echo "🔨  TypeScript check..."
@@ -345,9 +351,13 @@ pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -20 || warn "Revisar errores T
 
 echo ""
 echo "════════════════════════════════════════════════════════════"
-echo "✅  Chatbot v1.4.0:"
-echo "    INTACTO:   Fondo SiriFrame + velo bg-white/8 + header"
-echo "    BLANCO:    Sugerencias, botón iniciar, X cerrar,"
-echo "               burbuja bot, typing, input → bg-white/80+"
-echo "    AZUL:      Burbuja usuario bg-[#26a7fc] text-white"
+echo "✅  Chatbot v1.5.0:"
+echo "    • Card bienvenida:  bg-white/95, ícono degradado azul"
+echo "    • Sugerencias:      bg-white/95 text-slate-700"
+echo "    • Iniciar conv.:    degradado azul igual a botón enviar"
+echo "    • Burbuja usuario:  degradado azul text-white"
+echo "    • Burbuja bot:      bg-white/95 text-slate-800"
+echo "    • Input:            bg-white/95 text-slate-800"
+echo "    • Botón enviar:     degradado azul (sin cambio)"
+echo "    • SiriFrame:        intacto"
 echo "════════════════════════════════════════════════════════════"
