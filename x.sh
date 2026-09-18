@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  fix-chatbot-white-theme.sh — ciudadano-front  v1.5.0
-#  - Botón "Iniciar conversación" → azul igual al botón enviar
-#  - Cards sugerencias + burbujas + input → bg-white/95 (bien blancos)
-#  - Título y descripción bienvenida → dentro de card glass blanco
+#  x.sh — ciudadano-front  v12.0.0
+#  Implementa MatrixBackground (caracteres cayendo) en /noticias
+#  Mismo patrón que PcbBackground / HexBackground / NetworkBackground
 # ============================================================================
 set -euo pipefail
 
@@ -14,350 +13,313 @@ fail() { echo -e "${RED}❌  $*${RESET}"; exit 1; }
 
 [[ -f "package.json" && -d "app" ]] || fail "Corré desde la raíz de ciudadano-front"
 
-echo "📄  Actualizando components/chatbot/chatbot-widget.tsx..."
+mkdir -p components/shared
 
-mkdir -p components/chatbot
-
-cat > components/chatbot/chatbot-widget.tsx << 'ENDOFFILE'
+# ─────────────────────────────────────────────────────────────────────────────
+echo "📄  components/shared/matrix-background.tsx..."
+# ─────────────────────────────────────────────────────────────────────────────
+cat > components/shared/matrix-background.tsx << 'ENDOFFILE'
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
-import { Bot, X, Send, Loader2 } from "lucide-react"
-import { SiriFrame, type SiriFrameState } from "@/components/chatbot/siri-frame"
+import { useEffect, useRef } from "react"
 
-interface Message {
-  id:        string
-  text:      string
-  sender:    "user" | "bot"
-  timestamp: Date
+interface MatrixBackgroundProps {
+  /** Opacidad global del canvas. Default 0.9 */
+  opacity?:       number
+  /** Color de la cabeza (carácter más nuevo). Default #26a7fc */
+  colorHead?:     string
+  /** Color de la estela (caracteres viejos). Default #94a3b8 */
+  colorTrail?:    string
+  /** Tamaño de fuente en px. Default 13 */
+  fontSize?:      number
+  /** Velocidad de caída — fracción de fila por frame. Default 0.22 */
+  speed?:         number
+  /** Opacidad de la cabeza. Default 0.7 */
+  headOpacity?:   number
+  /** Opacidad máxima de la estela (la más reciente). Default 0.18 */
+  trailOpacity?:  number
+  /** Longitud de la estela en caracteres. Default 5 */
+  trailLength?:   number
+  className?:     string
 }
 
-interface GroqMessage {
-  role:    "user" | "assistant"
-  content: string
-}
-
-const SUGGESTIONS = [
-  "¿Qué cursos tienen disponibles?",
-  "¿Cómo funciona el coworking?",
-  "¿Cuándo son los próximos eventos?",
-  "¿Qué es el Laboratorio de Innovación?",
-]
-
-const GREETING = "¡Hola! Soy el asistente virtual del Nodo Tecnológico. ¿En qué puedo ayudarte hoy?"
-
-function uid() {
-  return Math.random().toString(36).slice(2)
-}
-
-export function ChatbotWidget() {
-  const [isOpen,      setIsOpen]      = useState(false)
-  const [messages,    setMessages]    = useState<Message[]>([])
-  const [history,     setHistory]     = useState<GroqMessage[]>([])
-  const [inputValue,  setInputValue]  = useState("")
-  const [isLoading,   setIsLoading]   = useState(false)
-  const [hasStarted,  setHasStarted]  = useState(false)
-  const [frameState,  setFrameState]  = useState<SiriFrameState>("idle")
-
-  const inputRef      = useRef<HTMLInputElement>(null)
-  const messagesRef   = useRef<HTMLDivElement>(null)
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+export function MatrixBackground({
+  opacity      = 0.9,
+  colorHead    = "#26a7fc",
+  colorTrail   = "#94a3b8",
+  fontSize     = 13,
+  speed        = 0.22,
+  headOpacity  = 0.65,
+  trailOpacity = 0.16,
+  trailLength  = 5,
+  className,
+}: MatrixBackgroundProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const rafRef    = useRef<number>(0)
 
   useEffect(() => {
-    if (!isOpen) return
-    setFrameState("greeting")
-    const t = setTimeout(() => setFrameState("idle"), 800)
-    return () => clearTimeout(t)
-  }, [isOpen])
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
 
-  useEffect(() => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+    const rand  = (a: number, b: number) => a + Math.random() * (b - a)
+    const randI = (a: number, b: number) => Math.floor(rand(a, b))
+
+    // Caracteres del alfabeto — mezcla de letras, números y símbolos
+    // Sutil: sin kanji, sin símbolos agresivos — sólo ASCII editorial
+    const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789→←·•◦▸▹"
+
+    // Parsear colores
+    function hexRgb(hex: string): [number, number, number] {
+      return [
+        parseInt(hex.slice(1, 3), 16),
+        parseInt(hex.slice(3, 5), 16),
+        parseInt(hex.slice(5, 7), 16),
+      ]
     }
-  }, [messages])
+    const [hr, hg, hb] = hexRgb(colorHead)
+    const [tr, tg, tb] = hexRgb(colorTrail)
 
-  useEffect(() => {
-    if (isOpen && hasStarted) {
-      setTimeout(() => inputRef.current?.focus(), 100)
+    interface Column {
+      x:       number   // posición x fija
+      y:       number   // posición y actual (en filas, decimal)
+      speed:   number   // velocidad individual
+      gap:     number   // pausa antes de reiniciar (en filas)
+      waiting: number   // contador de pausa
+      chars:   string[] // buffer de caracteres de la estela
     }
-  }, [isOpen, hasStarted])
 
-  const startChat = useCallback(() => {
-    setHasStarted(true)
-    setMessages([{
-      id:        uid(),
-      text:      GREETING,
-      sender:    "bot",
-      timestamp: new Date(),
-    }])
-  }, [])
+    let W = 0, H = 0
+    let rowH    = 0     // altura de una fila en px
+    let cols: Column[] = []
 
-  const sendMessage = useCallback(async (text: string) => {
-    const trimmed = text.trim()
-    if (!trimmed || isLoading) return
+    function build() {
+      W = canvas.width  = canvas.offsetWidth
+      H = canvas.height = canvas.offsetHeight
+      if (W === 0 || H === 0) return
 
-    const userMsg: Message = { id: uid(), text: trimmed, sender: "user", timestamp: new Date() }
-    setMessages((prev) => [...prev, userMsg])
-    setInputValue("")
+      rowH = fontSize * 1.5
+      const numCols = Math.floor(W / (fontSize * 1.1))
 
-    const newHistory: GroqMessage[] = [...history, { role: "user", content: trimmed }]
-    setHistory(newHistory)
+      cols = Array.from({ length: numCols }, (_, i) => {
+        const x = i * (fontSize * 1.1) + fontSize * 0.55
+        return {
+          x,
+          y:       rand(0, H / rowH),          // arrancar en posición aleatoria
+          speed:   rand(speed * 0.5, speed * 1.6),
+          gap:     rand(8, 30),                // pausa en filas tras salir de pantalla
+          waiting: randI(0, 40),               // delay inicial escalonado
+          chars:   Array.from({ length: trailLength + 1 }, () =>
+            CHARS[randI(0, CHARS.length)]
+          ),
+        }
+      })
+    }
 
-    setIsLoading(true)
-    setFrameState("thinking")
+    function draw() {
+      // Fade suave — sin clearRect para mantener ghost de estela
+      ctx.fillStyle = "rgba(248,250,252,0.18)"
+      ctx.fillRect(0, 0, W, H)
 
-    try {
-      const res = await fetch("/api/chat", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ messages: newHistory }),
+      ctx.font = `${fontSize}px monospace`
+      ctx.textAlign = "center"
+
+      cols.forEach((col) => {
+        // Si está esperando, contar y saltar
+        if (col.waiting > 0) {
+          col.waiting -= col.speed
+          return
+        }
+
+        const headRow = col.y
+        const headY   = headRow * rowH
+
+        // Estela — de más vieja a más nueva
+        for (let k = trailLength; k >= 1; k--) {
+          const ky = headY - k * rowH
+          if (ky < 0 || ky > H) continue
+          const a = (trailOpacity / trailLength) * (trailLength - k + 1)
+          ctx.fillStyle = `rgba(${tr},${tg},${tb},${a})`
+          ctx.fillText(col.chars[k] ?? CHARS[0], col.x, ky)
+        }
+
+        // Cabeza — carácter más brillante en el color de marca
+        if (headY >= 0 && headY <= H) {
+          ctx.fillStyle = `rgba(${hr},${hg},${hb},${headOpacity})`
+          ctx.fillText(col.chars[0], col.x, headY)
+        }
+
+        // Avanzar
+        col.y += col.speed
+
+        // Actualizar caracteres: rotar array y meter uno nuevo al frente
+        if (Math.random() > 0.88) {
+          col.chars.unshift(CHARS[randI(0, CHARS.length)])
+          col.chars.length = trailLength + 1
+        }
+
+        // Reiniciar cuando sale de pantalla + pausa
+        if (headY > H + rowH * trailLength) {
+          col.y       = -trailLength
+          col.waiting = col.gap
+          col.speed   = rand(speed * 0.5, speed * 1.6)
+          col.gap     = rand(8, 30)
+        }
       })
 
-      if (!res.ok) throw new Error(`Error ${res.status}`)
-
-      const data = await res.json()
-      const replyText = data.reply ?? "No pude generar una respuesta."
-
-      const botMsg: Message = { id: uid(), text: replyText, sender: "bot", timestamp: new Date() }
-      setMessages((prev) => [...prev, botMsg])
-      setHistory((prev) => [...prev, { role: "assistant", content: replyText }])
-      setFrameState("speaking")
-      setTimeout(() => setFrameState("idle"), 1500)
-    } catch {
-      const errMsg: Message = {
-        id:        uid(),
-        text:      "Ocurrió un error. Por favor, intentá nuevamente.",
-        sender:    "bot",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errMsg])
-      setFrameState("error")
-
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
-      errorTimerRef.current = setTimeout(() => {
-        setFrameState((cur) => cur === "error" ? "idle" : cur)
-      }, 1800)
-    } finally {
-      setIsLoading(false)
+      rafRef.current = requestAnimationFrame(draw)
     }
-  }, [history, isLoading])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage(inputValue)
+    const ro = new ResizeObserver(() => { build() })
+    ro.observe(canvas.parentElement ?? canvas)
+
+    build()
+    draw()
+
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      ro.disconnect()
     }
-  }
-
-  const handleClose = () => {
-    setIsOpen(false)
-    setHasStarted(false)
-    setMessages([])
-    setHistory([])
-    setFrameState("idle")
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
-  }
+  }, [colorHead, colorTrail, fontSize, speed, headOpacity, trailOpacity, trailLength])
 
   return (
-    <>
-      {/* Botón flotante */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        aria-label="Abrir asistente virtual"
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer flex items-center justify-center border-0"
-        style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
-      >
-        <Bot className="h-6 w-6 text-white" />
-      </button>
-
-      {isOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Asistente Virtual del Nodo Tecnológico"
-          className="fixed inset-0 z-[100] flex flex-col"
-        >
-          {/* SiriFrame — intacto */}
-          <div className="absolute inset-0">
-            <SiriFrame state={frameState} />
-          </div>
-
-          {/* Velo mínimo — intacto */}
-          <div className="pointer-events-none absolute inset-0 bg-white/8 backdrop-blur-[2px]" />
-
-          {/* Botón cerrar */}
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Cerrar asistente"
-            className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-white/95 hover:bg-white backdrop-blur-md border border-white/60 flex items-center justify-center transition-colors shadow-sm"
-          >
-            <X className="h-5 w-5 text-slate-700" />
-          </button>
-
-          {/* Header */}
-          <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
-            <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
-              <Bot className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h2 className="text-white text-base font-semibold leading-tight">
-                Asistente NODO
-              </h2>
-              <p className="text-xs text-white/60 leading-tight flex items-center gap-1.5">
-                {frameState === "thinking" && (
-                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                )}
-                {frameState === "thinking" ? "Pensando..." : "En línea"}
-              </p>
-            </div>
-          </div>
-
-          {/* ── Pantalla de bienvenida ── */}
-          {!hasStarted && (
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 gap-4 animate-in fade-in duration-500">
-
-              {/* Card de presentación */}
-              <div className="w-full max-w-sm bg-white/95 backdrop-blur-md border border-white/60 rounded-2xl px-6 py-5 shadow-md text-center space-y-3">
-                <div className="mx-auto h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm"
-                  style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
-                >
-                  <Bot className="h-7 w-7 text-white" />
-                </div>
-                <h3 className="text-slate-800 text-lg font-bold leading-snug">
-                  ¿En qué puedo ayudarte?
-                </h3>
-                <p className="text-slate-500 text-sm leading-relaxed">
-                  Soy el asistente del Nodo Tecnológico. Puedo ayudarte con cursos, eventos, coworking y más.
-                </p>
-              </div>
-
-              {/* Sugerencias */}
-              <div className="flex flex-col gap-2 w-full max-w-sm">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => { startChat(); setTimeout(() => sendMessage(s), 100) }}
-                    className="text-left px-4 py-3 rounded-2xl bg-white/95 hover:bg-white backdrop-blur-md border border-white/60 text-slate-700 text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-
-              {/* Botón iniciar — mismo estilo que botón enviar */}
-              <button
-                type="button"
-                onClick={startChat}
-                className="px-8 py-2.5 rounded-full text-white text-sm font-semibold transition-all duration-200 shadow-md shadow-[#26a7fc]/30 hover:opacity-90"
-                style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
-              >
-                Iniciar conversación
-              </button>
-            </div>
-          )}
-
-          {/* ── Chat activo ── */}
-          {hasStarted && (
-            <div className="relative z-10 flex-1 flex flex-col min-h-0 px-4 sm:px-6 pb-4 pt-4 max-w-2xl w-full mx-auto">
-
-              <div
-                ref={messagesRef}
-                className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20"
-              >
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
-                  >
-                    {msg.sender === "bot" && (
-                      <div className="h-7 w-7 rounded-full bg-white/95 border border-white/60 backdrop-blur-md shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
-                        <Bot className="h-3.5 w-3.5 text-[#26a7fc]" />
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                        msg.sender === "user"
-                          ? "text-white rounded-br-sm shadow-md shadow-[#26a7fc]/30"
-                          : "bg-white/95 backdrop-blur-md text-slate-800 rounded-bl-sm border border-white/60 shadow-sm"
-                      }`}
-                      style={msg.sender === "user"
-                        ? { backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }
-                        : undefined
-                      }
-                    >
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Typing */}
-                {isLoading && (
-                  <div className="flex justify-start animate-in fade-in duration-300">
-                    <div className="h-7 w-7 rounded-full bg-white/95 border border-white/60 backdrop-blur-md shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
-                      <Bot className="h-3.5 w-3.5 text-[#26a7fc]" />
-                    </div>
-                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/95 border border-white/60 backdrop-blur-md shadow-sm flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]" />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Input */}
-              <div className="mt-3 flex gap-2 shrink-0">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Escribí tu consulta..."
-                  disabled={isLoading}
-                  className="flex-1 px-4 py-3 rounded-2xl bg-white/95 hover:bg-white focus:bg-white backdrop-blur-md border border-white/60 focus:border-white/80 text-slate-800 placeholder-slate-400 text-sm outline-none transition-all disabled:opacity-50 shadow-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => sendMessage(inputValue)}
-                  disabled={isLoading || !inputValue.trim()}
-                  aria-label="Enviar mensaje"
-                  className="h-12 w-12 rounded-2xl flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-md shadow-[#26a7fc]/30 hover:opacity-90"
-                  style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
-                >
-                  {isLoading
-                    ? <Loader2 className="h-4 w-4 text-white animate-spin" />
-                    : <Send className="h-4 w-4 text-white" />
-                  }
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </>
+    <canvas
+      ref={canvasRef}
+      className={className}
+      style={{ opacity, display: "block", width: "100%", height: "100%" }}
+      aria-hidden="true"
+    />
   )
 }
 ENDOFFILE
+ok "components/shared/matrix-background.tsx"
 
-ok "chatbot-widget.tsx v1.5.0 actualizado"
+# ─────────────────────────────────────────────────────────────────────────────
+echo "📄  app/noticias/page.tsx..."
+# ─────────────────────────────────────────────────────────────────────────────
+cat > app/noticias/page.tsx << 'ENDOFFILE'
+import type { Metadata }    from "next"
+import { CodeTitle }        from "@/components/shared/code-title"
+import { NoticiasContent }  from "@/components/noticias/noticias-content"
+import { getNoticias }      from "@/lib/noticias/api"
+import { Newspaper }        from "lucide-react"
+import { MatrixBackground } from "@/components/shared/matrix-background"
 
+export const metadata: Metadata = {
+  title:       "Noticias | Nodo Tecnológico Catamarca",
+  description: "Las últimas novedades, noticias y actualizaciones del Nodo Tecnológico de Catamarca.",
+  openGraph: {
+    title:       "Noticias | Nodo Tecnológico Catamarca",
+    description: "Las últimas novedades del Nodo Tecnológico.",
+    images: [{ url: "/og-noticias.jpg", width: 1200, height: 630, alt: "Noticias — Nodo Tecnológico" }],
+  },
+}
+
+export const revalidate = 60
+
+export default async function NoticiasPage() {
+  const { items: noticias } = await getNoticias({ limit: 100 })
+
+  return (
+    <div className="relative min-h-screen bg-gradient-to-br from-cyan-50 via-white to-blue-50">
+
+      {/* ── MatrixBackground — cubre toda la página ───────────────────────── */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <MatrixBackground
+          opacity={0.9}
+          colorHead="#26a7fc"
+          colorTrail="#94a3b8"
+          fontSize={13}
+          speed={0.22}
+          headOpacity={0.65}
+          trailOpacity={0.16}
+          trailLength={5}
+        />
+      </div>
+
+      {/* Contenido sobre el canvas */}
+      <main className="relative z-10">
+
+        {/* ── Hero centrado ─────────────────────────────────────────────── */}
+        <section className="relative pt-32 pb-12 overflow-hidden">
+
+          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+            <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[#26a7fc]/6 blur-3xl" />
+            <div className="absolute top-20 -left-24 w-72 h-72 rounded-full bg-cyan-200/25 blur-3xl" />
+          </div>
+
+          <div className="container mx-auto px-4 max-w-3xl text-center relative z-10">
+
+            <div className="inline-flex items-center gap-2 bg-[#26a7fc]/8 border border-[#26a7fc]/20
+                            rounded-full px-4 py-1.5 text-xs font-semibold text-[#1c8fe0] mb-6">
+              <Newspaper className="h-3.5 w-3.5" aria-hidden="true" />
+              Novedades del Nodo
+            </div>
+
+            <CodeTitle
+              as="h1"
+              className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 text-balance
+                         leading-[1.05] tracking-tight mb-5"
+              immediate
+            >
+              Las novedades del{" "}
+              <span className="text-[#26a7fc]">Nodo</span>
+            </CodeTitle>
+
+            <p className="text-lg text-slate-500 leading-relaxed max-w-xl mx-auto mb-8">
+              Noticias, actualizaciones y todo lo que pasa en el centro
+              tecnológico de Catamarca.
+            </p>
+
+            {noticias.length > 0 && (
+              <div className="inline-flex items-center gap-2 bg-white/85 backdrop-blur-sm
+                              border border-slate-200 rounded-full px-5 py-2 shadow-sm
+                              text-sm text-slate-500">
+                <span className="font-bold text-[#26a7fc] text-base">{noticias.length}</span>
+                {noticias.length === 1 ? "noticia publicada" : "noticias publicadas"}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <NoticiasContent noticias={noticias} />
+
+      </main>
+    </div>
+  )
+}
+ENDOFFILE
+ok "app/noticias/page.tsx"
+
+# ─────────────────────────────────────────────────────────────────────────────
 echo ""
 echo "🔨  TypeScript check..."
-pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -20 || warn "Revisar errores TS arriba"
+pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -20 || warn "Revisá errores TS arriba"
 
 echo ""
 echo "════════════════════════════════════════════════════════════"
-echo "✅  Chatbot v1.5.0:"
-echo "    • Card bienvenida:  bg-white/95, ícono degradado azul"
-echo "    • Sugerencias:      bg-white/95 text-slate-700"
-echo "    • Iniciar conv.:    degradado azul igual a botón enviar"
-echo "    • Burbuja usuario:  degradado azul text-white"
-echo "    • Burbuja bot:      bg-white/95 text-slate-800"
-echo "    • Input:            bg-white/95 text-slate-800"
-echo "    • Botón enviar:     degradado azul (sin cambio)"
-echo "    • SiriFrame:        intacto"
+echo "✅  MatrixBackground implementado en /noticias v12.0.0"
+echo ""
+echo "  COMPONENTE: components/shared/matrix-background.tsx"
+echo "    • Columnas independientes con speed y gap propios"
+echo "    • Cabeza: #26a7fc (color de marca)"
+echo "    • Estela: #94a3b8 (gris azulado muy sutil)"
+echo "    • Fade con rgba(248,250,252,0.18) — no clearRect"
+echo "      → ghost de estela natural, no corte abrupto"
+echo "    • Chars: ASCII editorial (sin kanji, sin sci-fi)"
+echo "    • Delay inicial escalonado — arrancan de a poco"
+echo "    • Pausa aleatoria al reiniciar cada columna"
+echo "    • ResizeObserver + cleanup de RAF"
+echo ""
+echo "  INTEGRACIÓN en /noticias:"
+echo "    • absolute inset-0 — cubre toda la página"
+echo "    • Cards NoticiasContent con bg-white/85 backdrop-blur-sm"
+echo "    • Stat pill con bg-white/85 backdrop-blur-sm"
+echo ""
+echo "  Biblioteca de backgrounds lista:"
+echo "    /laboratorio → NetworkBackground (red neuronal)"
+echo "    /coworking   → HexBackground    (colmena hex)"
+echo "    /eventos     → PcbBackground    (grid PCB)"
+echo "    /noticias    → MatrixBackground (caracteres)"
 echo "════════════════════════════════════════════════════════════"
