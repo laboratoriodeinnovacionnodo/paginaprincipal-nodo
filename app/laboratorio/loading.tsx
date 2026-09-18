@@ -12,8 +12,8 @@ export default function LaboratorioLoading() {
         <Skeleton className="h-5 w-full max-w-lg mx-auto mb-2" />
         <Skeleton className="h-5 w-4/5 mx-auto mb-10" />
         <div className="flex justify-center gap-3">
-          <Skeleton className="h-11 w-48 rounded-xl" />
-          <Skeleton className="h-11 w-40 rounded-xl" />
+          <Skeleton className="h-11 w-44 rounded-xl" />
+          <Skeleton className="h-11 w-36 rounded-xl" />
         </div>
       </div>
 
@@ -26,24 +26,11 @@ export default function LaboratorioLoading() {
 
       {/* Áreas */}
       <div className="container mx-auto px-4 mt-20 max-w-5xl space-y-5">
-        <Skeleton className="h-8 w-64 mx-auto mb-3" />
-        <Skeleton className="h-4 w-80 mx-auto mb-8" />
+        <Skeleton className="h-8 w-72 mx-auto mb-3" />
+        <Skeleton className="h-4 w-96 mx-auto mb-8" />
         {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-44 w-full rounded-2xl" />
+          <Skeleton key={i} className="h-48 w-full rounded-2xl" />
         ))}
-      </div>
-
-      {/* Proyectos destacados */}
-      <div className="container mx-auto px-4 mt-20 max-w-5xl">
-        <div className="flex justify-between mb-6">
-          <Skeleton className="h-6 w-44" />
-          <Skeleton className="h-5 w-20" />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-44 w-full rounded-2xl" />
-          ))}
-        </div>
       </div>
 
     </main>

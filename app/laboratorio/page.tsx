@@ -1,15 +1,13 @@
+"use client"
+
 import Link from "next/link"
 import {
-  Box, Cpu, Code2, ArrowRight, FlaskConical,
+  Box, Cpu, Code2, ArrowRight, FlaskConical, ChevronRight,
   Printer, Layers, Scissors,
   Wifi, Microchip, Zap,
   Globe, Smartphone, Bot,
-  ChevronRight,
 } from "lucide-react"
-import { getProjects } from "@/lib/laboratorio/api"
 import { CodeTitle } from "@/components/shared/code-title"
-
-// ── Áreas con contenido editorial ────────────────────────────────────────────
 
 const AREAS = [
   {
@@ -20,7 +18,6 @@ const AREAS = [
     bgLight:     "bg-[#26a7fc]/8",
     borderColor: "border-[#26a7fc]/20",
     hoverBorder: "hover:border-[#26a7fc]/50",
-    tagBg:       "bg-[#26a7fc]/10 text-[#1c8fe0]",
     description:
       "Desde la idea hasta el prototipo físico. El área de Diseño 3D materializa conceptos en objetos reales usando modelado paramétrico e impresión aditiva, con foco en resolver problemas concretos del territorio.",
     capacidades: [
@@ -38,9 +35,8 @@ const AREAS = [
     bgLight:     "bg-[#7C3AED]/8",
     borderColor: "border-[#7C3AED]/20",
     hoverBorder: "hover:border-[#7C3AED]/50",
-    tagBg:       "bg-[#7C3AED]/10 text-[#7C3AED]",
     description:
-      "Electrónica, microcontroladores e IoT al servicio de soluciones reales. El área de Hardware diseña y construye dispositivos físicos que conectan el mundo digital con el mundo físico de Catamarca.",
+      "Electrónica, microcontroladores e IoT al servicio de soluciones reales. El área de Hardware diseña y construye dispositivos físicos que conectan el mundo digital con el entorno de Catamarca.",
     capacidades: [
       { icon: Microchip, label: "Arduino / ESP32" },
       { icon: Wifi,      label: "IoT & sensores" },
@@ -56,7 +52,6 @@ const AREAS = [
     bgLight:     "bg-[#059669]/8",
     borderColor: "border-[#059669]/20",
     hoverBorder: "hover:border-[#059669]/50",
-    tagBg:       "bg-[#059669]/10 text-[#059669]",
     description:
       "Aplicaciones web, mobile e inteligencia artificial aplicada. El área de Software desarrolla herramientas digitales que potencian los servicios del Nodo y crean valor para la comunidad catamarcana.",
     capacidades: [
@@ -68,34 +63,29 @@ const AREAS = [
   },
 ] as const
 
-// ── Pasos del proceso ─────────────────────────────────────────────────────────
-
 const PROCESO = [
-  { num: "01", titulo: "Ideación",    desc: "El equipo evalúa el problema y define el alcance del proyecto." },
-  { num: "02", titulo: "Prototipado", desc: "Se construye una versión funcional rápida para validar el concepto." },
+  { num: "01", titulo: "Ideación",    desc: "El equipo evalúa el problema y define el alcance." },
+  { num: "02", titulo: "Prototipado", desc: "Se construye una versión funcional rápida para validar." },
   { num: "03", titulo: "Iteración",   desc: "Mejoras continuas basadas en pruebas y feedback real." },
   { num: "04", titulo: "Entrega",     desc: "El proyecto se documenta y publica como recurso abierto." },
 ] as const
 
-// ── Página ────────────────────────────────────────────────────────────────────
-
-export const revalidate = 60
-
-export default async function LaboratorioPage() {
-  const projects   = await getProjects()
-  const destacados = projects.filter((p) => p.featured).slice(0, 4)
-
+export default function LaboratorioPage() {
   return (
     <main className="min-h-screen pt-32 pb-24 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
 
-      {/* ── Hero ──────────────────────────────────────────────────────────── */}
+      {/* Hero */}
       <section className="container mx-auto px-4 text-center max-w-3xl">
         <div className="inline-flex items-center gap-2 bg-[#26a7fc]/10 border border-[#26a7fc]/20 rounded-full px-4 py-1.5 text-sm font-semibold text-[#1c8fe0] mb-6">
           <FlaskConical className="h-3.5 w-3.5" />
           Laboratorio de Innovación
         </div>
 
-        <CodeTitle as="h1" className="text-4xl md:text-5xl font-bold text-gray-900 mb-5 text-balance">
+        <CodeTitle
+          as="h1"
+          className="text-4xl md:text-5xl font-bold text-gray-900 mb-5 text-balance"
+          immediate
+        >
           El lugar donde las <span className="text-[#26a7fc]">ideas se vuelven reales</span>
         </CodeTitle>
 
@@ -106,32 +96,31 @@ export default async function LaboratorioPage() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
-            href="/laboratorio/proyectos"
+            href="#areas"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 shadow-md shadow-[#26a7fc]/20"
             style={{ backgroundImage: "linear-gradient(to right, #26a7fc, #1c8fe0)" }}
           >
-            Ver todos los proyectos
+            Conocer las áreas
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
-            href="#areas"
+            href="/laboratorio/proyectos"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-slate-600 text-sm font-medium border border-slate-200 bg-white/80 hover:bg-white hover:border-slate-300 transition-all"
           >
-            Conocer las áreas
+            Ver proyectos
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       </section>
 
-      {/* ── Proceso ───────────────────────────────────────────────────────── */}
+      {/* Proceso */}
       <section className="container mx-auto px-4 mt-20 max-w-4xl">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {PROCESO.map((paso, i) => (
             <div
               key={paso.num}
-              className="relative bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl px-5 py-5 text-left"
+              className="relative bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl px-5 py-5"
             >
-              {/* conector */}
               {i < PROCESO.length - 1 && (
                 <div className="hidden md:block absolute top-7 -right-2 w-4 h-0.5 bg-slate-200 z-10" />
               )}
@@ -145,19 +134,19 @@ export default async function LaboratorioPage() {
         </div>
       </section>
 
-      {/* ── Áreas ─────────────────────────────────────────────────────────── */}
+      {/* Áreas */}
       <section id="areas" className="container mx-auto px-4 mt-20 max-w-5xl scroll-mt-28">
         <div className="text-center mb-10">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
             Las tres áreas del Laboratorio
           </h2>
           <p className="text-slate-500 text-sm max-w-xl mx-auto">
-            Cada área trabaja de forma autónoma pero colabora en proyectos interdisciplinarios
-            cuando el problema lo requiere.
+            Cada área trabaja de forma autónoma pero colabora en proyectos
+            interdisciplinarios cuando el problema lo requiere.
           </p>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5">
           {AREAS.map((area) => (
             <div
               key={area.key}
@@ -167,23 +156,18 @@ export default async function LaboratorioPage() {
 
                 {/* Ícono + nombre */}
                 <div className="shrink-0 flex md:flex-col items-center md:items-start gap-3 md:gap-2 md:w-36">
-                  <div
-                    className={`h-12 w-12 rounded-xl ${area.bgLight} flex items-center justify-center`}
-                  >
+                  <div className={`h-12 w-12 rounded-xl ${area.bgLight} flex items-center justify-center`}>
                     <area.icon className="h-6 w-6" style={{ color: area.color }} />
                   </div>
                   <h3 className="text-base font-bold text-slate-800">{area.label}</h3>
                 </div>
 
                 {/* Contenido */}
-                <div className="flex-1 space-y-5">
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    {area.description}
-                  </p>
+                <div className="flex-1 space-y-4">
+                  <p className="text-sm text-slate-600 leading-relaxed">{area.description}</p>
 
-                  {/* Capacidades */}
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2.5">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
                       Capacidades
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -200,9 +184,8 @@ export default async function LaboratorioPage() {
                     </div>
                   </div>
 
-                  {/* Ejemplos de proyectos */}
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2.5">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
                       Ejemplos de proyectos
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -236,57 +219,7 @@ export default async function LaboratorioPage() {
         </div>
       </section>
 
-      {/* ── Proyectos destacados ───────────────────────────────────────────── */}
-      {destacados.length > 0 && (
-        <section className="container mx-auto px-4 mt-20 max-w-5xl">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Proyectos destacados</h2>
-            <Link
-              href="/laboratorio/proyectos"
-              className="text-sm font-medium text-[#26a7fc] hover:text-[#1c8fe0] inline-flex items-center gap-1 transition-colors"
-            >
-              Ver todos
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {destacados.map((project) => {
-              const areaConfig = AREAS.find((a) => a.key === project.area)
-              return (
-                <Link key={project.id} href={`/laboratorio/proyectos/${project.slug}`}>
-                  <div className="group bg-white/80 backdrop-blur-sm border border-slate-200 hover:border-[#26a7fc]/30 rounded-2xl overflow-hidden transition-all hover:shadow-md h-full flex flex-col">
-                    {/* Cover */}
-                    <div
-                      className="h-28 bg-cover bg-center bg-[#26a7fc]/8 shrink-0"
-                      style={project.coverImage ? { backgroundImage: `url(${project.coverImage})` } : undefined}
-                    />
-                    <div className="p-4 flex flex-col gap-2 flex-1">
-                      {areaConfig && (
-                        <span
-                          className={`inline-flex w-fit text-[10px] font-semibold px-2 py-0.5 rounded-full ${areaConfig.tagBg}`}
-                        >
-                          {areaConfig.label}
-                        </span>
-                      )}
-                      <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug">
-                        {project.title}
-                      </p>
-                      {project.tags.length > 0 && (
-                        <p className="text-xs text-slate-400 line-clamp-1 mt-auto">
-                          {project.tags.slice(0, 2).join(" · ")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* ── CTA final ─────────────────────────────────────────────────────── */}
+      {/* CTA final */}
       <section className="container mx-auto px-4 mt-20 max-w-2xl text-center">
         <div className="bg-white/80 backdrop-blur-sm border border-[#26a7fc]/15 rounded-2xl px-8 py-10">
           <FlaskConical className="h-8 w-8 text-[#26a7fc] mx-auto mb-4" />
