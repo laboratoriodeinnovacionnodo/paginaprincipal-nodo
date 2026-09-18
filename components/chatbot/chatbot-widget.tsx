@@ -157,15 +157,15 @@ export function ChatbotWidget() {
           aria-label="Asistente Virtual del Nodo Tecnológico"
           className="fixed inset-0 z-[100] flex flex-col"
         >
-          {/* SiriFrame — fondo animado con colores de marca */}
+          {/* SiriFrame — fondo animado, sin cambios */}
           <div className="absolute inset-0">
             <SiriFrame state={frameState} />
           </div>
 
-          {/* Vidrio esmerilado mínimo — solo para suavizar, sin tapar el glow */}
+          {/* Velo mínimo — igual que el original */}
           <div className="pointer-events-none absolute inset-0 bg-white/8 backdrop-blur-[2px]" />
 
-          {/* Botón cerrar */}
+          {/* Botón cerrar — igual que el original */}
           <button
             type="button"
             onClick={handleClose}
@@ -175,7 +175,7 @@ export function ChatbotWidget() {
             <X className="h-5 w-5 text-white" />
           </button>
 
-          {/* Header */}
+          {/* Header — igual que el original */}
           <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
             <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
               <Bot className="h-4 w-4 text-white" />
@@ -193,7 +193,7 @@ export function ChatbotWidget() {
             </div>
           </div>
 
-          {/* Pantalla de bienvenida */}
+          {/* Pantalla de bienvenida — igual que el original */}
           {!hasStarted && (
             <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 gap-6 animate-in fade-in duration-500">
               <div className="text-center space-y-3 max-w-sm">
@@ -206,7 +206,6 @@ export function ChatbotWidget() {
                 </p>
               </div>
 
-              {/* Sugerencias */}
               <div className="flex flex-col gap-2 w-full max-w-sm">
                 {SUGGESTIONS.map((s) => (
                   <button
@@ -234,7 +233,6 @@ export function ChatbotWidget() {
           {hasStarted && (
             <div className="relative z-10 flex-1 flex flex-col min-h-0 px-4 sm:px-6 pb-4 pt-4 max-w-2xl w-full mx-auto">
 
-              {/* Mensajes */}
               <div
                 ref={messagesRef}
                 className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20"
@@ -252,8 +250,10 @@ export function ChatbotWidget() {
                     <div
                       className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed backdrop-blur-md ${
                         msg.sender === "user"
-                          ? "bg-[#26a7fc]/80 text-white rounded-br-sm border border-[#26a7fc]/40"
-                          : "bg-white/12 text-white/90 rounded-bl-sm border border-white/15"
+                          // Burbuja usuario: glass blanco, texto oscuro
+                          ? "bg-white/80 text-slate-800 rounded-br-sm border border-white/60 shadow-sm"
+                          // Burbuja bot: glass blanco, texto oscuro
+                          : "bg-white/75 text-slate-800 rounded-bl-sm border border-white/50 shadow-sm"
                       }`}
                     >
                       {msg.text}
@@ -267,10 +267,10 @@ export function ChatbotWidget() {
                     <div className="h-7 w-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 mr-2 mt-1">
                       <Bot className="h-3.5 w-3.5 text-white" />
                     </div>
-                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/12 border border-white/15 backdrop-blur-md flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:300ms]" />
+                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/75 border border-white/50 backdrop-blur-md shadow-sm flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]" />
                     </div>
                   </div>
                 )}
@@ -286,7 +286,7 @@ export function ChatbotWidget() {
                   onKeyDown={handleKeyDown}
                   placeholder="Escribí tu consulta..."
                   disabled={isLoading}
-                  className="flex-1 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 focus:bg-white/15 backdrop-blur-md border border-white/20 focus:border-white/35 text-white placeholder-white/40 text-sm outline-none transition-all disabled:opacity-50"
+                  className="flex-1 px-4 py-3 rounded-2xl bg-white/75 hover:bg-white/85 focus:bg-white/90 backdrop-blur-md border border-white/50 focus:border-white/70 text-slate-800 placeholder-slate-400 text-sm outline-none transition-all disabled:opacity-50 shadow-sm"
                 />
                 <button
                   type="button"

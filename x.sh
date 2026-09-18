@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  fix-chatbot-white-theme.sh — ciudadano-front  v1.2.0
-#  Restaura el chatbot al diseño original: SiriFrame con colores de marca,
-#  textos y burbujas en blanco, sin ningún velo que tape las animaciones.
+#  fix-chatbot-white-theme.sh — ciudadano-front  v1.3.0
+#  Burbujas e input en glass blanco con texto oscuro.
+#  Fondo SiriFrame intacto.
 # ============================================================================
 set -euo pipefail
 
@@ -13,7 +13,7 @@ fail() { echo -e "${RED}❌  $*${RESET}"; exit 1; }
 
 [[ -f "package.json" && -d "app" ]] || fail "Corré desde la raíz de ciudadano-front"
 
-echo "📄  Restaurando components/chatbot/chatbot-widget.tsx al diseño original..."
+echo "📄  Actualizando components/chatbot/chatbot-widget.tsx..."
 
 mkdir -p components/chatbot
 
@@ -177,15 +177,15 @@ export function ChatbotWidget() {
           aria-label="Asistente Virtual del Nodo Tecnológico"
           className="fixed inset-0 z-[100] flex flex-col"
         >
-          {/* SiriFrame — fondo animado con colores de marca */}
+          {/* SiriFrame — fondo animado, sin cambios */}
           <div className="absolute inset-0">
             <SiriFrame state={frameState} />
           </div>
 
-          {/* Vidrio esmerilado mínimo — solo para suavizar, sin tapar el glow */}
+          {/* Velo mínimo — igual que el original */}
           <div className="pointer-events-none absolute inset-0 bg-white/8 backdrop-blur-[2px]" />
 
-          {/* Botón cerrar */}
+          {/* Botón cerrar — igual que el original */}
           <button
             type="button"
             onClick={handleClose}
@@ -195,7 +195,7 @@ export function ChatbotWidget() {
             <X className="h-5 w-5 text-white" />
           </button>
 
-          {/* Header */}
+          {/* Header — igual que el original */}
           <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
             <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
               <Bot className="h-4 w-4 text-white" />
@@ -213,7 +213,7 @@ export function ChatbotWidget() {
             </div>
           </div>
 
-          {/* Pantalla de bienvenida */}
+          {/* Pantalla de bienvenida — igual que el original */}
           {!hasStarted && (
             <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 gap-6 animate-in fade-in duration-500">
               <div className="text-center space-y-3 max-w-sm">
@@ -226,7 +226,6 @@ export function ChatbotWidget() {
                 </p>
               </div>
 
-              {/* Sugerencias */}
               <div className="flex flex-col gap-2 w-full max-w-sm">
                 {SUGGESTIONS.map((s) => (
                   <button
@@ -254,7 +253,6 @@ export function ChatbotWidget() {
           {hasStarted && (
             <div className="relative z-10 flex-1 flex flex-col min-h-0 px-4 sm:px-6 pb-4 pt-4 max-w-2xl w-full mx-auto">
 
-              {/* Mensajes */}
               <div
                 ref={messagesRef}
                 className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20"
@@ -272,8 +270,10 @@ export function ChatbotWidget() {
                     <div
                       className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed backdrop-blur-md ${
                         msg.sender === "user"
-                          ? "bg-[#26a7fc]/80 text-white rounded-br-sm border border-[#26a7fc]/40"
-                          : "bg-white/12 text-white/90 rounded-bl-sm border border-white/15"
+                          // Burbuja usuario: glass blanco, texto oscuro
+                          ? "bg-white/80 text-slate-800 rounded-br-sm border border-white/60 shadow-sm"
+                          // Burbuja bot: glass blanco, texto oscuro
+                          : "bg-white/75 text-slate-800 rounded-bl-sm border border-white/50 shadow-sm"
                       }`}
                     >
                       {msg.text}
@@ -287,10 +287,10 @@ export function ChatbotWidget() {
                     <div className="h-7 w-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 mr-2 mt-1">
                       <Bot className="h-3.5 w-3.5 text-white" />
                     </div>
-                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/12 border border-white/15 backdrop-blur-md flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:300ms]" />
+                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/75 border border-white/50 backdrop-blur-md shadow-sm flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]" />
                     </div>
                   </div>
                 )}
@@ -306,7 +306,7 @@ export function ChatbotWidget() {
                   onKeyDown={handleKeyDown}
                   placeholder="Escribí tu consulta..."
                   disabled={isLoading}
-                  className="flex-1 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 focus:bg-white/15 backdrop-blur-md border border-white/20 focus:border-white/35 text-white placeholder-white/40 text-sm outline-none transition-all disabled:opacity-50"
+                  className="flex-1 px-4 py-3 rounded-2xl bg-white/75 hover:bg-white/85 focus:bg-white/90 backdrop-blur-md border border-white/50 focus:border-white/70 text-slate-800 placeholder-slate-400 text-sm outline-none transition-all disabled:opacity-50 shadow-sm"
                 />
                 <button
                   type="button"
@@ -330,7 +330,7 @@ export function ChatbotWidget() {
 }
 ENDOFFILE
 
-ok "chatbot-widget.tsx restaurado al diseño original con SiriFrame"
+ok "chatbot-widget.tsx → burbujas e input glass blanco con texto oscuro"
 
 echo ""
 echo "🔨  TypeScript check..."
@@ -338,11 +338,15 @@ pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -20 || warn "Revisar errores T
 
 echo ""
 echo "════════════════════════════════════════════════════════════"
-echo "✅  Chatbot restaurado:"
-echo "    • Fondo: SiriFrame con colores de marca + animaciones"
-echo "    • Velo: bg-white/8 backdrop-blur-[2px] (mínimo)"
-echo "    • Textos: text-white / text-white/90"
-echo "    • Burbujas bot: bg-white/12 text-white/90"
-echo "    • Burbujas user: bg-[#26a7fc]/80 text-white"
-echo "    • Input: bg-white/10 text-white"
+echo "✅  Chatbot actualizado:"
+echo "    SIN CAMBIOS:"
+echo "    • Fondo SiriFrame con colores de marca y animaciones"
+echo "    • Velo bg-white/8 backdrop-blur-[2px]"
+echo "    • Header, botón cerrar, bienvenida, sugerencias"
+echo ""
+echo "    CAMBIADO:"
+echo "    • Burbuja usuario: bg-white/80 text-slate-800 (glass blanco)"
+echo "    • Burbuja bot:     bg-white/75 text-slate-800 (glass blanco)"
+echo "    • Typing dots:     bg-slate-400"
+echo "    • Input:           bg-white/75 text-slate-800 (glass blanco)"
 echo "════════════════════════════════════════════════════════════"
