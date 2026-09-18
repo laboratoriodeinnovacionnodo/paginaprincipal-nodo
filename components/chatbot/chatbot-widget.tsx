@@ -46,8 +46,8 @@ export function ChatbotWidget() {
   const [hasStarted,  setHasStarted]  = useState(false)
   const [frameState,  setFrameState]  = useState<SiriFrameState>("idle")
 
-  const inputRef    = useRef<HTMLInputElement>(null)
-  const messagesRef = useRef<HTMLDivElement>(null)
+  const inputRef      = useRef<HTMLInputElement>(null)
+  const messagesRef   = useRef<HTMLDivElement>(null)
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Saludo al abrir
@@ -86,12 +86,10 @@ export function ChatbotWidget() {
     const trimmed = text.trim()
     if (!trimmed || isLoading) return
 
-    // Agregar mensaje del usuario
     const userMsg: Message = { id: uid(), text: trimmed, sender: "user", timestamp: new Date() }
     setMessages((prev) => [...prev, userMsg])
     setInputValue("")
 
-    // Actualizar historial para Groq
     const newHistory: GroqMessage[] = [...history, { role: "user", content: trimmed }]
     setHistory(newHistory)
 
@@ -115,7 +113,6 @@ export function ChatbotWidget() {
       setHistory((prev) => [...prev, { role: "assistant", content: replyText }])
       setFrameState("speaking")
 
-      // Volver a idle después de "hablar"
       setTimeout(() => setFrameState("idle"), 1500)
     } catch {
       const errMsg: Message = {
@@ -145,7 +142,6 @@ export function ChatbotWidget() {
 
   const handleClose = () => {
     setIsOpen(false)
-    // Resetear para próxima apertura
     setHasStarted(false)
     setMessages([])
     setHistory([])
@@ -155,7 +151,7 @@ export function ChatbotWidget() {
 
   return (
     <>
-      {/* Botón flotante */}
+      {/* ── Botón flotante ── */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
@@ -166,7 +162,7 @@ export function ChatbotWidget() {
         <Bot className="h-6 w-6 text-white" />
       </button>
 
-      {/* Overlay full-screen */}
+      {/* ── Overlay full-screen ── */}
       {isOpen && (
         <div
           role="dialog"
@@ -174,36 +170,36 @@ export function ChatbotWidget() {
           aria-label="Asistente Virtual del Nodo Tecnológico"
           className="fixed inset-0 z-[100] flex flex-col"
         >
-          {/* Fondo SiriFrame — se ve la página + glow animado */}
+          {/* SiriFrame animado pegado a los bordes */}
           <div className="absolute inset-0">
             <SiriFrame state={frameState} />
           </div>
 
-          {/* Vidrio esmerilado leve */}
-          <div className="pointer-events-none absolute inset-0 bg-white/8 backdrop-blur-[2px]" />
+          {/* Fondo blanco semi-transparente con glass */}
+          <div className="pointer-events-none absolute inset-0 bg-white/88 backdrop-blur-xl" />
 
-          {/* Botón cerrar */}
+          {/* ── Botón cerrar ── */}
           <button
             type="button"
             onClick={handleClose}
             aria-label="Cerrar asistente"
-            className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center transition-colors"
+            className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-slate-100/80 hover:bg-slate-200/90 backdrop-blur-md border border-slate-200 flex items-center justify-center transition-colors"
           >
-            <X className="h-5 w-5 text-white" />
+            <X className="h-5 w-5 text-slate-600" />
           </button>
 
-          {/* Header */}
+          {/* ── Header ── */}
           <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
-            <div className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
-              <Bot className="h-4 w-4 text-white" />
+            <div className="h-9 w-9 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center">
+              <Bot className="h-4 w-4 text-[#26a7fc]" />
             </div>
             <div>
-              <h2 className="text-white text-base font-semibold leading-tight">
+              <h2 className="text-slate-800 text-base font-semibold leading-tight">
                 Asistente NODO
               </h2>
-              <p className="text-xs text-white/60 leading-tight flex items-center gap-1.5">
+              <p className="text-xs text-slate-400 leading-tight flex items-center gap-1.5">
                 {frameState === "thinking" && (
-                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  <Loader2 className="h-2.5 w-2.5 animate-spin text-[#26a7fc]" />
                 )}
                 {frameState === "thinking" ? "Pensando..." : "En línea"}
               </p>
@@ -214,11 +210,11 @@ export function ChatbotWidget() {
           {!hasStarted && (
             <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 gap-6 animate-in fade-in duration-500">
               <div className="text-center space-y-3 max-w-sm">
-                <div className="mx-auto h-16 w-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
-                  <Bot className="h-8 w-8 text-white" />
+                <div className="mx-auto h-16 w-16 rounded-2xl bg-white border border-slate-200 shadow-md flex items-center justify-center">
+                  <Bot className="h-8 w-8 text-[#26a7fc]" />
                 </div>
-                <h3 className="text-white text-xl font-bold">¿En qué puedo ayudarte?</h3>
-                <p className="text-white/60 text-sm">
+                <h3 className="text-slate-800 text-xl font-bold">¿En qué puedo ayudarte?</h3>
+                <p className="text-slate-500 text-sm">
                   Soy el asistente del Nodo Tecnológico. Puedo ayudarte con cursos, eventos, coworking y más.
                 </p>
               </div>
@@ -230,7 +226,7 @@ export function ChatbotWidget() {
                     key={s}
                     type="button"
                     onClick={() => { startChat(); setTimeout(() => sendMessage(s), 100) }}
-                    className="text-left px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/15 text-white/90 text-sm transition-all duration-200 hover:border-white/30"
+                    className="text-left px-4 py-3 rounded-2xl bg-white/90 hover:bg-white border border-slate-200 hover:border-[#26a7fc]/40 text-slate-700 text-sm transition-all duration-200 shadow-sm hover:shadow-md"
                   >
                     {s}
                   </button>
@@ -240,7 +236,7 @@ export function ChatbotWidget() {
               <button
                 type="button"
                 onClick={startChat}
-                className="px-6 py-2.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 text-white text-sm font-medium transition-all duration-200"
+                className="px-6 py-2.5 rounded-full bg-[#26a7fc] hover:bg-[#1c8fe0] text-white text-sm font-medium transition-all duration-200 shadow-md shadow-[#26a7fc]/25"
               >
                 Iniciar conversación
               </button>
@@ -254,7 +250,7 @@ export function ChatbotWidget() {
               {/* Mensajes */}
               <div
                 ref={messagesRef}
-                className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20"
+                className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-200"
               >
                 {messages.map((msg) => (
                   <div
@@ -262,15 +258,15 @@ export function ChatbotWidget() {
                     className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
                   >
                     {msg.sender === "bot" && (
-                      <div className="h-7 w-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 mr-2 mt-1">
-                        <Bot className="h-3.5 w-3.5 text-white" />
+                      <div className="h-7 w-7 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
+                        <Bot className="h-3.5 w-3.5 text-[#26a7fc]" />
                       </div>
                     )}
                     <div
-                      className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed backdrop-blur-md ${
+                      className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                         msg.sender === "user"
-                          ? "bg-[#26a7fc]/80 text-white rounded-br-sm border border-[#26a7fc]/40"
-                          : "bg-white/12 text-white/90 rounded-bl-sm border border-white/15"
+                          ? "bg-[#26a7fc] text-white rounded-br-sm shadow-sm shadow-[#26a7fc]/20"
+                          : "bg-white text-slate-700 rounded-bl-sm border border-slate-200 shadow-sm"
                       }`}
                     >
                       {msg.text}
@@ -281,13 +277,13 @@ export function ChatbotWidget() {
                 {/* Indicador de typing */}
                 {isLoading && (
                   <div className="flex justify-start animate-in fade-in duration-300">
-                    <div className="h-7 w-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0 mr-2 mt-1">
-                      <Bot className="h-3.5 w-3.5 text-white" />
+                    <div className="h-7 w-7 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
+                      <Bot className="h-3.5 w-3.5 text-[#26a7fc]" />
                     </div>
-                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/12 border border-white/15 backdrop-blur-md flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce [animation-delay:300ms]" />
+                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white border border-slate-200 shadow-sm flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]" />
                     </div>
                   </div>
                 )}
@@ -303,14 +299,14 @@ export function ChatbotWidget() {
                   onKeyDown={handleKeyDown}
                   placeholder="Escribí tu consulta..."
                   disabled={isLoading}
-                  className="flex-1 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 focus:bg-white/15 backdrop-blur-md border border-white/20 focus:border-white/35 text-white placeholder-white/40 text-sm outline-none transition-all disabled:opacity-50"
+                  className="flex-1 px-4 py-3 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 focus:border-[#26a7fc]/50 focus:ring-2 focus:ring-[#26a7fc]/10 text-slate-800 placeholder-slate-400 text-sm outline-none transition-all disabled:opacity-50 shadow-sm"
                 />
                 <button
                   type="button"
                   onClick={() => sendMessage(inputValue)}
                   disabled={isLoading || !inputValue.trim()}
                   aria-label="Enviar mensaje"
-                  className="h-12 w-12 rounded-2xl bg-[#26a7fc]/70 hover:bg-[#26a7fc]/90 backdrop-blur-md border border-[#26a7fc]/40 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                  className="h-12 w-12 rounded-2xl bg-[#26a7fc] hover:bg-[#1c8fe0] border border-[#26a7fc]/20 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-md shadow-[#26a7fc]/25"
                 >
                   {isLoading
                     ? <Loader2 className="h-4 w-4 text-white animate-spin" />

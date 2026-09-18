@@ -1,119 +1,362 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  fix-chatbot-debug.sh — ciudadano-front
-#  Mejora el logging de /api/chat para exponer el error real de Groq
-#  y actualiza el modelo a uno vigente.
+#  fix-chatbot-white-theme.sh — ciudadano-front  v1.0.0
+#  Rediseña ChatbotWidget: fondo blanco/glass, letras oscuras.
+#  El SiriFrame animado se conserva intacto en los bordes.
 # ============================================================================
 set -euo pipefail
 
-GREEN='\033[0;32m'; RED='\033[0;31m'; RESET='\033[0m'
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
 ok()   { echo -e "${GREEN}✅  $*${RESET}"; }
+warn() { echo -e "${YELLOW}⚠️   $*${RESET}"; }
 fail() { echo -e "${RED}❌  $*${RESET}"; exit 1; }
 
 [[ -f "package.json" && -d "app" ]] || fail "Corré desde la raíz de ciudadano-front"
 
-echo "📄  Reescribiendo app/api/chat/route.ts con logging real de errores..."
+echo "📄  Reescribiendo components/chatbot/chatbot-widget.tsx → tema blanco..."
 
-cat > app/api/chat/route.ts << 'EOF'
-import { NextRequest, NextResponse } from "next/server"
-import Groq from "groq-sdk"
+mkdir -p components/chatbot
 
-const GROQ_API_KEY = process.env.NEXT_GROQ_API_KEY ?? ""
-const MODEL = process.env.NEXT_GROQ_MODEL || "llama-3.3-70b-versatile"
+cat > components/chatbot/chatbot-widget.tsx << 'ENDOFFILE'
+"use client"
 
-const SYSTEM_PROMPT = `Sos el asistente virtual del Nodo Tecnológico de Catamarca, un centro de innovación y educación digital de Argentina.
-Tu rol es ayudar a los ciudadanos con información sobre:
-- Cursos y talleres de tecnología, programación e inteligencia artificial
-- El espacio de coworking y sus zonas disponibles
-- El laboratorio de innovación y sus proyectos
-- Eventos y actividades públicas del Nodo
-- Cómo inscribirse o contactarse
+import { useState, useEffect, useRef, useCallback } from "react"
+import { Bot, X, Send, Loader2 } from "lucide-react"
+import { SiriFrame, type SiriFrameState } from "@/components/chatbot/siri-frame"
 
-Reglas:
-- Respondé siempre en español argentino, de manera amigable, clara y concisa
-- Si no sabés algo específico, decí que el ciudadano puede consultar en recepción o en el sitio web
-- No inventes información. Sé honesto cuando no tenés datos
-- Mantené las respuestas cortas (máximo 3-4 oraciones salvo que te pidan más detalle)
-- No uses markdown con asteriscos — solo texto plano`
+// ── Tipos ─────────────────────────────────────────────────────────────────
+
+interface Message {
+  id:        string
+  text:      string
+  sender:    "user" | "bot"
+  timestamp: Date
+}
 
 interface GroqMessage {
-  role: "user" | "assistant"
+  role:    "user" | "assistant"
   content: string
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    if (!GROQ_API_KEY) {
-      console.error("[chat/route] NEXT_GROQ_API_KEY no está configurada en runtime")
-      return NextResponse.json(
-        { error: "Configuración del servidor incompleta (API key ausente)" },
-        { status: 500 },
-      )
-    }
+// ── Sugerencias iniciales ─────────────────────────────────────────────────
 
-    const { messages } = (await req.json()) as { messages: GroqMessage[] }
+const SUGGESTIONS = [
+  "¿Qué cursos tienen disponibles?",
+  "¿Cómo funciona el coworking?",
+  "¿Cuándo son los próximos eventos?",
+  "¿Qué es el Laboratorio de Innovación?",
+]
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: "messages requerido" }, { status: 400 })
-    }
+const GREETING = "¡Hola! Soy el asistente virtual del Nodo Tecnológico. ¿En qué puedo ayudarte hoy?"
 
-    const groq = new Groq({ apiKey: GROQ_API_KEY })
+// ── Helper ────────────────────────────────────────────────────────────────
 
-    const completion = await groq.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...messages,
-      ],
-      max_tokens: 512,
-      temperature: 0.7,
-    })
-
-    const reply = completion.choices[0]?.message?.content ?? "No pude generar una respuesta."
-
-    return NextResponse.json({ reply })
-  } catch (err: unknown) {
-    // Log completo en el servidor para diagnosticar (Groq SDK expone status/error)
-    const groqErr = err as { status?: number; error?: unknown; message?: string }
-    console.error("[chat/route] Error de Groq:", {
-      status: groqErr?.status,
-      message: groqErr?.message,
-      detail: groqErr?.error,
-    })
-
-    return NextResponse.json(
-      {
-        error: "Error al procesar la consulta",
-        // Solo en desarrollo mostramos detalle al cliente
-        ...(process.env.NODE_ENV !== "production" && { detail: groqErr?.message }),
-      },
-      { status: 500 },
-    )
-  }
+function uid() {
+  return Math.random().toString(36).slice(2)
 }
-EOF
 
-ok "route.ts actualizado con logging real"
+// ── Componente ────────────────────────────────────────────────────────────
+
+export function ChatbotWidget() {
+  const [isOpen,      setIsOpen]      = useState(false)
+  const [messages,    setMessages]    = useState<Message[]>([])
+  const [history,     setHistory]     = useState<GroqMessage[]>([])
+  const [inputValue,  setInputValue]  = useState("")
+  const [isLoading,   setIsLoading]   = useState(false)
+  const [hasStarted,  setHasStarted]  = useState(false)
+  const [frameState,  setFrameState]  = useState<SiriFrameState>("idle")
+
+  const inputRef      = useRef<HTMLInputElement>(null)
+  const messagesRef   = useRef<HTMLDivElement>(null)
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Saludo al abrir
+  useEffect(() => {
+    if (!isOpen) return
+    setFrameState("greeting")
+    const t = setTimeout(() => setFrameState("idle"), 800)
+    return () => clearTimeout(t)
+  }, [isOpen])
+
+  // Scroll al último mensaje
+  useEffect(() => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+    }
+  }, [messages])
+
+  // Focus al input al abrir el chat
+  useEffect(() => {
+    if (isOpen && hasStarted) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [isOpen, hasStarted])
+
+  const startChat = useCallback(() => {
+    setHasStarted(true)
+    setMessages([{
+      id:        uid(),
+      text:      GREETING,
+      sender:    "bot",
+      timestamp: new Date(),
+    }])
+  }, [])
+
+  const sendMessage = useCallback(async (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed || isLoading) return
+
+    const userMsg: Message = { id: uid(), text: trimmed, sender: "user", timestamp: new Date() }
+    setMessages((prev) => [...prev, userMsg])
+    setInputValue("")
+
+    const newHistory: GroqMessage[] = [...history, { role: "user", content: trimmed }]
+    setHistory(newHistory)
+
+    setIsLoading(true)
+    setFrameState("thinking")
+
+    try {
+      const res = await fetch("/api/chat", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ messages: newHistory }),
+      })
+
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+
+      const data = await res.json()
+      const replyText = data.reply ?? "No pude generar una respuesta."
+
+      const botMsg: Message = { id: uid(), text: replyText, sender: "bot", timestamp: new Date() }
+      setMessages((prev) => [...prev, botMsg])
+      setHistory((prev) => [...prev, { role: "assistant", content: replyText }])
+      setFrameState("speaking")
+
+      setTimeout(() => setFrameState("idle"), 1500)
+    } catch {
+      const errMsg: Message = {
+        id:        uid(),
+        text:      "Ocurrió un error. Por favor, intentá nuevamente.",
+        sender:    "bot",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errMsg])
+      setFrameState("error")
+
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+      errorTimerRef.current = setTimeout(() => {
+        setFrameState((cur) => cur === "error" ? "idle" : cur)
+      }, 1800)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [history, isLoading])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage(inputValue)
+    }
+  }
+
+  const handleClose = () => {
+    setIsOpen(false)
+    setHasStarted(false)
+    setMessages([])
+    setHistory([])
+    setFrameState("idle")
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+  }
+
+  return (
+    <>
+      {/* ── Botón flotante ── */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        aria-label="Abrir asistente virtual"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 z-50 cursor-pointer flex items-center justify-center border-0"
+        style={{ backgroundImage: "linear-gradient(to bottom right, #26a7fc, #1c8fe0)" }}
+      >
+        <Bot className="h-6 w-6 text-white" />
+      </button>
+
+      {/* ── Overlay full-screen ── */}
+      {isOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Asistente Virtual del Nodo Tecnológico"
+          className="fixed inset-0 z-[100] flex flex-col"
+        >
+          {/* SiriFrame animado pegado a los bordes */}
+          <div className="absolute inset-0">
+            <SiriFrame state={frameState} />
+          </div>
+
+          {/* Fondo blanco semi-transparente con glass */}
+          <div className="pointer-events-none absolute inset-0 bg-white/88 backdrop-blur-xl" />
+
+          {/* ── Botón cerrar ── */}
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Cerrar asistente"
+            className="absolute top-5 right-5 sm:top-8 sm:right-8 z-20 h-10 w-10 rounded-full bg-slate-100/80 hover:bg-slate-200/90 backdrop-blur-md border border-slate-200 flex items-center justify-center transition-colors"
+          >
+            <X className="h-5 w-5 text-slate-600" />
+          </button>
+
+          {/* ── Header ── */}
+          <div className="relative z-10 flex items-center gap-3 px-6 pt-6 sm:px-10 sm:pt-8 shrink-0 pointer-events-none animate-in fade-in duration-500">
+            <div className="h-9 w-9 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center">
+              <Bot className="h-4 w-4 text-[#26a7fc]" />
+            </div>
+            <div>
+              <h2 className="text-slate-800 text-base font-semibold leading-tight">
+                Asistente NODO
+              </h2>
+              <p className="text-xs text-slate-400 leading-tight flex items-center gap-1.5">
+                {frameState === "thinking" && (
+                  <Loader2 className="h-2.5 w-2.5 animate-spin text-[#26a7fc]" />
+                )}
+                {frameState === "thinking" ? "Pensando..." : "En línea"}
+              </p>
+            </div>
+          </div>
+
+          {/* ── Pantalla de bienvenida ── */}
+          {!hasStarted && (
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 gap-6 animate-in fade-in duration-500">
+              <div className="text-center space-y-3 max-w-sm">
+                <div className="mx-auto h-16 w-16 rounded-2xl bg-white border border-slate-200 shadow-md flex items-center justify-center">
+                  <Bot className="h-8 w-8 text-[#26a7fc]" />
+                </div>
+                <h3 className="text-slate-800 text-xl font-bold">¿En qué puedo ayudarte?</h3>
+                <p className="text-slate-500 text-sm">
+                  Soy el asistente del Nodo Tecnológico. Puedo ayudarte con cursos, eventos, coworking y más.
+                </p>
+              </div>
+
+              {/* Sugerencias */}
+              <div className="flex flex-col gap-2 w-full max-w-sm">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => { startChat(); setTimeout(() => sendMessage(s), 100) }}
+                    className="text-left px-4 py-3 rounded-2xl bg-white/90 hover:bg-white border border-slate-200 hover:border-[#26a7fc]/40 text-slate-700 text-sm transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={startChat}
+                className="px-6 py-2.5 rounded-full bg-[#26a7fc] hover:bg-[#1c8fe0] text-white text-sm font-medium transition-all duration-200 shadow-md shadow-[#26a7fc]/25"
+              >
+                Iniciar conversación
+              </button>
+            </div>
+          )}
+
+          {/* ── Chat activo ── */}
+          {hasStarted && (
+            <div className="relative z-10 flex-1 flex flex-col min-h-0 px-4 sm:px-6 pb-4 pt-4 max-w-2xl w-full mx-auto">
+
+              {/* Mensajes */}
+              <div
+                ref={messagesRef}
+                className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-200"
+              >
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
+                  >
+                    {msg.sender === "bot" && (
+                      <div className="h-7 w-7 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
+                        <Bot className="h-3.5 w-3.5 text-[#26a7fc]" />
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                        msg.sender === "user"
+                          ? "bg-[#26a7fc] text-white rounded-br-sm shadow-sm shadow-[#26a7fc]/20"
+                          : "bg-white text-slate-700 rounded-bl-sm border border-slate-200 shadow-sm"
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Indicador de typing */}
+                {isLoading && (
+                  <div className="flex justify-start animate-in fade-in duration-300">
+                    <div className="h-7 w-7 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 mr-2 mt-1">
+                      <Bot className="h-3.5 w-3.5 text-[#26a7fc]" />
+                    </div>
+                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white border border-slate-200 shadow-sm flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:150ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Input */}
+              <div className="mt-3 flex gap-2 shrink-0">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Escribí tu consulta..."
+                  disabled={isLoading}
+                  className="flex-1 px-4 py-3 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 focus:border-[#26a7fc]/50 focus:ring-2 focus:ring-[#26a7fc]/10 text-slate-800 placeholder-slate-400 text-sm outline-none transition-all disabled:opacity-50 shadow-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => sendMessage(inputValue)}
+                  disabled={isLoading || !inputValue.trim()}
+                  aria-label="Enviar mensaje"
+                  className="h-12 w-12 rounded-2xl bg-[#26a7fc] hover:bg-[#1c8fe0] border border-[#26a7fc]/20 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-md shadow-[#26a7fc]/25"
+                >
+                  {isLoading
+                    ? <Loader2 className="h-4 w-4 text-white animate-spin" />
+                    : <Send className="h-4 w-4 text-white" />
+                  }
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+ENDOFFILE
+
+ok "chatbot-widget.tsx → tema blanco con glass"
 
 echo ""
-echo "🔨  TypeScript check..."
-pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -30 || true
-
-echo ""
-echo "🔨  Build..."
-pnpm build
+echo "🔨  TypeScript check rápido..."
+pnpm exec tsc --noEmit --skipLibCheck 2>&1 | head -20 || warn "Revisar errores TS arriba"
 
 echo ""
 echo "════════════════════════════════════════════════════════════"
-echo "✅  Listo. Después de deployar, revisá:"
-echo "    docker logs ciudadano-front --tail 50 | grep 'chat/route'"
+echo "✅  Listo. Cambios aplicados:"
+echo "    • Fondo: bg-white/88 backdrop-blur-xl (glass blanco)"
+echo "    • Textos: slate-800 / slate-700 / slate-500"
+echo "    • Burbujas bot: bg-white border-slate-200 text-slate-700"
+echo "    • Burbujas user: bg-[#26a7fc] text-white (sin cambio)"
+echo "    • SiriFrame animado: intacto en los bordes"
+echo "    • Botón enviar: sólido azul (sin transparencia)"
+echo "    • Input: bg-white border-slate-200"
 echo "════════════════════════════════════════════════════════════"
-echo ""
-echo "Causas típicas que vas a ver ahí:"
-echo "  - status 401 → la API key horneada en el build es BUILD_TIME_PLACEHOLDER"
-echo "    (el secret NEXT_GROQ_API_KEY no estaba en GitHub al momento del build,"
-echo "     o el build-arg no llegó al Dockerfile)"
-echo "  - status 400 'model not found' → el modelo llama-3.3-70b-versatile"
-echo "    fue deprecado en Groq. Anda a https://console.groq.com/docs/models"
-echo "    y actualizá NEXT_GROQ_MODEL con el secret correcto en GitHub"
-echo "    (ej: llama-3.1-8b-instant o el vigente)"
