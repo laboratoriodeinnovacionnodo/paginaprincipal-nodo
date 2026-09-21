@@ -27,12 +27,13 @@ export async function HeroSection() {
   const { before, highlight } = parseTitulo(config.titulo)
 
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-[100vh] flex items-center justify-center overflow-hidden">
 
       {/* Video de fondo */}
       <video
         className="absolute inset-0 w-full h-full object-cover"
-        src={config.videoUrl}
+        // src={config.videoUrl}
+        src="/videos/nodo.mp4"
         autoPlay loop muted playsInline
         aria-hidden="true"
       />
